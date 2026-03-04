@@ -136,6 +136,7 @@ export default function SignUpScreen() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          testID="email-input"
         />
         <TextInput
           style={s.input}
@@ -144,6 +145,7 @@ export default function SignUpScreen() {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          testID="password-input"
         />
         <TextInput
           style={s.input}
@@ -152,12 +154,14 @@ export default function SignUpScreen() {
           secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
+          testID="confirm-password-input"
         />
 
         <Pressable
           style={({ pressed }) => [s.signUpBtn, (loading || pressed) && s.btnPressed]}
           onPress={handleSignUp}
           disabled={loading || googleLoading}
+          testID="sign-up-button"
         >
           {loading ? (
             <ActivityIndicator color={C.bg} />

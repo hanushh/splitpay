@@ -44,6 +44,7 @@ function GroupCard({ group }: { group: Group }) {
     <Pressable
       style={({ pressed }) => [s.groupCard, { opacity: pressed ? 0.85 : opacity }]}
       onPress={() => router.push({ pathname: '/group/[id]', params: { id: group.id } })}
+      testID={`group-card-${group.id}`}
     >
       <View style={[s.groupIcon, { backgroundColor: group.bg_color }]}>
         {group.image_url ? (
@@ -240,6 +241,7 @@ export default function GroupsScreen() {
       <Pressable
         style={({ pressed }) => [s.fab, { bottom: insets.bottom + 72 }, pressed && { opacity: 0.85 }]}
         onPress={() => router.push('/add-expense')}
+        testID="fab-add-expense"
       >
         <MaterialIcons name="add" size={32} color={C.bg} />
       </Pressable>

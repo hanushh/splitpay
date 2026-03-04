@@ -108,6 +108,7 @@ export default function SignInScreen() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          testID="email-input"
         />
         <TextInput
           style={s.input}
@@ -116,12 +117,14 @@ export default function SignInScreen() {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          testID="password-input"
         />
 
         <Pressable
           style={({ pressed }) => [s.signInBtn, (loading || pressed) && s.btnPressed]}
           onPress={handleSignIn}
           disabled={loading || googleLoading}
+          testID="sign-in-button"
         >
           {loading ? (
             <ActivityIndicator color={C.bg} />
