@@ -1,17 +1,18 @@
 {
   "expo": {
-    "name": "splitwise",
-    "slug": "splitwise",
+    "name": "PaySplit",
+    "slug": "paysplit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "splitwise",
+    "scheme": "paysplit",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -20,7 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.hanushh.splitwise"
+      "package": "com.hanushh.paysplit"
     },
     "web": {
       "output": "static",
