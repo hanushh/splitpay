@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, renderHook } from '@testing-library/react-native';
 import { useGroups } from '@/hooks/use-groups';
 import { supabase } from '@/lib/supabase';

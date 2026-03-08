@@ -1,4 +1,5 @@
 // @ts-nocheck
+// eslint-disable-next-line import/no-unresolved -- Deno npm: specifier
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 type NotificationRow = {

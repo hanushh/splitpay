@@ -112,7 +112,6 @@ export default function GroupBalancesScreen() {
           {members.map((m) => {
             const initials = m.display_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
             const isOwed = m.balance_cents > 0;
-            const isOwes = m.balance_cents < 0;
             const amtText = format(m.balance_cents);
 
             return (
