@@ -27,7 +27,9 @@ Styling:
 Data Fetching & Backend:
 - Supabase is used for Authentication, Database, and Realtime subscriptions.
 - Keep business logic cleanly separated from UI components when possible.
+- Follow the patterns described in `ARCHITECTURE.md` for where to put data access and business logic.
 
 Testing:
 - Use Jest and `@testing-library/react-native` for unit and integration testing.
 - Use Detox for E2E testing (`e2e/` directory).
+- Before opening PRs, run `npm run lint`, `npm run typecheck`, `npm test`, relevant Detox commands, and `npm run build:android` when native changes are involved (see `CONTRIBUTING.md`).
