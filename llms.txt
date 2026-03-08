@@ -1,0 +1,32 @@
+# SplitPay
+
+SplitPay is a mobile application built with React Native and Expo, designed to help friends and groups split expenses easily. It uses Supabase as its backend for authentication, database, and real-time functionality.
+
+## Tech Stack
+- **Framework**: React Native with Expo
+- **Routing**: Expo Router (File-based routing)
+- **Backend**: Supabase (Auth, Postgres DB, Realtime)
+- **Language**: TypeScript
+- **Styling**: React Native StyleSheet
+- **Testing**: Jest (Unit/Integration) & Detox (E2E)
+
+## Project Structure
+- `app/`: Expo Router pages.
+  - `(tabs)/`: Bottom tab navigation (Account, Activity, Friends, Index).
+  - `auth/`: Authentication flow screens (Sign-in, Sign-up, Callback).
+  - `group/`: Group details and balances.
+  - `add-expense.tsx`: Modal for adding an expense.
+  - `create-group.tsx`: Modal for creating a new group.
+  - `settle-up.tsx`: Modal for settling balances.
+- `components/`: Reusable UI components.
+  - `ui/`: Standard UI elements (Icons, themed components).
+- `context/`: React Context providers (`auth.tsx`, `currency.tsx`).
+- `hooks/`: Custom React hooks (`useColorScheme.ts`, etc.).
+- `lib/`: Library configurations, notably `supabase.ts` for backend initialization.
+- `e2e/`: Detox end-to-end testing suite.
+- `__tests__/`: Jest unit tests.
+
+## Development Patterns
+- **Authentication**: Handled via Supabase Auth and React Context.
+- **Data Fetching**: Custom hooks or direct Supabase client calls.
+- **Theming**: App supports light and dark modes natively.
