@@ -2,10 +2,12 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
+import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
 
 export const unstable_settings = {
@@ -34,11 +36,23 @@ function InviteRedeemRedirect() {
   return null;
 }
 
+const LOADING_BG = '#112117';
+const LOADING_FG = '#17e86b';
+
 function RootNavigator() {
   const { session, loading } = useAuth();
   const colorScheme = useColorScheme();
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <View style={loadingStyles.container}>
+        <StatusBar style="light" />
+        <Text style={loadingStyles.title}>{APP_DISPLAY_NAME}</Text>
+        <ActivityIndicator size="large" color={LOADING_FG} style={loadingStyles.spinner} />
+        <Text style={loadingStyles.label}>Loading…</Text>
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -59,6 +73,28 @@ function RootNavigator() {
     </ThemeProvider>
   );
 }
+
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: LOADING_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: LOADING_FG,
+    marginBottom: 24,
+  },
+  spinner: {
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+});
 
 export default function RootLayout() {
   return (

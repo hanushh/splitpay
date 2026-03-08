@@ -59,7 +59,6 @@ export default function SignInScreen() {
     const { error } = await signInWithGoogle();
     setGoogleLoading(false);
     if (error) setError(error);
-    else router.replace('/(tabs)');
   };
 
 
@@ -134,7 +133,7 @@ export default function SignInScreen() {
         </Pressable>
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Don't have an account? </Text>
+          <Text style={s.footerText}>Don&apos;t have an account? </Text>
           <Link href="/auth/sign-up" style={s.link}>Sign Up</Link>
         </View>
       </View>

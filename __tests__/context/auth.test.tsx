@@ -4,7 +4,16 @@ import { AuthProvider, useAuth } from '@/context/auth';
 import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase');
-jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn(), dismissBrowser: jest.fn() }));
+jest.mock('@/lib/push-notifications', () => ({
+  registerPushTokenForCurrentUser: jest.fn().mockResolvedValue(null),
+  removePushToken: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: jest.fn(),
+  openAuthSessionAsync: jest.fn(),
+  maybeCompleteAuthSession: jest.fn(),
+  dismissBrowser: jest.fn(),
+}));
 jest.mock('expo-linking', () => ({
   addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   createURL: jest.fn((path: string) => `paysplit://${path}`),

@@ -104,7 +104,10 @@ export default function GroupDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}>
+      <View
+        style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}
+        testID="group-detail-screen"
+      >
         <ActivityIndicator color={C.primary} />
       </View>
     );
@@ -112,14 +115,16 @@ export default function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <View style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}>
+      <View
+        style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}
+        testID="group-detail-screen"
+      >
         <Text style={{ color: C.slate400 }}>Group not found</Text>
       </View>
     );
   }
 
   const isOwed = group.balance_cents > 0;
-  const isOwes = group.balance_cents < 0;
   const balanceText = group.balance_cents === 0
     ? 'All settled up'
     : isOwed
@@ -129,13 +134,13 @@ export default function GroupDetailScreen() {
   const grouped = groupByMonth(expenses);
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
       {/* Top bar */}
       <View style={s.topBar}>
         <Pressable style={s.backBtn} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
-        <Text style={s.topTitle} numberOfLines={1}>{group.name}</Text>
+        <Text style={s.topTitle} numberOfLines={1} testID="group-detail-title">{group.name}</Text>
         <Pressable style={s.backBtn}>
           <MaterialIcons name="settings" size={24} color={C.white} />
         </Pressable>
@@ -173,6 +178,16 @@ export default function GroupDetailScreen() {
           >
             <MaterialIcons name="analytics" size={20} color={C.primary} />
             <Text style={s.actionSecondaryText}>Balances</Text>
+          </Pressable>
+        </View>
+        <View style={s.actionsBottom}>
+          <Pressable
+            style={({ pressed }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
+            testID="invite-member-button"
+          >
+            <MaterialIcons name="person-add" size={20} color={C.primary} />
+            <Text style={s.inviteBtnText}>Add member</Text>
           </Pressable>
         </View>
 
@@ -259,11 +274,24 @@ const s = StyleSheet.create({
   coverBalanceLabel: { color: C.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
   coverBalance: { fontSize: 28, fontWeight: '700', color: C.white },
   actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
+  actionsBottom: { paddingHorizontal: 16, marginBottom: 24 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14 },
   actionPrimary: { backgroundColor: C.primary },
   actionPrimaryText: { color: C.bg, fontWeight: '700', fontSize: 15 },
   actionSecondary: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceHL },
   actionSecondaryText: { color: C.white, fontWeight: '600', fontSize: 15 },
+  inviteBtn: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  inviteBtnText: { color: C.white, fontWeight: '600', fontSize: 15 },
   expensesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 },
   expensesTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
   viewAll: { color: C.primary, fontSize: 13, fontWeight: '600' },

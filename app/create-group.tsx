@@ -115,23 +115,26 @@ export default function CreateGroupScreen() {
       .single();
 
     if (groupErr || !group) {
-      setError('Failed to create group. Please try again.');
+      setError(groupErr?.message ?? 'Failed to create group. Please try again.');
       setSaving(false);
       return;
     }
 
-    // Add creator as member and balance row
+    // Add creator as member
     const { error: memberErr } = await supabase
       .from('group_members')
       .insert({ group_id: group.id, user_id: user.id });
 
     if (memberErr) {
-      setError('Group created but failed to add you as member.');
+      setError(memberErr.message ?? 'Group created but failed to add you as member.');
       setSaving(false);
       return;
     }
 
-    await supabase.from('group_balances').insert({ group_id: group.id, user_id: user.id, balance_cents: 0 });
+    // Insert balance row for creator (ignore error — view may auto-populate)
+    await supabase
+      .from('group_balances')
+      .insert({ group_id: group.id, user_id: user.id, balance_cents: 0 });
 
     // Create invitations for each added email
     if (memberEmails.length > 0) {
@@ -142,7 +145,11 @@ export default function CreateGroupScreen() {
         token: generateInviteToken(),
         status: 'pending',
       }));
-      await supabase.from('invitations').insert(rows);
+      const { error: inviteErr } = await supabase.from('invitations').insert(rows);
+      if (inviteErr) {
+        // Non-fatal: group is created, just warn
+        console.warn('Failed to create invitations:', inviteErr.message);
+      }
     }
 
     setSaving(false);
@@ -155,12 +162,12 @@ export default function CreateGroupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.headerBtn}>
+      <View style={s.header} testID="create-group-screen">
+        <Pressable onPress={() => router.back()} style={s.headerBtn} testID="cancel-button">
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={s.headerTitle}>New Group</Text>
-        <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving}>
+        <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving} testID="header-create-button">
           <Text style={[s.createText, !canSave && { opacity: 0.35 }]}>Create</Text>
         </Pressable>
       </View>
@@ -169,6 +176,7 @@ export default function CreateGroupScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled"
+        testID="create-group-scroll"
       >
         {/* Icon preview */}
         <View style={s.previewWrap}>
@@ -189,6 +197,7 @@ export default function CreateGroupScreen() {
             onChangeText={setName}
             returnKeyType="next"
             maxLength={60}
+            testID="group-name-input"
           />
         </View>
 
@@ -204,6 +213,7 @@ export default function CreateGroupScreen() {
             returnKeyType="done"
             multiline
             maxLength={160}
+            testID="group-description-input"
           />
         </View>
 
@@ -266,8 +276,13 @@ export default function CreateGroupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              testID="member-email-input"
             />
-            <Pressable style={({ pressed }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]} onPress={addEmail}>
+            <Pressable
+              style={({ pressed }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
+              onPress={addEmail}
+              testID="add-member-button"
+            >
               <MaterialIcons name="person-add" size={20} color={C.bg} />
               <Text style={s.addEmailBtnText}>Add</Text>
             </Pressable>
@@ -298,6 +313,7 @@ export default function CreateGroupScreen() {
           style={({ pressed }) => [s.createBtn, !canSave && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
           onPress={handleSave}
           disabled={!canSave || saving}
+          testID="create-group-button"
         >
           {saving ? (
             <ActivityIndicator color={C.bg} />

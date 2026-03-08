@@ -2,9 +2,16 @@ import { Session, User } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { AUTH_CALLBACK_URL, AUTH_LINK_PREFIX, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import { router } from 'expo-router';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import {
+  registerPushTokenForCurrentUser,
+  removePushToken,
+} from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const INVITE_TOKEN_KEY = 'pending_invite_token';
 
@@ -35,18 +42,32 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const activePushToken = useRef<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      setLoading(false);
+    }, 12000); // If getSession doesn't resolve in 12s (e.g. no network), show sign-in
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
       setSession(session);
       setLoading(false);
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Handle deep links: auth callback and invite
@@ -59,11 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
           if (token) await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
-        } catch (_) {}
+        } catch {}
         return;
       }
 
-      if (!url.startsWith(AUTH_LINK_PREFIX)) return;
+      // Handle only OAuth callback deep links, not every /auth route.
+      if (!url.startsWith(AUTH_CALLBACK_URL)) return;
 
       WebBrowser.dismissBrowser();
 
@@ -74,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const code = parsed.searchParams.get('code');
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
+          router.replace('/(tabs)');
           return;
         }
 
@@ -84,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const refreshToken = params.get('refresh_token');
         if (accessToken && refreshToken) {
           await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          router.replace('/(tabs)');
         }
       } catch (err) {
         console.error('[Auth] Deep link handling error:', err);
@@ -94,6 +118,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      activePushToken.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const token = await registerPushTokenForCurrentUser();
+      if (!cancelled) {
+        activePushToken.current = token;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -106,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
-    const redirectTo = 'splitwise://auth/callback';
+    const redirectTo = AUTH_CALLBACK_URL;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -119,13 +163,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: error?.message ?? 'Failed to start Google sign-in' };
     }
 
-    // Open the browser. Session is established via the Linking listener above
-    // when Supabase redirects to AUTH_CALLBACK_URL
-    await WebBrowser.openBrowserAsync(data.url);
-    return { error: null };
+    // Use AuthSession so the redirect callback is reliably captured in-app.
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    if (result.type !== 'success' || !result.url) {
+      return { error: 'Google sign-in was cancelled or did not complete.' };
+    }
+
+    try {
+      const parsed = new URL(result.url);
+      const code = parsed.searchParams.get('code');
+      if (code) {
+        const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeErr) return { error: exchangeErr.message };
+        router.replace('/(tabs)');
+        return { error: null };
+      }
+
+      const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken && refreshToken) {
+        const { error: sessionErr } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (sessionErr) return { error: sessionErr.message };
+        router.replace('/(tabs)');
+        return { error: null };
+      }
+    } catch (err) {
+      console.error('[Auth] OAuth callback parse error:', err);
+      return { error: 'Failed to finish Google sign-in.' };
+    }
+
+    return { error: 'Google sign-in callback did not include auth credentials.' };
   };
 
   const signOut = async () => {
+    await removePushToken(activePushToken.current);
+    activePushToken.current = null;
     await supabase.auth.signOut();
   };
 

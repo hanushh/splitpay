@@ -135,7 +135,7 @@ export default function GroupsScreen() {
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View style={[s.container, { paddingTop: insets.top }]} testID="groups-screen">
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       {/* Header */}
@@ -155,6 +155,7 @@ export default function GroupsScreen() {
               style={s.iconBtn}
               hitSlop={8}
               onPress={() => router.push('/create-group')}
+              testID="create-group-header-btn"
             >
               <MaterialIcons name="group-add" size={24} color={C.primary} />
             </Pressable>
@@ -176,8 +177,9 @@ export default function GroupsScreen() {
           <Pressable
             style={[s.headerTab, activeTab === 'groups' && s.headerTabActive]}
             onPress={() => setActiveTab('groups')}
+            testID="groups-tab"
           >
-            <Text style={[s.headerTabText, activeTab === 'groups' && s.headerTabTextActive]}>
+            <Text style={[s.headerTabText, activeTab === 'groups' && s.headerTabTextActive]} testID="groups-tab-label">
               Groups
             </Text>
           </Pressable>

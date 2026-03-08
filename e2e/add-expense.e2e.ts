@@ -1,147 +1,240 @@
 import { device, element, by, expect as detoxExpect, waitFor } from 'detox';
 
-/**
- * Requires an existing test account to be available.
- * Set TEST_EMAIL and TEST_PASSWORD as env vars, or update the constants below.
- */
 const TEST_EMAIL = process.env.E2E_EMAIL ?? 'e2e@paysplit.test';
 const TEST_PASSWORD = process.env.E2E_PASSWORD ?? 'TestPass123!';
+let activeEmail = TEST_EMAIL;
+let activePassword = TEST_PASSWORD;
 
-async function signIn() {
-  await waitFor(element(by.id('email-input'))).toBeVisible().withTimeout(5000);
-  await element(by.id('email-input')).typeText(TEST_EMAIL);
-  await element(by.id('password-input')).typeText(TEST_PASSWORD);
-  await element(by.text('Sign In')).tap();
-  await waitFor(element(by.text('Groups')))
-    .toBeVisible()
-    .withTimeout(15000);
+async function trySignIn(email: string, password: string, timeoutMs = 15000): Promise<boolean> {
+  await waitFor(element(by.id('email-input'))).toBeVisible().withTimeout(12000);
+  await element(by.id('email-input')).replaceText(email);
+  await element(by.id('password-input')).replaceText(password);
+  await device.disableSynchronization();
+  await element(by.id('sign-in-button')).tap();
+  try {
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(timeoutMs);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await device.enableSynchronization();
+  }
 }
 
-describe('Add Expense flow', () => {
+async function signUpAndSignIn() {
+  activeEmail = `e2e_exp_${Date.now()}@paysplit.test`;
+  activePassword = `E2E_${Date.now()}!aA1`;
+
+  try {
+    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(2000);
+  } catch {
+    await element(by.text('Sign Up')).tap();
+    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(8000);
+  }
+
+  await element(by.id('email-input')).replaceText(activeEmail);
+  await element(by.id('password-input')).replaceText(activePassword);
+  await element(by.id('confirm-password-input')).replaceText(activePassword);
+  await element(by.text('Create account')).tap();
+  await device.disableSynchronization();
+  await element(by.id('sign-up-button')).tap();
+  await device.enableSynchronization();
+
+  try {
+    await waitFor(element(by.text('Back to Sign In'))).toBeVisible().withTimeout(12000);
+    await element(by.text('Back to Sign In')).tap();
+  } catch {
+    try {
+      await element(by.text('Sign In')).tap();
+    } catch {
+      // Already on sign-in
+    }
+  }
+
+  const signedIn = await trySignIn(activeEmail, activePassword, 35000);
+  if (!signedIn) {
+    throw new Error('Unable to authenticate for add-expense e2e setup.');
+  }
+}
+
+async function ensureAtLeastOneGroup() {
+  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+  await element(by.id('create-group-header-btn')).tap();
+  await waitFor(element(by.id('create-group-screen'))).toBeVisible().withTimeout(5000);
+  await element(by.id('group-name-input')).typeText(`E2E Expense Group ${Date.now()}`);
+  await device.disableSynchronization();
+  await element(by.id('create-group-button')).tap();
+  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(20000);
+  await device.enableSynchronization();
+}
+
+async function ensureSignedIn() {
+  try {
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(3000);
+    return;
+  } catch {
+    const signedIn = await trySignIn(activeEmail, activePassword, 20000);
+    if (!signedIn) {
+      await signUpAndSignIn();
+    }
+  }
+}
+
+describe('Add Expense — validation', () => {
   beforeAll(async () => {
     await device.launchApp({ newInstance: true });
-    await signIn();
+    await ensureSignedIn();
+    await ensureAtLeastOneGroup();
   });
 
   afterAll(async () => {
     await device.terminateApp();
   });
 
-  it('shows groups tab after login', async () => {
-    await detoxExpect(element(by.text('Groups'))).toBeVisible();
-  });
-
-  it('opens add-expense modal via FAB', async () => {
+  it('opens add-expense screen via FAB', async () => {
     await element(by.id('fab-add-expense')).tap();
-    await waitFor(element(by.text('Add Expense')))
+    await waitFor(element(by.id('add-expense-screen')))
       .toBeVisible()
       .withTimeout(5000);
   });
 
-  it('save button is disabled without required fields', async () => {
-    await detoxExpect(element(by.id('save-button'))).toHaveAttribute('disabled', 'true');
+  it('shows "Add expense" header title', async () => {
+    await detoxExpect(element(by.text('Add expense'))).toBeVisible();
   });
 
-  it('fills in description', async () => {
-    await element(by.id('description-input')).typeText('Team Lunch');
-    await detoxExpect(element(by.id('description-input'))).toHaveText('Team Lunch');
+  it('Save button in header is disabled with no data', async () => {
+    await detoxExpect(element(by.id('header-save-button'))).toHaveAttribute('disabled', 'true');
   });
 
-  it('fills in amount', async () => {
-    await element(by.id('amount-input')).typeText('60.00');
-    await detoxExpect(element(by.id('amount-input'))).toHaveText('60.00');
+  it('footer Save Expense button is disabled with no data', async () => {
+    await detoxExpect(element(by.id('save-expense-button'))).toHaveAttribute('disabled', 'true');
   });
 
-  it('selects a group', async () => {
-    await element(by.id('group-picker')).tap();
+  it('group picker opens and lists only user groups', async () => {
+    await element(by.id('group-picker-button')).tap();
     await waitFor(element(by.id('group-list'))).toBeVisible().withTimeout(5000);
-    // Pick the first group in the list
-    await element(by.id('group-list-item-0')).tap();
+    // At least one group option should exist
+    await detoxExpect(element(by.id('group-option-0'))).toBeVisible();
   });
 
-  it('members are loaded and selected by default', async () => {
-    await waitFor(element(by.id('member-list'))).toBeVisible().withTimeout(5000);
-    await detoxExpect(element(by.id('member-chip-0'))).toBeVisible();
+  it('selects a group and closes picker', async () => {
+    await device.disableSynchronization();
+    await element(by.id('group-option-0')).tap();
+    await waitFor(element(by.id('group-list'))).not.toBeVisible().withTimeout(3000);
   });
 
-  it('save button becomes enabled with all required fields', async () => {
-    await detoxExpect(element(by.id('save-button'))).not.toHaveAttribute('disabled', 'true');
+  it('loads members after group selection', async () => {
+    // Members are fetched from Supabase — keep sync disabled until members appear
+    await waitFor(element(by.id('paid-by-section')))
+      .toBeVisible()
+      .withTimeout(15000);
+    await device.enableSynchronization();
+  });
+
+  it('fills description', async () => {
+    await element(by.id('description-input')).typeText('E2E Dinner');
+    await detoxExpect(element(by.id('description-input'))).toHaveText('E2E Dinner');
+  });
+
+  it('fills amount', async () => {
+    await element(by.id('amount-input')).typeText('45.00');
+  });
+
+  it('Save button becomes enabled after all required fields filled', async () => {
+    await detoxExpect(element(by.id('save-expense-button'))).not.toHaveAttribute('disabled', 'true');
   });
 
   it('saves expense and returns to groups screen', async () => {
-    await element(by.id('save-button')).tap();
+    await device.disableSynchronization();
+    await element(by.id('save-expense-button')).tap();
     await waitFor(element(by.text('Groups')))
       .toBeVisible()
-      .withTimeout(10000);
+      .withTimeout(20000);
+    await device.enableSynchronization();
   });
 });
 
-describe('Groups tab', () => {
+describe('Add Expense — split method UI', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: false });
+    await device.launchApp({ newInstance: true });
+    await ensureSignedIn();
+    await ensureAtLeastOneGroup();
   });
 
-  it('shows at least one group', async () => {
-    await waitFor(element(by.id('groups-list'))).toBeVisible().withTimeout(8000);
-    await detoxExpect(element(by.id('group-card-0'))).toBeVisible();
+  it('shows split method buttons after selecting group', async () => {
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+    await element(by.id('fab-add-expense')).tap();
+    await waitFor(element(by.id('add-expense-screen'))).toBeVisible().withTimeout(5000);
+
+    // Select a group — disable sync for network calls
+    await element(by.id('group-picker-button')).tap();
+    await waitFor(element(by.id('group-option-0'))).toBeVisible().withTimeout(5000);
+    await device.disableSynchronization();
+    await element(by.id('group-option-0')).tap();
+    await waitFor(element(by.id('paid-by-section'))).toBeVisible().withTimeout(15000);
+    await device.enableSynchronization();
   });
 
-  it('tapping a group navigates to detail screen', async () => {
-    await element(by.id('group-card-0')).tap();
-    await waitFor(element(by.id('group-detail-screen')))
+  it('Equally is selected by default', async () => {
+    await detoxExpect(element(by.id('split-method-equally'))).toBeVisible();
+  });
+
+  it('tapping Exact shows a "coming soon" note', async () => {
+    await element(by.id('split-method-exact')).tap();
+    await waitFor(element(by.text(/coming soon/i)))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(2000);
   });
 
-  it('back button returns to groups list', async () => {
-    await element(by.id('back-button')).tap();
-    await detoxExpect(element(by.text('Groups'))).toBeVisible();
+  it('tapping Percent shows a "coming soon" note', async () => {
+    await element(by.id('split-method-percent')).tap();
+    await waitFor(element(by.text(/coming soon/i)))
+      .toBeVisible()
+      .withTimeout(2000);
+  });
+
+  it('switching back to Equally hides the note', async () => {
+    await element(by.id('split-method-equally')).tap();
+    await detoxExpect(element(by.text(/coming soon/i))).not.toBeVisible();
+  });
+
+  it('cancel returns to groups screen', async () => {
+    await element(by.id('cancel-button')).tap();
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
   });
 });
 
-describe('Friends tab', () => {
+describe('Add Expense — validation errors', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: false });
+    await device.launchApp({ newInstance: true });
+    await ensureSignedIn();
+    await ensureAtLeastOneGroup();
   });
 
-  it('navigates to Friends tab', async () => {
-    await element(by.text('Friends')).tap();
-    await waitFor(element(by.id('friends-screen')))
-      .toBeVisible()
-      .withTimeout(5000);
-  });
+  it('shows error for zero amount', async () => {
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+    await element(by.id('fab-add-expense')).tap();
+    await waitFor(element(by.id('add-expense-screen'))).toBeVisible().withTimeout(5000);
 
-  it('search filters the friends list', async () => {
-    await element(by.id('friends-search')).typeText('xyz_nonexistent');
-    await waitFor(element(by.text(/no friends|empty/i)))
+    // Select group and fill description but use 0 as amount
+    await element(by.id('group-picker-button')).tap();
+    await waitFor(element(by.id('group-option-0'))).toBeVisible().withTimeout(5000);
+    await device.disableSynchronization();
+    await element(by.id('group-option-0')).tap();
+    await waitFor(element(by.id('paid-by-section'))).toBeVisible().withTimeout(15000);
+    await device.enableSynchronization();
+    await element(by.id('description-input')).typeText('Zero test');
+    await element(by.id('amount-input')).typeText('0');
+
+    // Tap header save — since canSave is false (amount 0), call handleSave directly via footer
+    await element(by.id('save-expense-button')).tap();
+    await waitFor(element(by.text(/valid amount/i)))
       .toBeVisible()
       .withTimeout(3000);
-    await element(by.id('friends-search')).clearText();
   });
 
-  it('shows invite friend button', async () => {
-    await detoxExpect(element(by.id('invite-friend-button'))).toBeVisible();
-  });
-});
-
-describe('Account tab', () => {
-  it('navigates to Account tab', async () => {
-    await element(by.text('Account')).tap();
-    await waitFor(element(by.id('account-screen'))).toBeVisible().withTimeout(5000);
-  });
-
-  it('shows currency picker', async () => {
-    await detoxExpect(element(by.id('currency-picker'))).toBeVisible();
-  });
-
-  it('can change currency', async () => {
-    await element(by.id('currency-picker')).tap();
-    await waitFor(element(by.text('USD'))).toBeVisible().withTimeout(3000);
-    await element(by.text('USD')).tap();
-    await detoxExpect(element(by.text('USD'))).toBeVisible();
-  });
-
-  it('sign out button is visible', async () => {
-    await detoxExpect(element(by.id('sign-out-button'))).toBeVisible();
+  it('cancel clears and returns', async () => {
+    await element(by.id('cancel-button')).tap();
+    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
   });
 });

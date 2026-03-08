@@ -15,7 +15,7 @@ export const APP_LINK_BASE = `${APP_SCHEME}://`;
 
 /** OAuth redirect URL for Supabase (e.g. paysplit://auth/callback) */
 export const AUTH_CALLBACK_PATH = 'auth/callback';
-export const AUTH_CALLBACK_URL = `${APP_LINK_BASE}auth/${AUTH_CALLBACK_PATH}`;
+export const AUTH_CALLBACK_URL = `${APP_LINK_BASE}${AUTH_CALLBACK_PATH}`;
 
 /** Auth deep link prefix for handling callback (e.g. paysplit://auth) */
 export const AUTH_LINK_PREFIX = `${APP_LINK_BASE}auth`;

@@ -20,4 +20,7 @@ export const supabase = {
     then: jest.fn().mockResolvedValue({ data: [], error: null }),
   }),
   rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
+  functions: {
+    invoke: jest.fn().mockResolvedValue({ data: {}, error: null }),
+  },
 };

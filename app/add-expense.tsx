@@ -86,14 +86,17 @@ export default function AddExpenseScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load user's groups for the picker
+  // Load only groups the current user is a member of
   useEffect(() => {
     if (!user) return;
     supabase
-      .from('groups')
-      .select('id, name, icon_name, bg_color')
-      .order('created_at', { ascending: true })
-      .then(({ data }) => setGroups((data as GroupOption[]) ?? []));
+      .from('group_members')
+      .select('groups!inner(id, name, icon_name, bg_color)')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        const list = (data ?? []).map((row: any) => row.groups as GroupOption).filter(Boolean);
+        setGroups(list);
+      });
   }, [user]);
 
   // Load members whenever groupId changes
@@ -174,22 +177,27 @@ export default function AddExpenseScreen() {
     });
   };
 
-  const canSave = !!description && !!amount && !!groupId && selectedMembers.size > 0;
+  const canSave = !!description && !!amount && !!groupId && selectedMembers.size > 0 && !!paidBy;
 
   const handleSave = async () => {
-    if (!canSave || !user) return;
+    if (!user) return;
     setError(null);
-    setSaving(true);
 
     const amtCents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(amtCents) || amtCents <= 0) { setError('Enter a valid amount'); setSaving(false); return; }
+    if (isNaN(amtCents) || amtCents <= 0) { setError('Enter a valid amount greater than zero.'); return; }
+    if (!groupId) { setError('Please select a group.'); return; }
+    if (!paidBy) { setError('Please select who paid.'); return; }
+    if (selectedMembers.size === 0) { setError('Select at least one member to split with.'); return; }
+    if (!description.trim()) { setError('Please add a description.'); return; }
+
+    setSaving(true);
 
     // Insert expense
     const { data: expense, error: expErr } = await supabase
       .from('expenses')
       .insert({
         group_id: groupId,
-        description,
+        description: description.trim(),
         amount_cents: amtCents,
         paid_by_member_id: paidBy,
         category,
@@ -203,13 +211,12 @@ export default function AddExpenseScreen() {
       return;
     }
 
-    // Compute splits
+    // Compute equal splits (last member absorbs rounding difference)
     const splitIds = [...selectedMembers];
     const perPerson = Math.round(amtCents / splitIds.length);
     const splits = splitIds.map((memberId, i) => ({
       expense_id: expense.id,
       member_id: memberId,
-      // Last member absorbs rounding difference
       amount_cents: i === splitIds.length - 1
         ? amtCents - perPerson * (splitIds.length - 1)
         : perPerson,
@@ -241,12 +248,12 @@ export default function AddExpenseScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.headerBtn}>
+      <View style={s.header} testID="add-expense-screen">
+        <Pressable onPress={() => router.back()} style={s.headerBtn} testID="cancel-button">
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={s.headerTitle}>Add expense</Text>
-        <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving}>
+        <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving} testID="header-save-button">
           <Text style={[s.saveText, !canSave && { opacity: 0.35 }]}>Save</Text>
         </Pressable>
       </View>
@@ -260,6 +267,7 @@ export default function AddExpenseScreen() {
         <Pressable
           style={({ pressed }) => [s.groupRow, pressed && { opacity: 0.75 }]}
           onPress={() => setGroupPickerOpen(true)}
+          testID="group-picker-button"
         >
           <View style={s.inputIcon}>
             <MaterialIcons name="group" size={22} color={groupId ? C.primary : C.slate400} />
@@ -282,6 +290,7 @@ export default function AddExpenseScreen() {
             value={description}
             onChangeText={setDescription}
             returnKeyType="next"
+            testID="description-input"
           />
         </View>
 
@@ -306,6 +315,7 @@ export default function AddExpenseScreen() {
             onChangeText={setAmount}
             keyboardType="decimal-pad"
             returnKeyType="done"
+            testID="amount-input"
           />
         </View>
 
@@ -329,12 +339,13 @@ export default function AddExpenseScreen() {
                   <MaterialIcons name="person" size={20} color={C.slate400} />
                   <Text style={s.sectionLabel}>Paid by</Text>
                 </View>
-                <View style={s.memberPills}>
+                <View style={s.memberPills} testID="paid-by-section">
                   {members.map((m) => (
                     <Pressable
                       key={m.id}
                       style={[s.paidPill, paidBy === m.id && s.paidPillActive]}
                       onPress={() => setPaidBy(m.id)}
+                      testID={`paid-by-${m.id}`}
                     >
                       <View style={[s.paidInitial, paidBy === m.id && s.paidInitialActive]}>
                         <Text style={[s.paidInitialText, paidBy === m.id && { color: C.bg }]}>
@@ -361,6 +372,7 @@ export default function AddExpenseScreen() {
                       key={m}
                       style={[s.splitBtn, splitMethod === m && s.splitBtnActive]}
                       onPress={() => setSplitMethod(m)}
+                      testID={`split-method-${m}`}
                     >
                       <Text style={[s.splitBtnText, splitMethod === m && s.splitBtnTextActive]}>
                         {m === 'equally' ? 'Equally' : m === 'exact' ? 'Exact' : 'Percent'}
@@ -368,6 +380,11 @@ export default function AddExpenseScreen() {
                     </Pressable>
                   ))}
                 </View>
+                {splitMethod !== 'equally' && (
+                  <Text style={s.splitComingSoon}>
+                    Only equal splits are supported right now. Exact and percent splits coming soon.
+                  </Text>
+                )}
               </View>
 
               {/* Share with */}
@@ -376,11 +393,11 @@ export default function AddExpenseScreen() {
                   <MaterialIcons name="people" size={20} color={C.slate400} />
                   <Text style={s.sectionLabel}>Share with</Text>
                 </View>
-                <View style={s.shareGrid}>
+                <View style={s.shareGrid} testID="share-with-section">
                   {members.map((m) => {
                     const selected = selectedMembers.has(m.id);
                     return (
-                      <Pressable key={m.id} style={s.shareItem} onPress={() => toggleMember(m.id)}>
+                      <Pressable key={m.id} style={s.shareItem} onPress={() => toggleMember(m.id)} testID={`member-toggle-${m.id}`}>
                         <View style={[s.shareAvatar, selected && s.shareAvatarSelected]}>
                           <Text style={[s.shareInitial, selected && { color: C.bg }]}>
                             {(m.display_name || '?')[0].toUpperCase()}
@@ -441,6 +458,7 @@ export default function AddExpenseScreen() {
           style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.85 }, !canSave && { opacity: 0.4 }]}
           onPress={handleSave}
           disabled={!canSave || saving}
+          testID="save-expense-button"
         >
           {saving ? (
             <ActivityIndicator color={C.bg} />
@@ -467,13 +485,15 @@ export default function AddExpenseScreen() {
             <FlatList
               data={groups}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
+              testID="group-list"
+              renderItem={({ item, index }) => {
                 const isSelected = item.id === groupId;
                 return (
                   <TouchableOpacity
                     style={[s.pickerRow, isSelected && s.pickerRowSelected]}
                     onPress={() => handleGroupSelect(item)}
                     activeOpacity={0.7}
+                    testID={`group-option-${index}`}
                   >
                     <View style={[s.groupIcon, { backgroundColor: item.bg_color }]}>
                       <MaterialIcons
@@ -594,6 +614,7 @@ const s = StyleSheet.create({
   categoryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceHL },
   categoryBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
   categoryText: { color: C.slate400, fontSize: 13, fontWeight: '600' },
+  splitComingSoon: { color: C.slate500, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   addReceiptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: C.surfaceHL, borderStyle: 'dashed' },
   addReceiptText: { color: C.slate400, fontSize: 14, fontWeight: '600' },
   footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.surfaceHL, backgroundColor: C.bg },
