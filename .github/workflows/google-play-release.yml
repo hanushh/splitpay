@@ -18,22 +18,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "zulu"
-          java-version: "17"
-
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
