@@ -2,7 +2,7 @@ import Animated from 'react-native-reanimated';
 
 export function HelloWave() {
   return (
-    // @ts-expect-error - reanimated Animated.Text accepts children at runtime
+    // @ts-ignore - reanimated Animated.Text accepts children at runtime
     <Animated.Text
       style={{
         fontSize: 28,
