@@ -28,7 +28,6 @@ jobs:
         with:
           distribution: "zulu"
           java-version: "17"
-          cache: "gradle"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
@@ -46,6 +45,9 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+
+      - name: Generate native Android project
+        run: pnpm exec expo prebuild --platform android --no-install
 
       - name: Build Android Release App Bundle (AAB)
         run: pnpm run build:android

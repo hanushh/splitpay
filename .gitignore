@@ -48,4 +48,4 @@ app-example
 
 # supabase
 supabase/.branches/
-supabase/.temp/
+supabase/.temp
