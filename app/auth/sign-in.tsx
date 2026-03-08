@@ -78,7 +78,7 @@ export default function SignInScreen() {
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -120,7 +120,7 @@ export default function SignInScreen() {
         />
 
         <Pressable
-          style={({ pressed }) => [s.signInBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [s.signInBtn, (loading || pressed) && s.btnPressed]}
           onPress={handleSignIn}
           disabled={loading || googleLoading}
           testID="sign-in-button"

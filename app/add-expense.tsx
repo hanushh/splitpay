@@ -265,7 +265,7 @@ export default function AddExpenseScreen() {
       >
         {/* Group selector — always visible, required */}
         <Pressable
-          style={({ pressed }) => [s.groupRow, pressed && { opacity: 0.75 }]}
+          style={({ pressed }: { pressed: boolean }) => [s.groupRow, pressed && { opacity: 0.75 }]}
           onPress={() => setGroupPickerOpen(true)}
           testID="group-picker-button"
         >
@@ -300,7 +300,7 @@ export default function AddExpenseScreen() {
             <MaterialIcons name="payments" size={22} color={C.slate400} />
           </View>
           <Pressable
-            style={({ pressed }) => [s.currencyBadge, pressed && { opacity: 0.7 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.currencyBadge, pressed && { opacity: 0.7 }]}
             onPress={() => setCurrencyPickerOpen(true)}
           >
             <Text style={s.currencyBadgeFlag}>{expenseCurrency.flag}</Text>
@@ -455,7 +455,7 @@ export default function AddExpenseScreen() {
       {/* Save button */}
       <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable
-          style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.85 }, !canSave && { opacity: 0.4 }]}
+          style={({ pressed }: { pressed: boolean }) => [s.saveBtn, pressed && { opacity: 0.85 }, !canSave && { opacity: 0.4 }]}
           onPress={handleSave}
           disabled={!canSave || saving}
           testID="save-expense-button"
@@ -484,9 +484,9 @@ export default function AddExpenseScreen() {
             <Text style={s.sheetTitle}>Select Group</Text>
             <FlatList
               data={groups}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item: GroupOption) => item.id}
               testID="group-list"
-              renderItem={({ item, index }) => {
+              renderItem={({ item, index }: { item: GroupOption; index: number }) => {
                 const isSelected = item.id === groupId;
                 return (
                   <TouchableOpacity
@@ -531,8 +531,8 @@ export default function AddExpenseScreen() {
             <Text style={s.sheetTitle}>Expense Currency</Text>
             <FlatList
               data={CURRENCIES}
-              keyExtractor={(item) => item.code}
-              renderItem={({ item }) => {
+              keyExtractor={(item: Currency) => item.code}
+              renderItem={({ item }: { item: Currency }) => {
                 const isSelected = item.code === expenseCurrency.code;
                 return (
                   <TouchableOpacity

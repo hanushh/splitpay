@@ -42,7 +42,7 @@ function GroupCard({ group }: { group: Group }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [s.groupCard, { opacity: pressed ? 0.85 : opacity }]}
+      style={({ pressed }: { pressed: boolean }) => [s.groupCard, { opacity: pressed ? 0.85 : opacity }]}
       onPress={() => router.push({ pathname: '/group/[id]', params: { id: group.id } })}
       testID={`group-card-${group.id}`}
     >
@@ -228,7 +228,7 @@ export default function GroupsScreen() {
 
             <View style={s.newGroupRow}>
               <Pressable
-                style={({ pressed }) => [s.newGroupBtn, pressed && { opacity: 0.7 }]}
+                style={({ pressed }: { pressed: boolean }) => [s.newGroupBtn, pressed && { opacity: 0.7 }]}
                 onPress={() => router.push('/create-group')}
               >
                 <MaterialIcons name="group-add" size={20} color={C.primary} />
@@ -241,7 +241,7 @@ export default function GroupsScreen() {
 
       {/* FAB */}
       <Pressable
-        style={({ pressed }) => [s.fab, { bottom: insets.bottom + 72 }, pressed && { opacity: 0.85 }]}
+        style={({ pressed }: { pressed: boolean }) => [s.fab, { bottom: insets.bottom + 72 }, pressed && { opacity: 0.85 }]}
         onPress={() => router.push('/add-expense')}
         testID="fab-add-expense"
       >

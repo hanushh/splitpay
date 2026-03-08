@@ -25,7 +25,9 @@ export default function ParallaxScrollView({
 }: Props) {
   const backgroundColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme() ?? 'light';
+  // @ts-expect-error - AnimatedScrollView satisfies WrapperRef at runtime
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  // @ts-expect-error - AnimatedScrollView works with useScrollOffset at runtime
   const scrollOffset = useScrollOffset(scrollRef);
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -49,10 +51,11 @@ export default function ParallaxScrollView({
       ref={scrollRef}
       style={{ backgroundColor, flex: 1 }}
       scrollEventThrottle={16}>
+      {/* @ts-expect-error - reanimated Animated.View accepts children at runtime */}
       <Animated.View
         style={[
           styles.header,
-          { backgroundColor: headerBackgroundColor[colorScheme] },
+          { backgroundColor: headerBackgroundColor[colorScheme as keyof typeof headerBackgroundColor] },
           headerAnimatedStyle,
         ]}>
         {headerImage}

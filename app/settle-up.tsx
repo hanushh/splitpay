@@ -134,7 +134,7 @@ export default function SettleUpScreen() {
       {/* Save */}
       <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable
-          style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.85 }]}
+          style={({ pressed }: { pressed: boolean }) => [s.saveBtn, pressed && { opacity: 0.85 }]}
           onPress={handleSave}
           disabled={saving}
         >

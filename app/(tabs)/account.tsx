@@ -43,7 +43,7 @@ function SettingRow({
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
+      style={({ pressed }: { pressed: boolean }) => [s.row, pressed && { opacity: 0.7 }]}
       onPress={onPress}
     >
       <View style={s.rowLeft}>
@@ -136,8 +136,8 @@ export default function AccountScreen() {
             <Text style={s.sheetTitle}>Select Currency</Text>
             <FlatList
               data={CURRENCIES}
-              keyExtractor={(item) => item.code}
-              renderItem={({ item }) => {
+              keyExtractor={(item: Currency) => item.code}
+              renderItem={({ item }: { item: Currency }) => {
                 const isSelected = item.code === currency.code;
                 return (
                   <TouchableOpacity

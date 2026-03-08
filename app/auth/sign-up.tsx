@@ -81,7 +81,7 @@ export default function SignUpScreen() {
             We sent a confirmation link to {email}. Click it to activate your account.
           </Text>
           <Pressable
-            style={({ pressed }) => [s.signUpBtn, pressed && s.btnPressed]}
+            style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, pressed && s.btnPressed]}
             onPress={() => router.replace('/auth/sign-in')}
           >
             <Text style={s.signUpBtnText}>Back to Sign In</Text>
@@ -107,7 +107,7 @@ export default function SignUpScreen() {
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -158,7 +158,7 @@ export default function SignUpScreen() {
         />
 
         <Pressable
-          style={({ pressed }) => [s.signUpBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, (loading || pressed) && s.btnPressed]}
           onPress={handleSignUp}
           disabled={loading || googleLoading}
           testID="sign-up-button"

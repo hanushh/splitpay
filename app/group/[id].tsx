@@ -166,14 +166,14 @@ export default function GroupDetailScreen() {
         {/* Action buttons */}
         <View style={s.actions}>
           <Pressable
-            style={({ pressed }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>Settle up</Text>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="analytics" size={20} color={C.primary} />
@@ -182,7 +182,7 @@ export default function GroupDetailScreen() {
         </View>
         <View style={s.actionsBottom}>
           <Pressable
-            style={({ pressed }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
             testID="invite-member-button"
           >
@@ -217,7 +217,7 @@ export default function GroupDetailScreen() {
                 : expense.your_split_cents;
               const paidLabel = expense.paid_by_is_user ? 'You' : expense.paid_by_name;
               return (
-                <Pressable key={expense.expense_id} style={({ pressed }) => [s.expenseCard, pressed && { opacity: 0.8 }]}>
+                <Pressable key={expense.expense_id} style={({ pressed }: { pressed: boolean }) => [s.expenseCard, pressed && { opacity: 0.8 }]}>
                   <View style={[s.expenseIcon, { backgroundColor: cat.bg }]}>
                     <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={cat.color} />
                     <View style={[s.expenseDot, { backgroundColor: youPositive ? C.primary : C.orange }]} />
@@ -252,7 +252,7 @@ export default function GroupDetailScreen() {
 
       {/* FAB */}
       <Pressable
-        style={({ pressed }) => [s.fab, pressed && { opacity: 0.85 }]}
+        style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}
         onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
       >
         <MaterialIcons name="add" size={28} color={C.bg} />

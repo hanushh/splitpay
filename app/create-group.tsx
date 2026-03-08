@@ -226,7 +226,7 @@ export default function CreateGroupScreen() {
               return (
                 <Pressable
                   key={ic.name}
-                  style={({ pressed }) => [s.iconCell, active && s.iconCellActive, pressed && { opacity: 0.7 }]}
+                  style={({ pressed }: { pressed: boolean }) => [s.iconCell, active && s.iconCellActive, pressed && { opacity: 0.7 }]}
                   onPress={() => setSelectedIcon(ic.name)}
                 >
                   <MaterialIcons
@@ -250,7 +250,7 @@ export default function CreateGroupScreen() {
               return (
                 <Pressable
                   key={c.value}
-                  style={({ pressed }) => [s.colorSwatch, { backgroundColor: c.display }, active && s.colorSwatchActive, pressed && { opacity: 0.8 }]}
+                  style={({ pressed }: { pressed: boolean }) => [s.colorSwatch, { backgroundColor: c.display }, active && s.colorSwatchActive, pressed && { opacity: 0.8 }]}
                   onPress={() => setSelectedColor(c.value)}
                 >
                   {active && <MaterialIcons name="check" size={18} color="#fff" />}
@@ -270,7 +270,7 @@ export default function CreateGroupScreen() {
               placeholder="email@example.com"
               placeholderTextColor={C.slate500}
               value={emailInput}
-              onChangeText={(t) => { setEmailInput(t); setError(null); }}
+              onChangeText={(t: string) => { setEmailInput(t); setError(null); }}
               onSubmitEditing={addEmail}
               returnKeyType="done"
               keyboardType="email-address"
@@ -279,7 +279,7 @@ export default function CreateGroupScreen() {
               testID="member-email-input"
             />
             <Pressable
-              style={({ pressed }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
+              style={({ pressed }: { pressed: boolean }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
               onPress={addEmail}
               testID="add-member-button"
             >
@@ -310,7 +310,7 @@ export default function CreateGroupScreen() {
 
         {/* Create button */}
         <Pressable
-          style={({ pressed }) => [s.createBtn, !canSave && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+          style={({ pressed }: { pressed: boolean }) => [s.createBtn, !canSave && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
           onPress={handleSave}
           disabled={!canSave || saving}
           testID="create-group-button"
