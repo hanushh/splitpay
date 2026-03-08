@@ -45,3 +45,7 @@ app-example
 /android
 
 .env*
+
+# supabase
+supabase/.branches/
+supabase/.temp/
