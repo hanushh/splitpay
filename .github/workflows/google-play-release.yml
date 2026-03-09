@@ -19,16 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # - name: Set up pnpm
-      #   uses: pnpm/action-setup@v3
-      #   with:
-      #     version: 9
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
 
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '20'
-      #     cache: 'pnpm'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -36,73 +36,72 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # - name: Install Dependencies
-      #   run: pnpm install --frozen-lockfile
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
-      # - name: Lint
-      #   run: pnpm run lint
+      - name: Lint
+        run: pnpm run lint
 
-      # - name: Typecheck
-      #   run: pnpm run typecheck
+      - name: Typecheck
+        run: pnpm run typecheck
 
-      # - name: Unit tests
-      #   run: pnpm test
+      - name: Unit tests
+        run: pnpm test
 
-      # - name: Cache Gradle
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ~/.gradle/caches
-      #       ~/.gradle/wrapper
-      #     key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties', 'android/gradle.properties', 'android/settings.gradle', 'app.json') }}
-      #     restore-keys: |
-      #       gradle-${{ runner.os }}-
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties', 'android/gradle.properties', 'android/settings.gradle', 'app.json') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
-      # - name: Generate native Android project
-      #   run: pnpm exec expo prebuild --platform android --no-install
+      - name: Generate native Android project
+        run: pnpm exec expo prebuild --platform android --no-install
 
-      # - name: Build Android Release App Bundle (AAB)
-      #   env:
-      #     NODE_ENV: production
-      #   run: |
-      #     cd android
-      #     ./gradlew bundleRelease \
-      #       --parallel \
-      #       --build-cache \
-      #       --max-workers=4 \
-      #       -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
+      - name: Build Android Release App Bundle (AAB)
+        env:
+          NODE_ENV: production
+        run: |
+          cd android
+          ./gradlew bundleRelease \
+            --parallel \
+            --build-cache \
+            --max-workers=4 \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
-    
       - name: Sign Android App Bundle
         id: sign_app
         uses: r0adkll/sign-android-release@v1
         with:
           releaseDirectory: android/app/build/outputs/bundle/release
-          signingKeyBase64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
+          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
           alias: ${{ secrets.ANDROID_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      # - name: Determine Google Play Track
-      #   id: determine_track
-      #   run: |
-      #     if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-      #       echo "TRACK=production" >> $GITHUB_ENV
-      #     elif [ "${{ github.ref }}" == "refs/heads/beta" ]; then
-      #       echo "TRACK=beta" >> $GITHUB_ENV
-      #     elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
-      #       echo "TRACK=alpha" >> $GITHUB_ENV
-      #     elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
-      #       echo "TRACK=internal" >> $GITHUB_ENV
-      #     else
-      #       echo "TRACK=internal" >> $GITHUB_ENV
-      #     fi
+      - name: Determine Google Play Track
+        id: determine_track
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "TRACK=production" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" == "refs/heads/beta" ]; then
+            echo "TRACK=beta" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
+            echo "TRACK=alpha" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
+            echo "TRACK=internal" >> $GITHUB_ENV
+          else
+            echo "TRACK=internal" >> $GITHUB_ENV
+          fi
 
-      # - name: Upload to Google Play
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CREDENTIALS_JSON }}
-      #     packageName: com.hanushh.paysplit
-      #     releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
-      #     track: ${{ env.TRACK }}
-      #     status: draft # Create as a draft release
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CREDENTIALS_JSON }}
+          packageName: com.hanushh.paysplit
+          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          track: ${{ env.TRACK }}
+          status: draft # Create as a draft release
