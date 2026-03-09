@@ -110,4 +110,4 @@ jobs:
           packageName: com.hanushh.paysplit
           releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
           track: ${{ env.TRACK }}
-          status: completed # Publish release on upload
+          status: draft # Required while app is still a draft in Play Console
