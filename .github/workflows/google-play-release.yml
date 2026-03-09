@@ -73,13 +73,50 @@ jobs:
 
       - name: Sign Android App Bundle
         id: sign_app
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: android/app/build/outputs/bundle/release
-          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
-          alias: ${{ secrets.ANDROID_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+          ANDROID_ALIAS: ${{ secrets.ANDROID_ALIAS }}
+          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+          KEYSTORE_PATH="android/app/build/outputs/bundle/release/signingKey.keystore"
+
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "Expected AAB not found at $AAB_PATH"
+            exit 1
+          fi
+
+          printf '%s' "$ANDROID_SIGNING_KEY" | base64 --decode > "$KEYSTORE_PATH"
+
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "Decoded keystore is empty at $KEYSTORE_PATH"
+            exit 1
+          fi
+
+          signed=0
+          for store_type in PKCS12 JKS; do
+            echo "Trying jarsigner with keystore type: $store_type"
+            if jarsigner \
+              -keystore "$KEYSTORE_PATH" \
+              -storetype "$store_type" \
+              -storepass "$ANDROID_KEY_STORE_PASSWORD" \
+              -keypass "$ANDROID_KEY_PASSWORD" \
+              "$AAB_PATH" \
+              "$ANDROID_ALIAS"; then
+              signed=1
+              break
+            fi
+          done
+
+          if [ "$signed" -ne 1 ]; then
+            echo "Failed to sign AAB with both PKCS12 and JKS keystore types."
+            exit 1
+          fi
+
+          echo "signedReleaseFile=$AAB_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Determine Google Play Track
         id: determine_track
