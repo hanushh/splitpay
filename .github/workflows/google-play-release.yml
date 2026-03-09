@@ -72,94 +72,16 @@ jobs:
       #       --max-workers=4 \
       #       -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
-      - name: Normalize Android signing key
-        id: normalize_signing_key
-        env:
-          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
-          ANDROID_ALIAS: ${{ secrets.ANDROID_ALIAS }}
-          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${ANDROID_ALIAS:-}" ] || [ -z "${ANDROID_KEY_STORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
-            echo "::error::One or more signing secrets are missing: ANDROID_ALIAS, ANDROID_KEY_STORE_PASSWORD, ANDROID_KEY_PASSWORD."
-            exit 1
-          fi
-
-          sanitized="$(printf '%s' "${ANDROID_SIGNING_KEY:-}" | tr -d '\r\n\t ')"
-          if [ -z "$sanitized" ]; then
-            echo "::error::ANDROID_SIGNING_KEY is empty or missing. Set this secret to the base64-encoded keystore file."
-            exit 1
-          fi
-
-          sanitized="${sanitized#data:*;base64,}"
-          tmp_keystore="$(mktemp)"
-          decoded=0
-
-          if printf '%s' "$sanitized" | base64 --decode > "$tmp_keystore" 2>/dev/null; then
-            decoded=1
-          else
-            urlsafe="$(printf '%s' "$sanitized" | tr '_-' '/+')"
-            remainder=$((${#urlsafe} % 4))
-            if [ "$remainder" -eq 2 ]; then
-              urlsafe="${urlsafe}=="
-            elif [ "$remainder" -eq 3 ]; then
-              urlsafe="${urlsafe}="
-            fi
-
-            if printf '%s' "$urlsafe" | base64 --decode > "$tmp_keystore" 2>/dev/null; then
-              decoded=1
-            fi
-          fi
-
-          if [ "$decoded" -ne 1 ] || [ ! -s "$tmp_keystore" ]; then
-            echo "::error::ANDROID_SIGNING_KEY is not valid base64 keystore content."
-            exit 1
-          fi
-
-          canonical_b64="$(base64 "$tmp_keystore" | tr -d '\n')"
-          echo "signingKeyBase64=$canonical_b64" >> "$GITHUB_OUTPUT"
-
-      # - name: Sign Android App Bundle
-      #   id: sign_app
-      #   uses: r0adkll/sign-android-release@v1
-      #   with:
-      #     releaseDirectory: android/app/build/outputs/bundle/release
-      #     signingKeyBase64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
-      #     alias: ${{ secrets.ANDROID_ALIAS }}
-      #     keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-      #     keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
-      - name: Validate Android signing secrets only
-        env:
-          SIGNING_KEY_B64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
-          ANDROID_ALIAS: ${{ secrets.ANDROID_ALIAS }}
-          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          tmp_keystore="$(mktemp)"
-          printf '%s' "$SIGNING_KEY_B64" | base64 --decode > "$tmp_keystore"
-
-          validated=0
-          for store_type in PKCS12 JKS; do
-            echo "Checking keystore with store type: $store_type"
-            if keytool -list \
-              -keystore "$tmp_keystore" \
-              -storetype "$store_type" \
-              -storepass "$ANDROID_KEY_STORE_PASSWORD" \
-              -alias "$ANDROID_ALIAS" >/dev/null 2>&1; then
-              echo "Keystore and alias validated with $store_type"
-              validated=1
-              break
-            fi
-          done
-
-          if [ "$validated" -ne 1 ]; then
-            echo "::error::Unable to validate keystore/alias with provided secrets."
-            exit 1
-          fi
+    
+      - name: Sign Android App Bundle
+        id: sign_app
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: android/app/build/outputs/bundle/release
+          signingKeyBase64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
+          alias: ${{ secrets.ANDROID_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       # - name: Determine Google Play Track
       #   id: determine_track
