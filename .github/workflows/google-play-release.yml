@@ -83,16 +83,27 @@ jobs:
 
           AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
           KEYSTORE_PATH="android/app/build/outputs/bundle/release/signingKey.keystore"
+          SANITIZED_SIGNING_KEY="$(printf '%s' "${ANDROID_SIGNING_KEY:-}" | tr -d '\r\n\t ')"
 
           if [ ! -f "$AAB_PATH" ]; then
             echo "Expected AAB not found at $AAB_PATH"
             exit 1
           fi
 
-          printf '%s' "$ANDROID_SIGNING_KEY" | base64 --decode > "$KEYSTORE_PATH"
+          if [ -z "$SANITIZED_SIGNING_KEY" ]; then
+            echo "::error::ANDROID_SIGNING_KEY is empty or missing. Set this GitHub Actions secret to the base64-encoded keystore file."
+            exit 1
+          fi
+
+          if [ -z "${ANDROID_ALIAS:-}" ] || [ -z "${ANDROID_KEY_STORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "::error::One or more signing secrets are missing: ANDROID_ALIAS, ANDROID_KEY_STORE_PASSWORD, ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          printf '%s' "$SANITIZED_SIGNING_KEY" | base64 --decode > "$KEYSTORE_PATH"
 
           if [ ! -s "$KEYSTORE_PATH" ]; then
-            echo "Decoded keystore is empty at $KEYSTORE_PATH"
+            echo "::error::Decoded keystore is empty at $KEYSTORE_PATH. Ensure ANDROID_SIGNING_KEY is valid base64 for your keystore file."
             exit 1
           fi
 
