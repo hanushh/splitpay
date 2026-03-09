@@ -61,7 +61,10 @@ jobs:
         run: pnpm exec expo prebuild --platform android --no-install
 
       - name: Build Android Release App Bundle (AAB)
-        run: cd android && NODE_ENV=production ./gradlew bundleRelease --parallel --build-cache --max-workers=4
+        env:
+          NODE_ENV: production
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=1024m
+        run: cd android && ./gradlew bundleRelease --parallel --build-cache --max-workers=4
 
       - name: Sign Android App Bundle
         id: sign_app
