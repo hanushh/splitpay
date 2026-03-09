@@ -61,6 +61,9 @@ jobs:
       - name: Generate native Android project
         run: pnpm exec expo prebuild --platform android --no-install
 
+      - name: Remove debug signing from release build type
+        run: sed -i '/signingConfig signingConfigs.debug/d' android/app/build.gradle
+
       - name: Build Android Release App Bundle (AAB)
         env:
           NODE_ENV: production
