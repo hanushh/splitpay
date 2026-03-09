@@ -19,16 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      # - name: Set up pnpm
+      #   uses: pnpm/action-setup@v3
+      #   with:
+      #     version: 9
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: '20'
+      #     cache: 'pnpm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -36,44 +36,44 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+      # - name: Install Dependencies
+      #   run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm run lint
+      # - name: Lint
+      #   run: pnpm run lint
 
-      - name: Typecheck
-        run: pnpm run typecheck
+      # - name: Typecheck
+      #   run: pnpm run typecheck
 
-      - name: Unit tests
-        run: pnpm test
+      # - name: Unit tests
+      #   run: pnpm test
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties', 'android/gradle.properties', 'android/settings.gradle', 'app.json') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+      # - name: Cache Gradle
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ~/.gradle/caches
+      #       ~/.gradle/wrapper
+      #     key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties', 'android/gradle.properties', 'android/settings.gradle', 'app.json') }}
+      #     restore-keys: |
+      #       gradle-${{ runner.os }}-
 
-      - name: Generate native Android project
-        run: pnpm exec expo prebuild --platform android --no-install
+      # - name: Generate native Android project
+      #   run: pnpm exec expo prebuild --platform android --no-install
 
-      - name: Build Android Release App Bundle (AAB)
-        env:
-          NODE_ENV: production
-        run: |
-          cd android
-          ./gradlew bundleRelease \
-            --parallel \
-            --build-cache \
-            --max-workers=4 \
-            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
+      # - name: Build Android Release App Bundle (AAB)
+      #   env:
+      #     NODE_ENV: production
+      #   run: |
+      #     cd android
+      #     ./gradlew bundleRelease \
+      #       --parallel \
+      #       --build-cache \
+      #       --max-workers=4 \
+      #       -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
-      - name: Sign Android App Bundle
-        id: sign_app
+      - name: Normalize Android signing key
+        id: normalize_signing_key
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_ALIAS: ${{ secrets.ANDROID_ALIAS }}
@@ -82,74 +82,105 @@ jobs:
         run: |
           set -euo pipefail
 
-          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
-          KEYSTORE_PATH="android/app/build/outputs/bundle/release/signingKey.keystore"
-          SANITIZED_SIGNING_KEY="$(printf '%s' "${ANDROID_SIGNING_KEY:-}" | tr -d '\r\n\t ')"
-
-          if [ ! -f "$AAB_PATH" ]; then
-            echo "Expected AAB not found at $AAB_PATH"
-            exit 1
-          fi
-
-          if [ -z "$SANITIZED_SIGNING_KEY" ]; then
-            echo "::error::ANDROID_SIGNING_KEY is empty or missing. Set this GitHub Actions secret to the base64-encoded keystore file."
-            exit 1
-          fi
-
           if [ -z "${ANDROID_ALIAS:-}" ] || [ -z "${ANDROID_KEY_STORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
             echo "::error::One or more signing secrets are missing: ANDROID_ALIAS, ANDROID_KEY_STORE_PASSWORD, ANDROID_KEY_PASSWORD."
             exit 1
           fi
 
-          printf '%s' "$SANITIZED_SIGNING_KEY" | base64 --decode > "$KEYSTORE_PATH"
-
-          if [ ! -s "$KEYSTORE_PATH" ]; then
-            echo "::error::Decoded keystore is empty at $KEYSTORE_PATH. Ensure ANDROID_SIGNING_KEY is valid base64 for your keystore file."
+          sanitized="$(printf '%s' "${ANDROID_SIGNING_KEY:-}" | tr -d '\r\n\t ')"
+          if [ -z "$sanitized" ]; then
+            echo "::error::ANDROID_SIGNING_KEY is empty or missing. Set this secret to the base64-encoded keystore file."
             exit 1
           fi
 
-          signed=0
+          sanitized="${sanitized#data:*;base64,}"
+          tmp_keystore="$(mktemp)"
+          decoded=0
+
+          if printf '%s' "$sanitized" | base64 --decode > "$tmp_keystore" 2>/dev/null; then
+            decoded=1
+          else
+            urlsafe="$(printf '%s' "$sanitized" | tr '_-' '/+')"
+            remainder=$((${#urlsafe} % 4))
+            if [ "$remainder" -eq 2 ]; then
+              urlsafe="${urlsafe}=="
+            elif [ "$remainder" -eq 3 ]; then
+              urlsafe="${urlsafe}="
+            fi
+
+            if printf '%s' "$urlsafe" | base64 --decode > "$tmp_keystore" 2>/dev/null; then
+              decoded=1
+            fi
+          fi
+
+          if [ "$decoded" -ne 1 ] || [ ! -s "$tmp_keystore" ]; then
+            echo "::error::ANDROID_SIGNING_KEY is not valid base64 keystore content."
+            exit 1
+          fi
+
+          canonical_b64="$(base64 "$tmp_keystore" | tr -d '\n')"
+          echo "signingKeyBase64=$canonical_b64" >> "$GITHUB_OUTPUT"
+
+      # - name: Sign Android App Bundle
+      #   id: sign_app
+      #   uses: r0adkll/sign-android-release@v1
+      #   with:
+      #     releaseDirectory: android/app/build/outputs/bundle/release
+      #     signingKeyBase64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
+      #     alias: ${{ secrets.ANDROID_ALIAS }}
+      #     keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+      #     keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Validate Android signing secrets only
+        env:
+          SIGNING_KEY_B64: ${{ steps.normalize_signing_key.outputs.signingKeyBase64 }}
+          ANDROID_ALIAS: ${{ secrets.ANDROID_ALIAS }}
+          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          tmp_keystore="$(mktemp)"
+          printf '%s' "$SIGNING_KEY_B64" | base64 --decode > "$tmp_keystore"
+
+          validated=0
           for store_type in PKCS12 JKS; do
-            echo "Trying jarsigner with keystore type: $store_type"
-            if jarsigner \
-              -keystore "$KEYSTORE_PATH" \
+            echo "Checking keystore with store type: $store_type"
+            if keytool -list \
+              -keystore "$tmp_keystore" \
               -storetype "$store_type" \
               -storepass "$ANDROID_KEY_STORE_PASSWORD" \
-              -keypass "$ANDROID_KEY_PASSWORD" \
-              "$AAB_PATH" \
-              "$ANDROID_ALIAS"; then
-              signed=1
+              -alias "$ANDROID_ALIAS" >/dev/null 2>&1; then
+              echo "Keystore and alias validated with $store_type"
+              validated=1
               break
             fi
           done
 
-          if [ "$signed" -ne 1 ]; then
-            echo "Failed to sign AAB with both PKCS12 and JKS keystore types."
+          if [ "$validated" -ne 1 ]; then
+            echo "::error::Unable to validate keystore/alias with provided secrets."
             exit 1
           fi
 
-          echo "signedReleaseFile=$AAB_PATH" >> "$GITHUB_OUTPUT"
+      # - name: Determine Google Play Track
+      #   id: determine_track
+      #   run: |
+      #     if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+      #       echo "TRACK=production" >> $GITHUB_ENV
+      #     elif [ "${{ github.ref }}" == "refs/heads/beta" ]; then
+      #       echo "TRACK=beta" >> $GITHUB_ENV
+      #     elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
+      #       echo "TRACK=alpha" >> $GITHUB_ENV
+      #     elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
+      #       echo "TRACK=internal" >> $GITHUB_ENV
+      #     else
+      #       echo "TRACK=internal" >> $GITHUB_ENV
+      #     fi
 
-      - name: Determine Google Play Track
-        id: determine_track
-        run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "TRACK=production" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" == "refs/heads/beta" ]; then
-            echo "TRACK=beta" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
-            echo "TRACK=alpha" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
-            echo "TRACK=internal" >> $GITHUB_ENV
-          else
-            echo "TRACK=internal" >> $GITHUB_ENV
-          fi
-
-      - name: Upload to Google Play
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CREDENTIALS_JSON }}
-          packageName: com.hanushh.paysplit
-          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
-          track: ${{ env.TRACK }}
-          status: draft # Create as a draft release
+      # - name: Upload to Google Play
+      #   uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CREDENTIALS_JSON }}
+      #     packageName: com.hanushh.paysplit
+      #     releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
+      #     track: ${{ env.TRACK }}
+      #     status: draft # Create as a draft release
