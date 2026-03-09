@@ -63,8 +63,13 @@ jobs:
       - name: Build Android Release App Bundle (AAB)
         env:
           NODE_ENV: production
-          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=1024m
-        run: cd android && ./gradlew bundleRelease --parallel --build-cache --max-workers=4
+        run: |
+          cd android
+          ./gradlew bundleRelease \
+            --parallel \
+            --build-cache \
+            --max-workers=4 \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
       - name: Sign Android App Bundle
         id: sign_app
