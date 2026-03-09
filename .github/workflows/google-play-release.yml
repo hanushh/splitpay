@@ -19,6 +19,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set versionCode from run number
+        run: |
+          jq --argjson vc ${{ github.run_number }} '.expo.android.versionCode = $vc' app.json > app.json.tmp
+          mv app.json.tmp app.json
+          echo "versionCode set to ${{ github.run_number }}"
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
