@@ -110,4 +110,4 @@ jobs:
           packageName: com.hanushh.paysplit
           releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
           track: ${{ env.TRACK }}
-          status: draft # Create as a draft release
+          status: completed # Publish release on upload
