@@ -37,10 +37,12 @@ begin
 end $$;
 
 -- 3. Enable pg_cron and schedule daily auto-archive of settled groups
+-- NOTE: This job runs as the database superuser and intentionally bypasses RLS.
+-- It is safe because it only reads group_balances and updates groups — no user data leakage.
 create extension if not exists pg_cron;
 
 -- Idempotent: remove existing job if present, then re-create
-select cron.unschedule('auto-archive-settled-groups')
+select cron.unschedule(jobid)
   from cron.job
   where jobname = 'auto-archive-settled-groups';
 
@@ -51,9 +53,11 @@ select cron.schedule(
     UPDATE public.groups
     SET archived = true
     WHERE archived = false
-      AND id NOT IN (
-        SELECT group_id FROM public.group_balances WHERE balance_cents != 0
-      )
       AND updated_at < NOW() - INTERVAL '7 days'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.group_balances
+        WHERE public.group_balances.group_id = public.groups.id
+          AND balance_cents != 0
+      )
   $$
 );
