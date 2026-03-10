@@ -64,8 +64,11 @@ async function ensureAtLeastOneGroup() {
   await element(by.id('group-name-input')).typeText(`E2E Expense Group ${Date.now()}`);
   await device.disableSynchronization();
   await element(by.id('create-group-button')).tap();
-  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(20000);
+  // After creation, the app navigates to the group detail screen — wait for it then go back
+  await waitFor(element(by.id('group-detail-screen'))).toBeVisible().withTimeout(20000);
   await device.enableSynchronization();
+  await device.pressBack();
+  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
 }
 
 async function ensureSignedIn() {
