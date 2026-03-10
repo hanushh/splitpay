@@ -103,11 +103,13 @@ describe('Add Expense — validation', () => {
   });
 
   it('Save button in header is disabled with no data', async () => {
-    await detoxExpect(element(by.id('header-save-button'))).toHaveAttribute('disabled', 'true');
+    const attrs = await element(by.id('header-save-button')).getAttributes();
+    expect(('elements' in attrs ? attrs.elements[0] : attrs).enabled).toBe(false);
   });
 
   it('footer Save Expense button is disabled with no data', async () => {
-    await detoxExpect(element(by.id('save-expense-button'))).toHaveAttribute('disabled', 'true');
+    const attrs = await element(by.id('save-expense-button')).getAttributes();
+    expect(('elements' in attrs ? attrs.elements[0] : attrs).enabled).toBe(false);
   });
 
   it('group picker opens and lists only user groups', async () => {
@@ -141,7 +143,8 @@ describe('Add Expense — validation', () => {
   });
 
   it('Save button becomes enabled after all required fields filled', async () => {
-    await detoxExpect(element(by.id('save-expense-button'))).not.toHaveAttribute('disabled', 'true');
+    const attrs = await element(by.id('save-expense-button')).getAttributes();
+    expect(('elements' in attrs ? attrs.elements[0] : attrs).enabled).toBe(true);
   });
 
   it('saves expense and returns to groups screen', async () => {
