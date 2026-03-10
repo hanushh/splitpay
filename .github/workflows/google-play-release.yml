@@ -76,12 +76,29 @@ jobs:
       - name: Inject release keystore for signing
         run: |
           echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > android/app/release.keystore
+          test -s android/app/release.keystore
           cat > android/keystore.properties <<EOF
-          storeFile=app/release.keystore
+          storeFile=release.keystore
           storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
+
+      - name: Verify upload key fingerprint
+        env:
+          EXPECTED_UPLOAD_SHA1: B0:5A:DA:DC:83:1D:40:14:46:EF:93:BF:CC:B3:66:09:EA:D2:F1:80
+        run: |
+          ACTUAL_UPLOAD_SHA1=$(keytool -list -v \
+            -keystore android/app/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_ALIAS }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            | awk -F': ' '/SHA1:/{print $2; exit}')
+          echo "CI signing key SHA1: $ACTUAL_UPLOAD_SHA1"
+          if [ "$ACTUAL_UPLOAD_SHA1" != "$EXPECTED_UPLOAD_SHA1" ]; then
+            echo "Expected upload key SHA1: $EXPECTED_UPLOAD_SHA1"
+            exit 1
+          fi
 
       - name: Build Android Release App Bundle (AAB)
         env:
