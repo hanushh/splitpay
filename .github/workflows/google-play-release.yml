@@ -94,7 +94,6 @@ jobs:
             -PreactNativeArchitectures=${{ env.RN_ARCHITECTURES }} \
             --parallel \
             --build-cache \
-            --configuration-cache \
             --max-workers=8 \
             -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
