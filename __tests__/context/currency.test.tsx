@@ -68,4 +68,37 @@ describe('useCurrency', () => {
     const codes = CURRENCIES.map((c) => c.code);
     expect(codes).toEqual(expect.arrayContaining(['USD', 'EUR', 'GBP', 'INR', 'JPY']));
   });
+
+  it('loads persisted currency from SecureStore on mount', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce('GBP');
+    const { result } = renderHook(() => useCurrency(), { wrapper });
+    await act(async () => {});
+    expect(result.current.currency.code).toBe('GBP');
+  });
+
+  it('ignores unknown currency code from SecureStore', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce('ZZZ');
+    const { result } = renderHook(() => useCurrency(), { wrapper });
+    await act(async () => {});
+    // Falls back to default INR
+    expect(result.current.currency.code).toBe('INR');
+  });
+
+  it('formatAbs returns same as format (absolute value)', async () => {
+    const { result } = renderHook(() => useCurrency(), { wrapper });
+    // Both should return the same value since format is an alias for formatAbs
+    expect(result.current.format(5000)).toBe(result.current.formatAbs(5000));
+    expect(result.current.format(-5000)).toBe(result.current.formatAbs(-5000));
+  });
+
+  it('format() rounds JPY correctly (no decimals)', async () => {
+    const { result } = renderHook(() => useCurrency(), { wrapper });
+    await act(async () => {
+      result.current.setCurrency(CURRENCIES.find((c) => c.code === 'JPY')!);
+    });
+    // 1050 for JPY should display as ¥1,050 (whole number)
+    const formatted = result.current.format(1050);
+    expect(formatted).toContain('1');
+    expect(formatted).not.toContain('.');
+  });
 });

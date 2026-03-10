@@ -7,6 +7,7 @@ export const supabase = {
     signOut: jest.fn().mockResolvedValue({ error: null }),
     signInWithOAuth: jest.fn().mockResolvedValue({ data: { url: 'https://mock-oauth-url.com' }, error: null }),
     exchangeCodeForSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    setSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
   },
   from: jest.fn().mockReturnValue({
     select: jest.fn().mockReturnThis(),

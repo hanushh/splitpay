@@ -49,3 +49,6 @@ app-example
 # supabase
 supabase/.branches/
 supabase/.temp
+
+# test coverage
+coverage/

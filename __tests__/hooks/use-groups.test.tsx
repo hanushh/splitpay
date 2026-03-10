@@ -91,4 +91,122 @@ describe('useGroups', () => {
     expect(result.current.groups).toEqual([]);
     expect(result.current.error).toBeTruthy();
   });
+
+  it('sets status "settled" for zero balance', async () => {
+    const settledRow = [
+      {
+        id: 'g3',
+        name: 'Settled Group',
+        icon_name: 'group',
+        bg_color: '#1a3324',
+        created_at: '2026-01-03T00:00:00Z',
+        group_balances: [{ balance_cents: 0 }],
+        group_members: [{ user_id: 'user-123' }],
+      },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: settledRow, error: null }),
+    });
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    expect(result.current.groups[0].status).toBe('settled');
+    expect(result.current.groups[0].balance_cents).toBe(0);
+  });
+
+  it('defaults balance_cents to 0 when group_balances is empty', async () => {
+    const noBalanceRow = [
+      {
+        id: 'g4',
+        name: 'No Balance Group',
+        icon_name: 'group',
+        bg_color: null,
+        created_at: '2026-01-04T00:00:00Z',
+        group_balances: [],
+        group_members: [{ user_id: 'user-123' }],
+      },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: noBalanceRow, error: null }),
+    });
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    expect(result.current.groups[0].balance_cents).toBe(0);
+    expect(result.current.groups[0].status).toBe('settled');
+  });
+
+  it('uses default bg_color when group bg_color is null', async () => {
+    const nullColorRow = [
+      {
+        id: 'g5',
+        name: 'No Color Group',
+        icon_name: null,
+        bg_color: null,
+        archived: null,
+        created_at: '2026-01-05T00:00:00Z',
+        group_balances: [{ balance_cents: 100 }],
+        group_members: [{ user_id: 'user-123' }],
+      },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: nullColorRow, error: null }),
+    });
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    expect(result.current.groups[0].bg_color).toBe('rgba(99,102,241,0.25)');
+    expect(result.current.groups[0].archived).toBe(false);
+  });
+
+  it('includes members with different user_id and avatar_url', async () => {
+    const rowWithMembers = [
+      {
+        id: 'g6',
+        name: 'Group With Members',
+        icon_name: 'group',
+        bg_color: '#1a3324',
+        created_at: '2026-01-06T00:00:00Z',
+        group_balances: [{ balance_cents: 1000 }],
+        group_members: [
+          { user_id: 'user-123', display_name: 'Me', avatar_url: null },
+          { user_id: 'other-user', display_name: 'Alice', avatar_url: 'https://example.com/alice.jpg' },
+          { user_id: 'another-user', display_name: 'Bob', avatar_url: null },
+        ],
+      },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: rowWithMembers, error: null }),
+    });
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    // Only Alice passes both filters (different user_id AND has avatar_url)
+    expect(result.current.groups[0].members).toHaveLength(1);
+    expect(result.current.groups[0].members[0].display_name).toBe('Alice');
+  });
+
+  it('refetch re-fetches groups from Supabase', async () => {
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    expect(result.current.groups).toHaveLength(2);
+
+    const updatedRows = [mockGroupRows[0]];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: updatedRows, error: null }),
+    });
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(result.current.groups).toHaveLength(1);
+  });
+
+  it('initializes demo data on first load', async () => {
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    expect(supabase.rpc).toHaveBeenCalledWith('initialize_demo_data', { p_user_id: 'user-123' });
+    expect(result.current.groups).toHaveLength(2);
+  });
 });
