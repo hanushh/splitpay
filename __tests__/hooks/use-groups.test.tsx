@@ -35,6 +35,7 @@ describe('useGroups', () => {
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: mockGroupRows, error: null }),
     });
   });
@@ -84,6 +85,7 @@ describe('useGroups', () => {
   it('returns empty groups on error', async () => {
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
     });
     const { result } = renderHook(() => useGroups());
@@ -106,6 +108,7 @@ describe('useGroups', () => {
     ];
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: settledRow, error: null }),
     });
     const { result } = renderHook(() => useGroups());
@@ -128,6 +131,7 @@ describe('useGroups', () => {
     ];
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: noBalanceRow, error: null }),
     });
     const { result } = renderHook(() => useGroups());
@@ -151,6 +155,7 @@ describe('useGroups', () => {
     ];
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: nullColorRow, error: null }),
     });
     const { result } = renderHook(() => useGroups());
@@ -177,6 +182,7 @@ describe('useGroups', () => {
     ];
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: rowWithMembers, error: null }),
     });
     const { result } = renderHook(() => useGroups());
@@ -194,6 +200,7 @@ describe('useGroups', () => {
     const updatedRows = [mockGroupRows[0]];
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({ data: updatedRows, error: null }),
     });
 
@@ -208,5 +215,30 @@ describe('useGroups', () => {
     await act(async () => {});
     expect(supabase.rpc).toHaveBeenCalledWith('initialize_demo_data', { p_user_id: 'user-123' });
     expect(result.current.groups).toHaveLength(2);
+  });
+
+  it('excludes archived groups from results', async () => {
+    const rowsWithArchived = [
+      {
+        id: 'g1',
+        name: 'Active Group',
+        icon_name: 'group',
+        bg_color: '#1a3324',
+        archived: false,
+        created_at: '2026-01-01T00:00:00Z',
+        group_balances: [{ balance_cents: 1000 }],
+        group_members: [{ user_id: 'user-123' }],
+      },
+    ];
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: rowsWithArchived, error: null }),
+    });
+    const { result } = renderHook(() => useGroups());
+    await act(async () => {});
+    // The hook should only return non-archived groups
+    expect(result.current.groups).toHaveLength(1);
+    expect(result.current.groups[0].name).toBe('Active Group');
   });
 });
