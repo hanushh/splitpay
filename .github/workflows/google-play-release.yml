@@ -25,6 +25,15 @@ jobs:
           mv app.json.tmp app.json
           echo "versionCode set to ${{ github.run_number }}"
 
+      - name: Set build architectures
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "RN_ARCHITECTURES=armeabi-v7a,arm64-v8a" >> $GITHUB_ENV
+          else
+            # Internal/alpha/beta: arm64-v8a only — skips 32-bit native recompilation
+            echo "RN_ARCHITECTURES=arm64-v8a" >> $GITHUB_ENV
+          fi
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
@@ -82,10 +91,11 @@ jobs:
         run: |
           cd android
           ./gradlew bundleRelease \
-            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a \
+            -PreactNativeArchitectures=${{ env.RN_ARCHITECTURES }} \
             --parallel \
             --build-cache \
-            --max-workers=4 \
+            --configuration-cache \
+            --max-workers=8 \
             -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
 
