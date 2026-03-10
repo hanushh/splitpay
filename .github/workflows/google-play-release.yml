@@ -144,4 +144,4 @@ jobs:
           packageName: com.hanushh.paysplit
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ env.TRACK }}
-          status: draft
+          status: completed
