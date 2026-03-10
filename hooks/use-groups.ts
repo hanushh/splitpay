@@ -48,7 +48,12 @@ export function useGroups() {
 
       if (groupsErr) throw new Error(groupsErr.message);
 
-      const mapped: Group[] = (groupRows ?? []).map((row) => {
+      const seenGroupIds = new Set<string>();
+      const mapped: Group[] = (groupRows ?? []).filter((row) => {
+        if (seenGroupIds.has(row.id)) return false;
+        seenGroupIds.add(row.id);
+        return true;
+      }).map((row) => {
         const balance_cents: number =
           (row.group_balances as { balance_cents: number }[] | null)?.[0]?.balance_cents ?? 0;
 

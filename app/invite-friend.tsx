@@ -71,10 +71,15 @@ export default function InviteFriendScreen() {
   const loadGroups = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from('groups')
-      .select('id, name')
-      .order('name');
-    setGroups((data as GroupOption[]) ?? []);
+      .from('group_members')
+      .select('groups!inner(id, name)')
+      .eq('user_id', user.id);
+    const seen = new Set<string>();
+    const list: GroupOption[] = ((data ?? []) as unknown as { groups: GroupOption }[])
+      .map((row) => row.groups)
+      .filter((g) => g && !seen.has(g.id) && seen.add(g.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setGroups(list);
     if (paramGroupId && paramGroupName) {
       setGroupId(paramGroupId);
       setGroupName(paramGroupName);

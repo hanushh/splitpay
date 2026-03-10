@@ -94,7 +94,15 @@ export default function AddExpenseScreen() {
       .select('groups!inner(id, name, icon_name, bg_color)')
       .eq('user_id', user.id)
       .then(({ data }) => {
-        const list = (data ?? []).map((row: any) => row.groups as GroupOption).filter(Boolean);
+        const seen = new Set<string>();
+        const list = (data ?? [])
+          .map((row: any) => row.groups as GroupOption)
+          .filter(Boolean)
+          .filter((g: GroupOption) => {
+            if (seen.has(g.id)) return false;
+            seen.add(g.id);
+            return true;
+          });
         setGroups(list);
       });
   }, [user]);

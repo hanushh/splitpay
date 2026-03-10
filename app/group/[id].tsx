@@ -79,16 +79,26 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
-    const [{ data }, { data: bal }, { data: expRows }] = await Promise.all([
+    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }] = await Promise.all([
       supabase.from('groups').select('id, name, description, image_url, bg_color').eq('id', id).single(),
-      supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).single(),
+      supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
     ]);
 
-    if (!data) { setLoading(false); return; }
+    if (groupErr || !data) {
+      setFetchError(groupErr?.message ?? 'Group not found.');
+      setLoading(false);
+      return;
+    }
+    if (expErr) {
+      setFetchError(expErr.message);
+      setLoading(false);
+      return;
+    }
     setGroup({ ...data, balance_cents: bal?.balance_cents ?? 0 });
     const seen = new Set<string>();
     const deduped = ((expRows as Expense[]) ?? []).filter((e) => {
@@ -119,7 +129,7 @@ export default function GroupDetailScreen() {
         style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}
         testID="group-detail-screen"
       >
-        <Text style={{ color: C.slate400 }}>Group not found</Text>
+        <Text style={{ color: C.slate400 }}>{fetchError ?? 'Group not found'}</Text>
       </View>
     );
   }
@@ -167,7 +177,7 @@ export default function GroupDetailScreen() {
         <View style={s.actions}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name } })}
+            onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name, amountCents: String(group.balance_cents) } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>Settle up</Text>

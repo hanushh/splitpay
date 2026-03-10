@@ -39,6 +39,11 @@ end $$;
 -- 3. Enable pg_cron and schedule daily auto-archive of settled groups
 create extension if not exists pg_cron;
 
+-- Idempotent: remove existing job if present, then re-create
+select cron.unschedule('auto-archive-settled-groups')
+  from cron.job
+  where jobname = 'auto-archive-settled-groups';
+
 select cron.schedule(
   'auto-archive-settled-groups',
   '0 2 * * *',

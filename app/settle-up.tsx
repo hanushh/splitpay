@@ -28,7 +28,8 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const insets = useSafeAreaInsets();
-  const { groupName, friendName } = useLocalSearchParams<{ groupId?: string; groupName?: string; friendName?: string }>();
+  const { groupId, groupName, friendName, amountCents } =
+    useLocalSearchParams<{ groupId?: string; groupName?: string; friendName?: string; amountCents?: string }>();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -36,15 +37,14 @@ export default function SettleUpScreen() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   const handleSave = async () => {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
+    // Settlement recording is not yet implemented — navigate back for now.
     router.back();
   };
 
   const { format } = useCurrency();
-  const payeeName = friendName ?? 'Sarah';
-  const amount = format(25000);
+  const payeeName = friendName ?? groupName ?? 'your group';
+  const displayCents = amountCents ? Math.abs(Number(amountCents)) : 0;
+  const amount = displayCents > 0 ? format(displayCents) : '—';
 
   return (
     <KeyboardAvoidingView
