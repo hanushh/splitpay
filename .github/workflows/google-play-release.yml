@@ -64,6 +64,16 @@ jobs:
         run: pnpm exec expo prebuild --platform android --no-install
 
 
+      - name: Inject release keystore for signing
+        run: |
+          echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > android/app/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=app/release.keystore
+          storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
       - name: Build Android Release App Bundle (AAB)
         env:
           NODE_ENV: production
@@ -71,13 +81,8 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           cd android
-          echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > app/release.keystore
           ./gradlew bundleRelease \
             -PreactNativeArchitectures=armeabi-v7a,arm64-v8a \
-            -Pandroid.storeFile=release.keystore \
-            "-Pandroid.storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
-            "-Pandroid.keyAlias=${{ secrets.ANDROID_ALIAS }}" \
-            "-Pandroid.keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" \
             --parallel \
             --build-cache \
             --max-workers=4 \
