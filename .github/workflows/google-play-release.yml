@@ -72,17 +72,16 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/internal' }}
 
-
       - name: Inject release keystore for signing
         run: |
           echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > android/app/release.keystore
           test -s android/app/release.keystore
-          cat > android/keystore.properties <<EOF
-          storeFile=release.keystore
-          storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "${{ github.workspace }}/android/app/release.keystore" \
+            "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_ALIAS }}" \
+            "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            > android/keystore.properties
 
       - name: Verify upload key fingerprint
         env:
@@ -109,11 +108,14 @@ jobs:
           cd android
           ./gradlew bundleRelease \
             -PreactNativeArchitectures=${{ env.RN_ARCHITECTURES }} \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}" \
             --parallel \
             --build-cache \
             --max-workers=8 \
             -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
-
 
       - name: Determine Google Play Track
         id: determine_track
