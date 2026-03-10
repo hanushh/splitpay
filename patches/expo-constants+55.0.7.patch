@@ -1,7 +1,7 @@
 diff --git a/node_modules/expo-constants/scripts/get-app-config-android.gradle b/node_modules/expo-constants/scripts/get-app-config-android.gradle
 --- a/node_modules/expo-constants/scripts/get-app-config-android.gradle
 +++ b/node_modules/expo-constants/scripts/get-app-config-android.gradle
-@@ -34,6 +34,9 @@ afterEvaluate {
+@@ -38,6 +38,9 @@ afterEvaluate {
      // Switch to project root and generate the app config
      workingDir projectRoot
  
