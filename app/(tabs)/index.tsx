@@ -1,13 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -136,7 +136,7 @@ export default function GroupsScreen() {
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="groups-screen">
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar style="light" />
 
       {/* Header */}
       <View style={s.header}>
