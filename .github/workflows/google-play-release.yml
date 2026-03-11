@@ -135,6 +135,15 @@ jobs:
             echo "TRACK=internal" >> $GITHUB_ENV
           fi
 
+      - name: Check for ProGuard mapping file
+        id: mapping_check
+        run: |
+          if [ -f "android/app/build/outputs/mapping/release/mapping.txt" ]; then
+            echo "path=android/app/build/outputs/mapping/release/mapping.txt" >> $GITHUB_OUTPUT
+          else
+            echo "path=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
@@ -143,4 +152,4 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ env.TRACK }}
           status: completed
-          mappingFile: android/app/build/outputs/mapping/release/mapping.txt
+          mappingFile: ${{ steps.mapping_check.outputs.path }}
