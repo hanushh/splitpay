@@ -30,14 +30,40 @@ const mockGroupRows = [
   },
 ];
 
+const defaultMembershipData = [{ group_id: 'g1' }, { group_id: 'g2' }];
+
+/**
+ * Build a supabase.from mock that handles both steps of the two-step fetch:
+ *  1. group_members → resolve with membership rows
+ *  2. groups        → resolve with group rows (via select→in→eq→order chain)
+ */
+function makeFromMock(
+  groupRows: object[] | null,
+  groupsError: { message: string } | null = null,
+  membershipData = defaultMembershipData,
+  groupsEqMock?: jest.Mock,
+) {
+  return (table: string) => {
+    if (table === 'group_members') {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: membershipData, error: null }),
+      };
+    }
+    // table === 'groups'
+    return {
+      select: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      eq: groupsEqMock ?? jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: groupRows, error: groupsError }),
+    };
+  };
+}
+
 describe('useGroups', () => {
   beforeEach(() => {
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: mockGroupRows, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(makeFromMock(mockGroupRows));
   });
 
   it('returns groups after load', async () => {
@@ -83,11 +109,9 @@ describe('useGroups', () => {
   });
 
   it('returns empty groups on error', async () => {
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(null, { message: 'DB error' }),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     expect(result.current.groups).toEqual([]);
@@ -106,11 +130,9 @@ describe('useGroups', () => {
         group_members: [{ user_id: 'user-123' }],
       },
     ];
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: settledRow, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(settledRow, null, [{ group_id: 'g3' }]),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     expect(result.current.groups[0].status).toBe('settled');
@@ -129,11 +151,9 @@ describe('useGroups', () => {
         group_members: [{ user_id: 'user-123' }],
       },
     ];
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: noBalanceRow, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(noBalanceRow, null, [{ group_id: 'g4' }]),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     expect(result.current.groups[0].balance_cents).toBe(0);
@@ -153,11 +173,9 @@ describe('useGroups', () => {
         group_members: [{ user_id: 'user-123' }],
       },
     ];
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: nullColorRow, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(nullColorRow, null, [{ group_id: 'g5' }]),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     expect(result.current.groups[0].bg_color).toBe('rgba(99,102,241,0.25)');
@@ -180,11 +198,9 @@ describe('useGroups', () => {
         ],
       },
     ];
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: rowWithMembers, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(rowWithMembers, null, [{ group_id: 'g6' }]),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     // Only Alice passes both filters (different user_id AND has avatar_url)
@@ -198,11 +214,9 @@ describe('useGroups', () => {
     expect(result.current.groups).toHaveLength(2);
 
     const updatedRows = [mockGroupRows[0]];
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: updatedRows, error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(updatedRows, null, [{ group_id: 'g1' }]),
+    );
 
     await act(async () => {
       await result.current.refetch();
@@ -229,11 +243,9 @@ describe('useGroups', () => {
       group_members: [{ user_id: 'user-123' }],
     };
     const eqMock = jest.fn().mockReturnThis();
-    (supabase.from as jest.Mock).mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: eqMock,
-      order: jest.fn().mockResolvedValue({ data: [activeGroupRow], error: null }),
-    });
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock([activeGroupRow], null, [{ group_id: 'g1' }], eqMock),
+    );
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
     expect(eqMock).toHaveBeenCalledWith('archived', false);
