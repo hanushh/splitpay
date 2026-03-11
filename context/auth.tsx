@@ -9,6 +9,7 @@ import {
   registerPushTokenForCurrentUser,
   removePushToken,
 } from '@/lib/push-notifications';
+import { clearCategoryCache } from '@/hooks/use-category-cache';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -201,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    await clearCategoryCache();
     await removePushToken(activePushToken.current);
     activePushToken.current = null;
     await supabase.auth.signOut();
