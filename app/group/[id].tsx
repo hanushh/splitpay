@@ -48,7 +48,7 @@ interface GroupDetail {
   image_url: string | null;
   bg_color: string;
   balance_cents: number;
-  created_by: string;
+  created_by: string | null;
 }
 
 const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
@@ -184,7 +184,7 @@ export default function GroupDetailScreen() {
       : `You owe ${format(group.balance_cents)}`;
 
   const grouped = groupByMonth(expenses);
-  const isCreator = user?.id === group.created_by;
+  const isCreator = !group.created_by || user?.id === group.created_by;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
