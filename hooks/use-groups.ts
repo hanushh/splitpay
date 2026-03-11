@@ -37,13 +37,31 @@ export function useGroups() {
     setError(null);
 
     try {
+      // Step 1: Get the IDs of groups the current user belongs to
+      const { data: memberships, error: membershipsErr } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id);
+
+      if (membershipsErr) throw new Error(membershipsErr.message);
+
+      const memberGroupIds = (memberships ?? []).map((m) => m.group_id);
+
+      if (memberGroupIds.length === 0) {
+        setGroups([]);
+        return;
+      }
+
+      // Step 2: Fetch only those groups (with all members and balances)
       const { data: groupRows, error: groupsErr } = await supabase
         .from('groups')
         .select(`
           id, name, description, image_url, bg_color, icon_name, archived,
           group_balances!left ( balance_cents ),
-          group_members!inner ( id, display_name, avatar_url, user_id )
+          group_members ( id, display_name, avatar_url, user_id )
         `)
+        .in('id', memberGroupIds)
+        .eq('archived', false)
         .order('created_at', { ascending: true });
 
       if (groupsErr) throw new Error(groupsErr.message);

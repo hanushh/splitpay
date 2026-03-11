@@ -4,10 +4,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +48,7 @@ interface GroupDetail {
   image_url: string | null;
   bg_color: string;
   balance_cents: number;
+  created_by: string | null;
 }
 
 const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
@@ -79,16 +82,31 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
-    const [{ data }, { data: bal }, { data: expRows }] = await Promise.all([
-      supabase.from('groups').select('id, name, description, image_url, bg_color').eq('id', id).single(),
-      supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).single(),
+    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }] = await Promise.all([
+      supabase.from('groups').select('id, name, description, image_url, bg_color, created_by').eq('id', id).single(),
+      supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
     ]);
 
-    if (!data) { setLoading(false); return; }
+    if (groupErr || !data) {
+      setFetchError(groupErr?.message ?? 'Group not found.');
+      setLoading(false);
+      return;
+    }
+    if (expErr) {
+      setFetchError(expErr.message);
+      setLoading(false);
+      return;
+    }
     setGroup({ ...data, balance_cents: bal?.balance_cents ?? 0 });
     const seen = new Set<string>();
     const deduped = ((expRows as Expense[]) ?? []).filter((e) => {
@@ -101,6 +119,40 @@ export default function GroupDetailScreen() {
   }, [id, user]);
 
   useEffect(() => { fetchGroup(); }, [fetchGroup]);
+
+  const handleDelete = useCallback(async () => {
+    if (!group || deleteInput !== group.name) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowDeleteModal(false);
+    router.replace('/');
+  }, [group, deleteInput]);
+
+  const handleArchive = useCallback(async () => {
+    if (!group) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .update({ archived: true })
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowSettings(false);
+    router.replace('/');
+  }, [group]);
 
   if (loading) {
     return (
@@ -119,7 +171,7 @@ export default function GroupDetailScreen() {
         style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}
         testID="group-detail-screen"
       >
-        <Text style={{ color: C.slate400 }}>Group not found</Text>
+        <Text style={{ color: C.slate400 }}>{fetchError ?? 'Group not found'}</Text>
       </View>
     );
   }
@@ -132,6 +184,7 @@ export default function GroupDetailScreen() {
       : `You owe ${format(group.balance_cents)}`;
 
   const grouped = groupByMonth(expenses);
+  const isCreator = !group.created_by || user?.id === group.created_by;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
@@ -141,8 +194,16 @@ export default function GroupDetailScreen() {
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
         <Text style={s.topTitle} numberOfLines={1} testID="group-detail-title">{group.name}</Text>
-        <Pressable style={s.backBtn}>
-          <MaterialIcons name="settings" size={24} color={C.white} />
+        <Pressable
+          style={s.backBtn}
+          onPress={isCreator ? () => setShowSettings(true) : undefined}
+          testID="settings-button"
+        >
+          <MaterialIcons
+            name="settings"
+            size={24}
+            color={isCreator ? C.white : C.slate500}
+          />
         </Pressable>
       </View>
 
@@ -166,14 +227,14 @@ export default function GroupDetailScreen() {
         {/* Action buttons */}
         <View style={s.actions}>
           <Pressable
-            style={({ pressed }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name } })}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name, amountCents: String(group.balance_cents) } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>Settle up</Text>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="analytics" size={20} color={C.primary} />
@@ -182,7 +243,7 @@ export default function GroupDetailScreen() {
         </View>
         <View style={s.actionsBottom}>
           <Pressable
-            style={({ pressed }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
             testID="invite-member-button"
           >
@@ -217,7 +278,7 @@ export default function GroupDetailScreen() {
                 : expense.your_split_cents;
               const paidLabel = expense.paid_by_is_user ? 'You' : expense.paid_by_name;
               return (
-                <Pressable key={expense.expense_id} style={({ pressed }) => [s.expenseCard, pressed && { opacity: 0.8 }]}>
+                <Pressable key={expense.expense_id} style={({ pressed }: { pressed: boolean }) => [s.expenseCard, pressed && { opacity: 0.8 }]}>
                   <View style={[s.expenseIcon, { backgroundColor: cat.bg }]}>
                     <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={cat.color} />
                     <View style={[s.expenseDot, { backgroundColor: youPositive ? C.primary : C.orange }]} />
@@ -252,17 +313,119 @@ export default function GroupDetailScreen() {
 
       {/* FAB */}
       <Pressable
-        style={({ pressed }) => [s.fab, pressed && { opacity: 0.85 }]}
+        style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}
         onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
       >
         <MaterialIcons name="add" size={28} color={C.bg} />
       </Pressable>
+
+      {/* Settings bottom sheet */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setShowSettings(false); setActionError(null); setDeleteInput(''); }}
+      >
+        <View style={s.settingsModalContainer}>
+          <Pressable
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+            onPress={() => { setShowSettings(false); setActionError(null); }}
+          />
+          <View style={s.bottomSheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Group Settings</Text>
+
+            {actionError ? (
+              <Text style={s.errorText}>{actionError}</Text>
+            ) : null}
+
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+              onPress={handleArchive}
+              disabled={actionLoading}
+            >
+              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                <MaterialIcons name="inventory" size={20} color={C.orange} />
+              </View>
+              <Text style={s.sheetRowText}>Archive Group</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+              onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+              disabled={actionLoading}
+            >
+              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+                <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
+              </View>
+              <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Type-to-confirm delete modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+      >
+        <View style={s.deleteOverlay}>
+          <View style={s.deleteCard}>
+            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)', alignSelf: 'center', marginBottom: 16 }]}>
+              <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
+            </View>
+            <Text style={s.deleteTitle}>Delete Group</Text>
+            <Text style={s.deleteWarning}>
+              This will permanently delete{' '}
+              <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text>
+              {' '}and all its expenses. This cannot be undone.
+            </Text>
+            <Text style={s.deleteLabel}>
+              Type <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text> to confirm
+            </Text>
+            <TextInput
+              style={s.deleteInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder={group?.name}
+              placeholderTextColor={C.slate500}
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="delete-confirm-input"
+            />
+            {actionError ? <Text style={s.errorText}>{actionError}</Text> : null}
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [
+                s.deleteConfirmBtn,
+                deleteInput !== group?.name && s.deleteConfirmBtnDisabled,
+                pressed && deleteInput === group?.name && { opacity: 0.8 },
+              ]}
+              onPress={handleDelete}
+              disabled={deleteInput !== group?.name || actionLoading}
+              testID="delete-confirm-button"
+            >
+              <Text style={s.deleteConfirmBtnText}>
+                {actionLoading ? 'Deleting…' : 'Delete Group'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.deleteCancelBtn, pressed && { opacity: 0.7 }]}
+              onPress={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+            >
+              <Text style={s.deleteCancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+  settingsModalContainer: { flex: 1, justifyContent: 'flex-end' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 8 },
   backBtn: { padding: 10 },
   topTitle: { flex: 1, color: C.white, fontWeight: '700', fontSize: 18, textAlign: 'center' },
@@ -310,4 +473,73 @@ const s = StyleSheet.create({
   fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { color: C.slate400, fontSize: 15, fontWeight: '600' },
+  bottomSheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 36,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.surfaceHL,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: { color: C.white, fontWeight: '700', fontSize: 17, marginBottom: 20 },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
+  sheetIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sheetRowText: { color: C.white, fontWeight: '600', fontSize: 15 },
+  errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  deleteCard: {
+    backgroundColor: C.surface,
+    borderRadius: 20,
+    padding: 24,
+  },
+  deleteTitle: { color: C.white, fontWeight: '700', fontSize: 20, textAlign: 'center', marginBottom: 12 },
+  deleteWarning: { color: C.slate400, fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+  deleteLabel: { color: C.slate400, fontSize: 13, marginBottom: 8 },
+  deleteInput: {
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: C.white,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: '#ff5252',
+    borderRadius: 12,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  deleteConfirmBtnDisabled: { backgroundColor: C.surfaceHL },
+  deleteConfirmBtnText: { color: C.white, fontWeight: '700', fontSize: 15 },
+  deleteCancelBtn: {
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCancelBtnText: { color: C.slate400, fontWeight: '600', fontSize: 15 },
 });

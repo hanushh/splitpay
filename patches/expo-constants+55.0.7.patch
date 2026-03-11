@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-constants/scripts/get-app-config-android.gradle b/node_modules/expo-constants/scripts/get-app-config-android.gradle
+--- a/node_modules/expo-constants/scripts/get-app-config-android.gradle
++++ b/node_modules/expo-constants/scripts/get-app-config-android.gradle
+@@ -38,6 +38,9 @@ afterEvaluate {
+     // Switch to project root and generate the app config
+     workingDir projectRoot
+ 
++    // Set NODE_ENV so @expo/env does not warn when loading app config
++    environment "NODE_ENV", System.getenv("NODE_ENV") ?: "production"
++
+     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+       commandLine("cmd", "/c", *nodeExecutableAndArgs, "$expoConstantsDir/scripts/getAppConfig.js", projectRoot, assetsDir)
+     } else {

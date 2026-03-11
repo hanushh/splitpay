@@ -13,27 +13,43 @@ jobs:
   build_and_deploy:
     name: Build & Deploy Android App
     runs-on: ubuntu-latest
+    environment: internal
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      - name: Set versionCode from run number
+        run: |
+          jq --argjson vc ${{ github.run_number }} '.expo.android.versionCode = $vc' app.json > app.json.tmp
+          mv app.json.tmp app.json
+          echo "versionCode set to ${{ github.run_number }}"
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "zulu"
-          java-version: "17"
-          cache: "gradle"
+      - name: Set build architectures
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "RN_ARCHITECTURES=armeabi-v7a,arm64-v8a" >> $GITHUB_ENV
+          else
+            # Internal/alpha/beta: arm64-v8a only — skips 32-bit native recompilation
+            echo "RN_ARCHITECTURES=arm64-v8a" >> $GITHUB_ENV
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -47,18 +63,64 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: Build Android Release App Bundle (AAB)
-        run: pnpm run build:android
+      - name: Generate native Android project
+        run: pnpm exec expo prebuild --platform android --no-install
 
-      - name: Sign Android App Bundle
-        id: sign_app
-        uses: r0adkll/sign-android-release@v1
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          releaseDirectory: android/app/build/outputs/bundle/release
-          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
-          alias: ${{ secrets.ANDROID_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          gradle-version: wrapper
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/internal' }}
+
+      - name: Inject release keystore for signing
+        run: |
+          echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > android/app/release.keystore
+          test -s android/app/release.keystore
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "${{ github.workspace }}/android/app/release.keystore" \
+            "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_ALIAS }}" \
+            "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            > android/keystore.properties
+
+      - name: Verify upload key fingerprint
+        env:
+          EXPECTED_UPLOAD_SHA1: B0:5A:DA:DC:83:1D:40:14:46:EF:93:BF:CC:B3:66:09:EA:D2:F1:80
+        run: |
+          ACTUAL_UPLOAD_SHA1=$(keytool -list -v \
+            -keystore android/app/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_ALIAS }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            | awk -F': ' '/SHA1:/{print $2; exit}')
+          echo "CI signing key SHA1: $ACTUAL_UPLOAD_SHA1"
+          if [ "$ACTUAL_UPLOAD_SHA1" != "$EXPECTED_UPLOAD_SHA1" ]; then
+            echo "Expected upload key SHA1: $EXPECTED_UPLOAD_SHA1"
+            exit 1
+          fi
+
+      - name: Write .env.production
+        run: |
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
+            "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" \
+            "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" \
+            > .env.production
+
+      - name: Build Android Release App Bundle (AAB)
+        env:
+          NODE_ENV: production
+        run: |
+          cd android
+          ./gradlew bundleRelease \
+            -PreactNativeArchitectures=${{ env.RN_ARCHITECTURES }} \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            --parallel \
+            --build-cache \
+            --max-workers=8 \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
 
       - name: Determine Google Play Track
         id: determine_track
@@ -69,8 +131,6 @@ jobs:
             echo "TRACK=beta" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
             echo "TRACK=alpha" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
-            echo "TRACK=internal" >> $GITHUB_ENV
           else
             echo "TRACK=internal" >> $GITHUB_ENV
           fi
@@ -80,6 +140,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CREDENTIALS_JSON }}
           packageName: com.hanushh.paysplit
-          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ env.TRACK }}
-          status: draft # Create as a draft release
+          status: completed
+          mappingFile: android/app/build/outputs/mapping/release/mapping.txt

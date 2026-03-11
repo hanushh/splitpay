@@ -51,7 +51,7 @@ function FriendCard({ friend }: { friend: Friend }) {
     .slice(0, 2);
 
   return (
-    <Pressable style={({ pressed }) => [s.card, pressed && { opacity: 0.8 }]}>
+    <Pressable style={({ pressed }: { pressed: boolean }) => [s.card, pressed && { opacity: 0.8 }]}>
       <View style={s.avatarWrap}>
         {friend.avatar_url ? (
           <Image source={{ uri: friend.avatar_url }} style={s.avatar} />
@@ -102,8 +102,8 @@ export default function FriendsScreen() {
     if (error) { setLoading(false); setRefreshing(false); return; }
 
     const friendList: Friend[] = ((data as { display_name: string; avatar_url: string | null; balance_cents: number }[]) ?? [])
-      .map((row) => ({
-        id: row.display_name,
+      .map((row, i) => ({
+        id: String(i),
         display_name: row.display_name,
         avatar_url: row.avatar_url,
         balance_cents: Number(row.balance_cents),
@@ -214,7 +214,7 @@ export default function FriendsScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable style={({ pressed }) => [s.fab, pressed && { opacity: 0.85 }]}>
+      <Pressable style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}>
         <MaterialIcons name="add" size={28} color={C.bg} />
       </Pressable>
     </View>

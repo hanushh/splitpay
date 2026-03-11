@@ -71,10 +71,15 @@ export default function InviteFriendScreen() {
   const loadGroups = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from('groups')
-      .select('id, name')
-      .order('name');
-    setGroups((data as GroupOption[]) ?? []);
+      .from('group_members')
+      .select('groups!inner(id, name)')
+      .eq('user_id', user.id);
+    const seen = new Set<string>();
+    const list: GroupOption[] = ((data ?? []) as unknown as { groups: GroupOption }[])
+      .map((row) => row.groups)
+      .filter((g) => g && !seen.has(g.id) && seen.add(g.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setGroups(list);
     if (paramGroupId && paramGroupName) {
       setGroupId(paramGroupId);
       setGroupName(paramGroupName);
@@ -258,7 +263,7 @@ export default function InviteFriendScreen() {
           <Text style={s.sentTitle}>{sentTitleText}</Text>
           <Text style={s.sentSub}>{sentSubText}</Text>
           {inviteLink ? (
-            <Pressable style={({ pressed }) => [s.shareBtn, pressed && { opacity: 0.85 }]} onPress={handleShare}>
+            <Pressable style={({ pressed }: { pressed: boolean }) => [s.shareBtn, pressed && { opacity: 0.85 }]} onPress={handleShare}>
               <MaterialIcons name="share" size={20} color={C.bg} />
               <Text style={s.shareBtnText}>Share invite link</Text>
             </Pressable>
@@ -350,7 +355,7 @@ export default function InviteFriendScreen() {
                 return (
                   <Pressable
                     key={knownUser.user_id}
-                    style={({ pressed }) => [s.userOption, selected && s.userOptionActive, pressed && { opacity: 0.85 }]}
+                    style={({ pressed }: { pressed: boolean }) => [s.userOption, selected && s.userOptionActive, pressed && { opacity: 0.85 }]}
                     onPress={() => toggleSelectedUser(knownUser.user_id)}
                   >
                     <View style={s.userAvatar}>
@@ -382,7 +387,7 @@ export default function InviteFriendScreen() {
         )}
 
         <Pressable
-          style={({ pressed }) => [s.sendBtn, !canSend && s.sendBtnDisabled, pressed && canSend && { opacity: 0.85 }]}
+          style={({ pressed }: { pressed: boolean }) => [s.sendBtn, !canSend && s.sendBtnDisabled, pressed && canSend && { opacity: 0.85 }]}
           onPress={handleSendInvite}
           disabled={!canSend || sending}
         >

@@ -2,7 +2,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   SectionList,
@@ -85,7 +84,7 @@ function ActivityCard({ item }: { item: ActivityRow }) {
   const amountLabel = item.paid_by_is_user ? 'you lent' : 'you owe';
 
   return (
-    <Pressable style={({ pressed }) => [s.card, pressed && { opacity: 0.8 }]}>
+    <Pressable style={({ pressed }: { pressed: boolean }) => [s.card, pressed && { opacity: 0.8 }]}>
       <View style={[s.iconBox, { backgroundColor: cat.bg }]}>
         <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={cat.color} />
       </View>
@@ -168,9 +167,9 @@ export default function ActivityScreen() {
       ) : (
         <SectionList
           sections={sections}
-          keyExtractor={(item) => item.expense_id}
-          renderItem={({ item }) => <ActivityCard item={item} />}
-          renderSectionHeader={({ section }) => (
+          keyExtractor={(item: ActivityRow) => item.expense_id}
+          renderItem={({ item }: { item: ActivityRow }) => <ActivityCard item={item} />}
+          renderSectionHeader={({ section }: { section: Section }) => (
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>{section.title.toUpperCase()}</Text>
             </View>

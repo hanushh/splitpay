@@ -42,15 +42,6 @@ const CurrencyContext = createContext<CurrencyContextType>({
   formatAbs: (cents) => `$${(Math.abs(cents) / 100).toFixed(2)}`,
 });
 
-function buildFormat(c: Currency) {
-  return (cents: number) => {
-    if (c.noDecimals) {
-      return `${c.symbol}${Math.round(Math.abs(cents)).toLocaleString()}`;
-    }
-    return `${c.symbol}${(Math.abs(cents) / 100).toFixed(2)}`;
-  };
-}
-
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<Currency>(DEFAULT_CURRENCY);
 
@@ -68,7 +59,15 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     SecureStore.setItemAsync(STORAGE_KEY, c.code);
   }, []);
 
-  const formatAbs = useCallback(buildFormat(currency), [currency]);
+  const formatAbs = useCallback(
+    (cents: number) => {
+      if (currency.noDecimals) {
+        return `${currency.symbol}${Math.round(Math.abs(cents)).toLocaleString()}`;
+      }
+      return `${currency.symbol}${(Math.abs(cents) / 100).toFixed(2)}`;
+    },
+    [currency],
+  );
   const format = formatAbs; // alias (we always display absolute values with sign handled by caller)
 
   return (

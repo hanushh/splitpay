@@ -49,10 +49,11 @@ export default function ParallaxScrollView({
       ref={scrollRef}
       style={{ backgroundColor, flex: 1 }}
       scrollEventThrottle={16}>
+      {/* @ts-ignore - reanimated Animated.View accepts children at runtime */}
       <Animated.View
         style={[
           styles.header,
-          { backgroundColor: headerBackgroundColor[colorScheme] },
+          { backgroundColor: headerBackgroundColor[colorScheme as keyof typeof headerBackgroundColor] },
           headerAnimatedStyle,
         ]}>
         {headerImage}
