@@ -5,6 +5,8 @@ import {
   registerPushTokenForCurrentUser,
 } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 jest.mock('@/lib/supabase');
 
@@ -73,7 +75,6 @@ describe('dispatchPendingPushNotifications', () => {
 
 describe('ensurePushNotificationHandler', () => {
   it('configures the notification handler on first call', () => {
-    const Notifications = require('expo-notifications');
     ensurePushNotificationHandler();
     expect(Notifications.setNotificationHandler).toHaveBeenCalledTimes(1);
   });
@@ -81,7 +82,6 @@ describe('ensurePushNotificationHandler', () => {
 
 describe('registerPushTokenForCurrentUser', () => {
   it('returns null on web platform', async () => {
-    const { Platform } = require('react-native');
     const original = Platform.OS;
     Platform.OS = 'web';
     const result = await registerPushTokenForCurrentUser();
@@ -90,9 +90,8 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when permissions are denied', async () => {
-    const Notifications = require('expo-notifications');
-    Notifications.getPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
-    Notifications.requestPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });
@@ -116,8 +115,7 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when no push token is returned', async () => {
-    const Notifications = require('expo-notifications');
-    Notifications.getExpoPushTokenAsync.mockResolvedValueOnce({ data: null });
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({ data: null });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });

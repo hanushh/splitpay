@@ -28,11 +28,11 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const insets = useSafeAreaInsets();
-  const { groupId, groupName, friendName, amountCents } =
+  const { groupName, friendName, amountCents } =
     useLocalSearchParams<{ groupId?: string; groupName?: string; friendName?: string; amountCents?: string }>();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saving] = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 

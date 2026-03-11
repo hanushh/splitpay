@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import { removePushToken } from '@/lib/push-notifications';
+import { router } from 'expo-router';
 
 jest.mock('@/lib/supabase');
 jest.mock('@/lib/push-notifications', () => ({
@@ -119,7 +121,6 @@ describe('useAuth', () => {
   });
 
   it('signOut calls removePushToken then supabase.auth.signOut', async () => {
-    const removePushToken = require('@/lib/push-notifications').removePushToken;
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {
       await result.current.signOut();
@@ -179,7 +180,6 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('auth callback deep link with code exchanges session and navigates', async () => {
-    const { router } = require('expo-router');
     const callbackUrl = `${AUTH_CALLBACK_URL}?code=deeplink-code-123`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValueOnce({
@@ -206,7 +206,6 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('auth callback deep link with implicit tokens sets session and navigates', async () => {
-    const { router } = require('expo-router');
     const callbackUrl = `${AUTH_CALLBACK_URL}#access_token=myat&refresh_token=myrt`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
@@ -226,7 +225,6 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('ignores deep links that do not match known prefixes', async () => {
-    const { router } = require('expo-router');
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce('paysplit://unknown/path');
 
     renderHook(() => useAuth(), { wrapper });
