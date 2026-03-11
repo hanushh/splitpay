@@ -264,6 +264,8 @@ export default function AddExpenseScreen() {
     }
 
     setSaving(false);
+    // Fire-and-forget: reinforcement runs in background, does not block navigation.
+    // The hook updates in-memory cache synchronously before the RPC completes.
     if (detectedCategory !== 'other') {
       reinforceMapping(description, detectedCategory);
     } else if (customCategory.trim()) {
