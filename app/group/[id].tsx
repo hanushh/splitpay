@@ -152,6 +152,23 @@ export default function GroupDetailScreen() {
   const grouped = groupByMonth(expenses);
   const isCreator = user?.id === group.created_by;
 
+  const handleDelete = async () => {
+    if (!group || deleteInput !== group.name) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowDeleteModal(false);
+    router.replace('/');
+  };
+
   const handleArchive = async () => {
     if (!group) return;
     setActionLoading(true);
@@ -346,6 +363,62 @@ export default function GroupDetailScreen() {
         </View>
         </View>
       </Modal>
+
+      {/* Type-to-confirm delete modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+      >
+        <View style={s.deleteOverlay}>
+          <View style={s.deleteCard}>
+            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)', alignSelf: 'center', marginBottom: 16 }]}>
+              <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
+            </View>
+            <Text style={s.deleteTitle}>Delete Group</Text>
+            <Text style={s.deleteWarning}>
+              This will permanently delete{' '}
+              <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text>
+              {' '}and all its expenses. This cannot be undone.
+            </Text>
+            <Text style={s.deleteLabel}>
+              Type <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text> to confirm
+            </Text>
+            <TextInput
+              style={s.deleteInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder={group?.name}
+              placeholderTextColor={C.slate500}
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="delete-confirm-input"
+            />
+            {actionError ? <Text style={s.errorText}>{actionError}</Text> : null}
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [
+                s.deleteConfirmBtn,
+                deleteInput !== group?.name && s.deleteConfirmBtnDisabled,
+                pressed && deleteInput === group?.name && { opacity: 0.8 },
+              ]}
+              onPress={handleDelete}
+              disabled={deleteInput !== group?.name || actionLoading}
+              testID="delete-confirm-button"
+            >
+              <Text style={s.deleteConfirmBtnText}>
+                {actionLoading ? 'Deleting…' : 'Delete Group'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.deleteCancelBtn, pressed && { opacity: 0.7 }]}
+              onPress={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+            >
+              <Text style={s.deleteCancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -428,4 +501,45 @@ const s = StyleSheet.create({
   sheetIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sheetRowText: { color: C.white, fontWeight: '600', fontSize: 15 },
   errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  deleteCard: {
+    backgroundColor: C.surface,
+    borderRadius: 20,
+    padding: 24,
+  },
+  deleteTitle: { color: C.white, fontWeight: '700', fontSize: 20, textAlign: 'center', marginBottom: 12 },
+  deleteWarning: { color: C.slate400, fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+  deleteLabel: { color: C.slate400, fontSize: 13, marginBottom: 8 },
+  deleteInput: {
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: C.white,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: '#ff5252',
+    borderRadius: 12,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  deleteConfirmBtnDisabled: { backgroundColor: C.surfaceHL },
+  deleteConfirmBtnText: { color: C.white, fontWeight: '700', fontSize: 15 },
+  deleteCancelBtn: {
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCancelBtnText: { color: C.slate400, fontWeight: '600', fontSize: 15 },
 });
