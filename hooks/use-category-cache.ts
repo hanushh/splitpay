@@ -88,7 +88,7 @@ export function useCategoryCache() {
         inMemory = fresh;
         fetchedAt = Date.now();
         writeCache(fresh);
-      });
+      }).catch(() => {});
     }
     const keywords = extractKeywords(description);
     return scoreDescription(keywords, inMemory);
@@ -103,10 +103,14 @@ export function useCategoryCache() {
     if (keywords.length === 0) return;
 
     // Atomic server-side upsert+increment — avoids race conditions
-    await supabase.rpc('increment_keyword_usage', {
+    const { error } = await supabase.rpc('increment_keyword_usage', {
       p_keywords: keywords,
       p_category: category,
     });
+    if (error) {
+      console.warn('[CategoryCache] saveMapping RPC error:', error.message);
+      return;
+    }
 
     // Merge into in-memory cache optimistically
     for (const keyword of keywords) {
@@ -126,10 +130,14 @@ export function useCategoryCache() {
     if (keywords.length === 0) return;
 
     // Atomic server-side increment
-    await supabase.rpc('increment_keyword_usage', {
+    const { error } = await supabase.rpc('increment_keyword_usage', {
       p_keywords: keywords,
       p_category: category,
     });
+    if (error) {
+      console.warn('[CategoryCache] reinforceMapping RPC error:', error.message);
+      return;
+    }
 
     // Update in-memory cache optimistically
     for (const keyword of keywords) {
@@ -146,4 +154,10 @@ export async function clearCategoryCache() {
   inMemory = {};
   fetchedAt = 0;
   await AsyncStorage.removeItem(CACHE_KEY);
+}
+
+/** For testing only — resets in-memory singleton state between tests. */
+export function __resetCacheForTesting(): void {
+  inMemory = {};
+  fetchedAt = 0;
 }

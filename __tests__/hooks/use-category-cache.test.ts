@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useCategoryCache } from '@/hooks/use-category-cache';
+import { useCategoryCache, __resetCacheForTesting } from '@/hooks/use-category-cache';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -15,6 +15,7 @@ const mockRows = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  __resetCacheForTesting();
   (AsyncStorage as any).__store = {};
   (supabase.from as jest.Mock).mockReturnValue({
     select: jest.fn().mockReturnThis(),
