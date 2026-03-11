@@ -332,35 +332,35 @@ export default function GroupDetailScreen() {
             onPress={() => { setShowSettings(false); setActionError(null); }}
           />
           <View style={s.bottomSheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Group Settings</Text>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Group Settings</Text>
 
-          {actionError ? (
-            <Text style={s.errorText}>{actionError}</Text>
-          ) : null}
+            {actionError ? (
+              <Text style={s.errorText}>{actionError}</Text>
+            ) : null}
 
-          <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-            onPress={handleArchive}
-            disabled={actionLoading}
-          >
-            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
-              <MaterialIcons name="inventory" size={20} color={C.orange} />
-            </View>
-            <Text style={s.sheetRowText}>Archive Group</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+              onPress={handleArchive}
+              disabled={actionLoading}
+            >
+              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                <MaterialIcons name="inventory" size={20} color={C.orange} />
+              </View>
+              <Text style={s.sheetRowText}>Archive Group</Text>
+            </Pressable>
 
-          <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-            onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
-            disabled={actionLoading}
-          >
-            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
-              <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
-            </View>
-            <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
-          </Pressable>
-        </View>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+              onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+              disabled={actionLoading}
+            >
+              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+                <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
+              </View>
+              <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
+            </Pressable>
+          </View>
         </View>
       </Modal>
 
@@ -472,7 +472,6 @@ const s = StyleSheet.create({
   fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { color: C.slate400, fontSize: 15, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   bottomSheet: {
     backgroundColor: C.surface,
     borderTopLeftRadius: 20,
