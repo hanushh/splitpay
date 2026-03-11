@@ -135,8 +135,8 @@ jobs:
             echo "TRACK=internal" >> $GITHUB_ENV
           fi
 
-      - name: Check for mapping file
-        id: mapping
+      - name: Check for ProGuard mapping file
+        id: mapping_check
         run: |
           if [ -f "android/app/build/outputs/mapping/release/mapping.txt" ]; then
             echo "path=android/app/build/outputs/mapping/release/mapping.txt" >> $GITHUB_OUTPUT
@@ -152,4 +152,4 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ env.TRACK }}
           status: completed
-          mappingFile: ${{ steps.mapping.outputs.path }}
+          mappingFile: ${{ steps.mapping_check.outputs.path }}
