@@ -100,22 +100,24 @@ export default function CreateGroupScreen() {
     setError(null);
     setSaving(true);
 
+    // Pre-generate the group ID so we never need to read the row back after insert
+    const groupId = crypto.randomUUID();
+
     // Insert group
-    const { data: group, error: groupErr } = await supabase
+    const { error: groupErr } = await supabase
       .from('groups')
       .insert({
+        id: groupId,
         name: name.trim(),
         description: description.trim() || null,
         bg_color: selectedColor,
         icon_name: selectedIcon,
         created_by: user.id,
         archived: false,
-      })
-      .select('id')
-      .single();
+      });
 
-    if (groupErr || !group) {
-      setError(groupErr?.message ?? 'Failed to create group. Please try again.');
+    if (groupErr) {
+      setError(groupErr.message ?? 'Failed to create group. Please try again.');
       setSaving(false);
       return;
     }
@@ -123,7 +125,7 @@ export default function CreateGroupScreen() {
     // Add creator as member
     const { error: memberErr } = await supabase
       .from('group_members')
-      .insert({ group_id: group.id, user_id: user.id });
+      .insert({ group_id: groupId, user_id: user.id });
 
     if (memberErr) {
       setError(memberErr.message ?? 'Group created but failed to add you as member.');
@@ -134,14 +136,14 @@ export default function CreateGroupScreen() {
     // Insert balance row for creator (ignore error — view may auto-populate)
     await supabase
       .from('group_balances')
-      .insert({ group_id: group.id, user_id: user.id, balance_cents: 0 });
+      .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
 
     // Create invitations for each added email
     if (memberEmails.length > 0) {
       const rows = memberEmails.map((invitee_email) => ({
         inviter_id: user.id,
         invitee_email,
-        group_id: group.id,
+        group_id: groupId,
         token: generateInviteToken(),
         status: 'pending',
       }));
@@ -153,7 +155,7 @@ export default function CreateGroupScreen() {
     }
 
     setSaving(false);
-    router.replace({ pathname: '/group/[id]', params: { id: group.id } });
+    router.replace({ pathname: '/group/[id]', params: { id: groupId } });
   };
 
   return (
