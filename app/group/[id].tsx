@@ -307,10 +307,14 @@ export default function GroupDetailScreen() {
         visible={showSettings}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowSettings(false)}
+        onRequestClose={() => { setShowSettings(false); setActionError(null); }}
       >
-        <Pressable style={s.modalOverlay} onPress={() => setShowSettings(false)} />
-        <View style={s.bottomSheet}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+            onPress={() => { setShowSettings(false); setActionError(null); }}
+          />
+          <View style={s.bottomSheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>Group Settings</Text>
 
@@ -339,6 +343,7 @@ export default function GroupDetailScreen() {
             </View>
             <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
           </Pressable>
+        </View>
         </View>
       </Modal>
     </View>
@@ -396,7 +401,7 @@ const s = StyleSheet.create({
   emptyText: { color: C.slate400, fontSize: 15, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   bottomSheet: {
-    backgroundColor: '#1a3324',
+    backgroundColor: C.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 36,
@@ -407,20 +412,20 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#244732',
+    backgroundColor: C.surfaceHL,
     alignSelf: 'center',
     marginBottom: 16,
   },
-  sheetTitle: { color: '#ffffff', fontWeight: '700', fontSize: 17, marginBottom: 20 },
+  sheetTitle: { color: C.white, fontWeight: '700', fontSize: 17, marginBottom: 20 },
   sheetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#244732',
+    borderBottomColor: C.surfaceHL,
   },
   sheetIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  sheetRowText: { color: '#ffffff', fontWeight: '600', fontSize: 15 },
+  sheetRowText: { color: C.white, fontWeight: '600', fontSize: 15 },
   errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
 });
