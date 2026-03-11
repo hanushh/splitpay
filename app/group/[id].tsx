@@ -4,10 +4,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +48,7 @@ interface GroupDetail {
   image_url: string | null;
   bg_color: string;
   balance_cents: number;
+  created_by: string;
 }
 
 const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
@@ -80,11 +83,16 @@ export default function GroupDetailScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
     const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }] = await Promise.all([
-      supabase.from('groups').select('id, name, description, image_url, bg_color').eq('id', id).single(),
+      supabase.from('groups').select('id, name, description, image_url, bg_color, created_by').eq('id', id).single(),
       supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
     ]);
@@ -142,6 +150,24 @@ export default function GroupDetailScreen() {
       : `You owe ${format(group.balance_cents)}`;
 
   const grouped = groupByMonth(expenses);
+  const isCreator = user?.id === group.created_by;
+
+  const handleArchive = async () => {
+    if (!group) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .update({ archived: true })
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowSettings(false);
+    router.replace('/');
+  };
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
@@ -151,8 +177,16 @@ export default function GroupDetailScreen() {
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
         <Text style={s.topTitle} numberOfLines={1} testID="group-detail-title">{group.name}</Text>
-        <Pressable style={s.backBtn}>
-          <MaterialIcons name="settings" size={24} color={C.white} />
+        <Pressable
+          style={s.backBtn}
+          onPress={isCreator ? () => setShowSettings(true) : undefined}
+          testID="settings-button"
+        >
+          <MaterialIcons
+            name="settings"
+            size={24}
+            color={isCreator ? C.white : C.slate500}
+          />
         </Pressable>
       </View>
 
@@ -267,6 +301,46 @@ export default function GroupDetailScreen() {
       >
         <MaterialIcons name="add" size={28} color={C.bg} />
       </Pressable>
+
+      {/* Settings bottom sheet */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <Pressable style={s.modalOverlay} onPress={() => setShowSettings(false)} />
+        <View style={s.bottomSheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Group Settings</Text>
+
+          {actionError ? (
+            <Text style={s.errorText}>{actionError}</Text>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+            onPress={handleArchive}
+            disabled={actionLoading}
+          >
+            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+              <MaterialIcons name="inventory" size={20} color={C.orange} />
+            </View>
+            <Text style={s.sheetRowText}>Archive Group</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+            onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+            disabled={actionLoading}
+          >
+            <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+              <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
+            </View>
+            <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -320,4 +394,33 @@ const s = StyleSheet.create({
   fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { color: C.slate400, fontSize: 15, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  bottomSheet: {
+    backgroundColor: '#1a3324',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 36,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#244732',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: { color: '#ffffff', fontWeight: '700', fontSize: 17, marginBottom: 20 },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#244732',
+  },
+  sheetIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sheetRowText: { color: '#ffffff', fontWeight: '600', fontSize: 15 },
+  errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
 });
