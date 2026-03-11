@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { useCategoryCache } from '@/hooks/use-category-cache';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -33,14 +34,14 @@ const C = {
   orange: '#f97316',
 };
 
-const CATEGORIES = [
-  { id: 'restaurant', label: 'Food & Drink', icon: 'restaurant' },
-  { id: 'train',      label: 'Transport',    icon: 'directions-car' },
-  { id: 'hotel',      label: 'Accommodation', icon: 'hotel' },
-  { id: 'movie',      label: 'Entertainment', icon: 'movie' },
-  { id: 'store',      label: 'Shopping',      icon: 'shopping-bag' },
-  { id: 'other',      label: 'Other',         icon: 'receipt-long' },
-] as const;
+const CATEGORY_LABELS: Record<string, string> = {
+  restaurant: '🍽 Food & Drink',
+  train: '🚗 Transport',
+  hotel: '🏨 Accommodation',
+  movie: '🎬 Entertainment',
+  store: '🛍 Shopping',
+  other: '⚙️ Other',
+};
 
 interface GroupOption {
   id: string;
@@ -82,7 +83,9 @@ export default function AddExpenseScreen() {
   const [paidBy, setPaidBy] = useState<string>('');
   const [splitMethod, setSplitMethod] = useState<'equally' | 'exact' | 'percent'>('equally');
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
-  const [category, setCategory] = useState<string>('other');
+  const { detect, saveMapping, reinforceMapping } = useCategoryCache();
+  const [detectedCategory, setDetectedCategory] = useState<string>('other');
+  const [customCategory, setCustomCategory] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -177,6 +180,18 @@ export default function AddExpenseScreen() {
     if (groupId) loadMembers(groupId);
   }, [groupId, loadMembers]);
 
+  // Auto-detect category from description with 300ms debounce
+  useEffect(() => {
+    if (!description.trim()) {
+      setDetectedCategory('other');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDetectedCategory(detect(description));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [description, detect]);
+
   const toggleMember = (id: string) => {
     setSelectedMembers((prev) => {
       const next = new Set(prev);
@@ -200,6 +215,10 @@ export default function AddExpenseScreen() {
 
     setSaving(true);
 
+    const finalCategory = detectedCategory === 'other' && customCategory.trim()
+      ? customCategory.trim().toLowerCase()
+      : detectedCategory;
+
     // Insert expense
     const { data: expense, error: expErr } = await supabase
       .from('expenses')
@@ -208,7 +227,7 @@ export default function AddExpenseScreen() {
         description: description.trim(),
         amount_cents: amtCents,
         paid_by_member_id: paidBy,
-        category,
+        category: finalCategory,
       })
       .select('id')
       .single();
@@ -238,6 +257,11 @@ export default function AddExpenseScreen() {
     }
 
     setSaving(false);
+    if (detectedCategory !== 'other') {
+      reinforceMapping(description, detectedCategory);
+    } else if (customCategory.trim()) {
+      saveMapping(description, customCategory.trim().toLowerCase());
+    }
     router.back();
   };
 
@@ -428,31 +452,37 @@ export default function AddExpenseScreen() {
           )
         )}
 
-        {/* Category */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <MaterialIcons name="category" size={20} color={C.slate400} />
-            <Text style={s.sectionLabel}>Category</Text>
-          </View>
-          <View style={s.categoryGrid}>
-            {CATEGORIES.map((cat) => (
-              <Pressable
-                key={cat.id}
-                style={[s.categoryBtn, category === cat.id && s.categoryBtnActive]}
-                onPress={() => setCategory(cat.id)}
-              >
-                <MaterialIcons
-                  name={cat.icon as keyof typeof MaterialIcons.glyphMap}
-                  size={20}
-                  color={category === cat.id ? C.bg : C.slate400}
-                />
-                <Text style={[s.categoryText, category === cat.id && { color: C.bg }]}>
-                  {cat.label}
+        {/* Category — auto-detected chip */}
+        {description.trim().length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <MaterialIcons name="category" size={20} color={C.slate400} />
+              <Text style={s.sectionLabel}>Category</Text>
+            </View>
+            <View style={s.categoryChipRow}>
+              <View style={[s.categoryChip, detectedCategory === 'other' && s.categoryChipOther]}>
+                <Text style={[s.categoryChipText, detectedCategory === 'other' && s.categoryChipTextOther]}>
+                  {CATEGORY_LABELS[detectedCategory] ?? detectedCategory}
                 </Text>
-              </Pressable>
-            ))}
+              </View>
+              <Text style={s.categoryAutoLabel}>Auto-detected</Text>
+            </View>
+            {detectedCategory === 'other' && (
+              <TextInput
+                style={s.categoryInput}
+                placeholder="e.g. Health & Wellness"
+                placeholderTextColor={C.slate400}
+                value={customCategory}
+                onChangeText={setCustomCategory}
+                returnKeyType="done"
+                testID="custom-category-input"
+              />
+            )}
+            {detectedCategory === 'other' && customCategory.trim().length > 0 && (
+              <Text style={s.categorySaveHint}>Saved for future auto-detection</Text>
+            )}
           </View>
-        </View>
+        )}
 
         <Pressable style={s.addReceiptBtn}>
           <MaterialIcons name="add-a-photo" size={20} color={C.slate400} />
@@ -618,10 +648,25 @@ const s = StyleSheet.create({
   shareInitial: { color: C.slate400, fontWeight: '700', fontSize: 18 },
   checkBadge: { position: 'absolute', bottom: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg },
   shareName: { color: C.slate400, fontSize: 12, fontWeight: '600' },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  categoryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceHL },
-  categoryBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-  categoryText: { color: C.slate400, fontSize: 13, fontWeight: '600' },
+  categoryChipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  categoryChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    backgroundColor: 'rgba(23,232,107,0.12)',
+    borderWidth: 1, borderColor: 'rgba(23,232,107,0.35)',
+  },
+  categoryChipOther: {
+    backgroundColor: 'rgba(148,163,184,0.08)',
+    borderColor: 'rgba(148,163,184,0.25)',
+  },
+  categoryChipText: { color: '#17e86b', fontWeight: '600', fontSize: 13 },
+  categoryChipTextOther: { color: '#94a3b8' },
+  categoryAutoLabel: { color: '#64748b', fontSize: 11 },
+  categoryInput: {
+    marginTop: 10, backgroundColor: '#1a3324', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10, color: '#ffffff',
+    fontSize: 14, borderWidth: 1, borderColor: '#244732',
+  },
+  categorySaveHint: { color: '#64748b', fontSize: 11, marginTop: 4, fontStyle: 'italic' },
   splitComingSoon: { color: C.slate500, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   addReceiptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: C.surfaceHL, borderStyle: 'dashed' },
   addReceiptText: { color: C.slate400, fontSize: 14, fontWeight: '600' },
