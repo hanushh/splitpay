@@ -120,6 +120,40 @@ export default function GroupDetailScreen() {
 
   useEffect(() => { fetchGroup(); }, [fetchGroup]);
 
+  const handleDelete = useCallback(async () => {
+    if (!group || deleteInput !== group.name) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowDeleteModal(false);
+    router.replace('/');
+  }, [group, deleteInput]);
+
+  const handleArchive = useCallback(async () => {
+    if (!group) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .update({ archived: true })
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    setShowSettings(false);
+    router.replace('/');
+  }, [group]);
+
   if (loading) {
     return (
       <View
@@ -151,40 +185,6 @@ export default function GroupDetailScreen() {
 
   const grouped = groupByMonth(expenses);
   const isCreator = user?.id === group.created_by;
-
-  const handleDelete = async () => {
-    if (!group || deleteInput !== group.name) return;
-    setActionLoading(true);
-    setActionError(null);
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', group.id);
-    setActionLoading(false);
-    if (error) {
-      setActionError(error.message);
-      return;
-    }
-    setShowDeleteModal(false);
-    router.replace('/');
-  };
-
-  const handleArchive = async () => {
-    if (!group) return;
-    setActionLoading(true);
-    setActionError(null);
-    const { error } = await supabase
-      .from('groups')
-      .update({ archived: true })
-      .eq('id', group.id);
-    setActionLoading(false);
-    if (error) {
-      setActionError(error.message);
-      return;
-    }
-    setShowSettings(false);
-    router.replace('/');
-  };
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
@@ -324,9 +324,9 @@ export default function GroupDetailScreen() {
         visible={showSettings}
         transparent
         animationType="slide"
-        onRequestClose={() => { setShowSettings(false); setActionError(null); }}
+        onRequestClose={() => { setShowSettings(false); setActionError(null); setDeleteInput(''); }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={s.settingsModalContainer}>
           <Pressable
             style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
             onPress={() => { setShowSettings(false); setActionError(null); }}
@@ -425,6 +425,7 @@ export default function GroupDetailScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+  settingsModalContainer: { flex: 1, justifyContent: 'flex-end' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 8 },
   backBtn: { padding: 10 },
   topTitle: { flex: 1, color: C.white, fontWeight: '700', fontSize: 18, textAlign: 'center' },

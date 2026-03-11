@@ -218,26 +218,25 @@ describe('useGroups', () => {
   });
 
   it('excludes archived groups from results', async () => {
-    const rowsWithArchived = [
-      {
-        id: 'g1',
-        name: 'Active Group',
-        icon_name: 'group',
-        bg_color: '#1a3324',
-        archived: false,
-        created_at: '2026-01-01T00:00:00Z',
-        group_balances: [{ balance_cents: 1000 }],
-        group_members: [{ user_id: 'user-123' }],
-      },
-    ];
+    const activeGroupRow = {
+      id: 'g1',
+      name: 'Active Group',
+      icon_name: 'group',
+      bg_color: '#1a3324',
+      archived: false,
+      created_at: '2026-01-01T00:00:00Z',
+      group_balances: [{ balance_cents: 1000 }],
+      group_members: [{ user_id: 'user-123' }],
+    };
+    const eqMock = jest.fn().mockReturnThis();
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: rowsWithArchived, error: null }),
+      eq: eqMock,
+      order: jest.fn().mockResolvedValue({ data: [activeGroupRow], error: null }),
     });
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
-    // The hook should only return non-archived groups
+    expect(eqMock).toHaveBeenCalledWith('archived', false);
     expect(result.current.groups).toHaveLength(1);
     expect(result.current.groups[0].name).toBe('Active Group');
   });
