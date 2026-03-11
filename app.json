@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hanushh.paysplit"
+      "package": "com.hanushh.paysplit",
+      "edgeToEdge": true
     },
     "web": {
       "output": "static",
@@ -27,6 +28,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-system-ui",
+        {
+          "backgroundColor": "#112117"
+        }
+      ],
       [
         "expo-splash-screen",
         {
