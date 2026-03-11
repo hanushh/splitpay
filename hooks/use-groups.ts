@@ -45,6 +45,8 @@ export function useGroups() {
           group_members!inner ( id, display_name, avatar_url, user_id )
         `)
         .eq('archived', false)
+        .eq('group_members.user_id', user.id)
+        .eq('group_balances.user_id', user.id)
         .order('created_at', { ascending: true });
 
       if (groupsErr) throw new Error(groupsErr.message);
