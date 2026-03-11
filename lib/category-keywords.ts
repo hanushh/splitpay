@@ -32,6 +32,10 @@ export const BUILTIN_SCORE = 10;
 /**
  * Extract meaningful keywords from a raw expense description.
  * Lowercases, strips punctuation, splits on whitespace, filters stop-words and short tokens.
+ *
+ * Design: Normalize punctuation before splitting: "McDonald's" → "mcdonalds" (single token).
+ * Trade-off: compound words like "amazon.com" become "amazoncom", but the learned
+ * mappings system adapts by building associations on actual user input.
  */
 export function extractKeywords(description: string): string[] {
   return description

@@ -49,10 +49,17 @@ describe('scoreDescription', () => {
     expect(scoreDescription(['dinner'], learned)).toBe('other:health');
   });
 
-  it('built-in wins on tie', () => {
+  it('reinforces same category from both sources', () => {
     // built-in gives 'restaurant' +10 via 'dinner'
-    // learned gives 'restaurant' +10 via 'dinner' — tie → built-in wins
+    // learned gives 'restaurant' +10 via 'dinner' — both reinforce same category
     const learned = { dinner: { restaurant: 10 } };
+    expect(scoreDescription(['dinner'], learned)).toBe('restaurant');
+  });
+
+  it('built-in category wins when scores are tied', () => {
+    // 'dinner': built-in → restaurant (+10), learned → 'health' (+10)
+    // Tie at 10 each → built-in (restaurant) wins
+    const learned = { dinner: { health: 10 } };
     expect(scoreDescription(['dinner'], learned)).toBe('restaurant');
   });
 
