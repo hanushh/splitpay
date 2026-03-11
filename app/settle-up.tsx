@@ -28,11 +28,10 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const insets = useSafeAreaInsets();
-  const { groupId, groupName, friendName, amountCents } =
+  const { groupName, friendName, amountCents } =
     useLocalSearchParams<{ groupId?: string; groupName?: string; friendName?: string; amountCents?: string }>();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -136,10 +135,9 @@ export default function SettleUpScreen() {
         <Pressable
           style={({ pressed }: { pressed: boolean }) => [s.saveBtn, pressed && { opacity: 0.85 }]}
           onPress={handleSave}
-          disabled={saving}
         >
           <MaterialIcons name="check" size={20} color={C.bg} />
-          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save Payment'}</Text>
+          <Text style={s.saveBtnText}>Save Payment</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
