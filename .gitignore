@@ -52,4 +52,5 @@ supabase/.temp
 
 # test coverage
 coverage/
-.superpowers.superpowers/
+.superpowers.superpowers
+.superpowers/
