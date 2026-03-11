@@ -6,6 +6,9 @@ Key Principles:
 - Prefer functional components and hooks over class components.
 - Use `StyleSheet` from `react-native` for styling. Keep styles at the bottom of the file.
 
+Package Manager:
+- Use `pnpm` exclusively for all Node.js package and script commands in this project. Do not use `npm` or `yarn`.
+
 Architecture & Routing:
 - The app uses Expo Router (`app/` directory).
 - `app/(tabs)` contains the main bottom tab navigation.
@@ -32,4 +35,4 @@ Data Fetching & Backend:
 Testing:
 - Use Jest and `@testing-library/react-native` for unit and integration testing.
 - Use Detox for E2E testing (`e2e/` directory).
-- Before opening PRs, run `npm run lint`, `npm run typecheck`, `npm test`, relevant Detox commands, and `npm run build:android` when native changes are involved (see `CONTRIBUTING.md`).
+- Before opening PRs, run `pnpm lint`, `pnpm typecheck`, `pnpm test`, relevant Detox commands, and `pnpm build:android` when native changes are involved (see `CONTRIBUTING.md`).

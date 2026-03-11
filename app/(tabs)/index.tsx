@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -129,7 +129,6 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
 export default function GroupsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('groups');
   const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
@@ -163,27 +162,6 @@ export default function GroupsScreen() {
         </View>
 
         <TotalBalanceDisplay cents={totalBalanceCents} />
-
-        {/* Header Tabs */}
-        <View style={s.headerTabs}>
-          <Pressable
-            style={[s.headerTab, activeTab === 'friends' && s.headerTabActive]}
-            onPress={() => setActiveTab('friends')}
-          >
-            <Text style={[s.headerTabText, activeTab === 'friends' && s.headerTabTextActive]}>
-              Friends
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[s.headerTab, activeTab === 'groups' && s.headerTabActive]}
-            onPress={() => setActiveTab('groups')}
-            testID="groups-tab"
-          >
-            <Text style={[s.headerTabText, activeTab === 'groups' && s.headerTabTextActive]} testID="groups-tab-label">
-              Groups
-            </Text>
-          </Pressable>
-        </View>
       </View>
 
       {/* Main Content */}
@@ -292,15 +270,6 @@ const s = StyleSheet.create({
   balanceAmount: { color: C.primary, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   balanceTrend: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 },
   balanceTrendText: { color: C.primary, fontSize: 13, fontWeight: '500', opacity: 0.8 },
-  headerTabs: { flexDirection: 'row' },
-  headerTab: {
-    flex: 1, paddingBottom: 12,
-    alignItems: 'center',
-    borderBottomWidth: 3, borderBottomColor: 'transparent',
-  },
-  headerTabActive: { borderBottomColor: C.primary },
-  headerTabText: { fontSize: 14, fontWeight: '500', color: C.slate400 },
-  headerTabTextActive: { color: C.primary, fontWeight: '700' },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   sectionHeader: {
