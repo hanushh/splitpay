@@ -192,6 +192,13 @@ export default function AddExpenseScreen() {
     return () => clearTimeout(timer);
   }, [description, detect]);
 
+  // Clear custom category input when auto-detection finds a non-other category
+  useEffect(() => {
+    if (detectedCategory !== 'other') {
+      setCustomCategory('');
+    }
+  }, [detectedCategory]);
+
   const toggleMember = (id: string) => {
     setSelectedMembers((prev) => {
       const next = new Set(prev);
@@ -479,7 +486,7 @@ export default function AddExpenseScreen() {
               />
             )}
             {detectedCategory === 'other' && customCategory.trim().length > 0 && (
-              <Text style={s.categorySaveHint}>Saved for future auto-detection</Text>
+              <Text style={s.categorySaveHint}>Will be saved on expense creation</Text>
             )}
           </View>
         )}
@@ -651,22 +658,22 @@ const s = StyleSheet.create({
   categoryChipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   categoryChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: 'rgba(23,232,107,0.12)',
-    borderWidth: 1, borderColor: 'rgba(23,232,107,0.35)',
+    backgroundColor: `rgba(23,232,107,0.12)`,
+    borderWidth: 1, borderColor: `rgba(23,232,107,0.35)`,
   },
   categoryChipOther: {
-    backgroundColor: 'rgba(148,163,184,0.08)',
-    borderColor: 'rgba(148,163,184,0.25)',
+    backgroundColor: `rgba(148,163,184,0.08)`,
+    borderColor: `rgba(148,163,184,0.25)`,
   },
-  categoryChipText: { color: '#17e86b', fontWeight: '600', fontSize: 13 },
-  categoryChipTextOther: { color: '#94a3b8' },
-  categoryAutoLabel: { color: '#64748b', fontSize: 11 },
+  categoryChipText: { color: C.primary, fontWeight: '600', fontSize: 13 },
+  categoryChipTextOther: { color: C.slate400 },
+  categoryAutoLabel: { color: C.slate500, fontSize: 11 },
   categoryInput: {
-    marginTop: 10, backgroundColor: '#1a3324', borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 10, color: '#ffffff',
-    fontSize: 14, borderWidth: 1, borderColor: '#244732',
+    marginTop: 10, backgroundColor: C.surface, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10, color: C.white,
+    fontSize: 14, borderWidth: 1, borderColor: C.surfaceHL,
   },
-  categorySaveHint: { color: '#64748b', fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+  categorySaveHint: { color: C.slate500, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
   splitComingSoon: { color: C.slate500, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   addReceiptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: C.surfaceHL, borderStyle: 'dashed' },
   addReceiptText: { color: C.slate400, fontSize: 14, fontWeight: '600' },
