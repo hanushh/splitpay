@@ -91,9 +91,11 @@ splitpay/
 
 ### Install and run
 
+> **Package manager:** This project uses `pnpm` exclusively. Always prefer `pnpm` over `npm` or `yarn` for installing dependencies and running scripts (CI uses pnpm 9).
+
 ```bash
-npm install          # or pnpm install (CI uses pnpm 9)
-npm run dev          # Start Expo dev server
+pnpm install          # Install dependencies
+pnpm dev              # Start Expo dev server
 ```
 
 ### Environment variables
@@ -111,19 +113,19 @@ EXPO_PUBLIC_EAS_PROJECT_ID=<eas-project-id>   # push notifications
 ## Key Scripts
 
 ```bash
-npm run dev                 # Expo dev server
-npm run build:android       # Local Android AAB release build
-npm run lint                # ESLint
-npm run format              # Prettier check
-npm run format:fix          # Prettier write (auto-fix)
-npm run typecheck           # tsc --noEmit
-npm test                    # Jest unit tests
-npm run test:coverage       # Jest with coverage report
-npm run test:watch          # Jest watch mode
-npm run e2e:build           # Build debug APK for Detox
-npm run e2e:test            # Run Detox tests (android.emu.debug)
-npm run e2e:test:release    # Detox on release build
-npm run e2e:test:auth       # Detox – auth tests only
+pnpm dev                 # Expo dev server
+pnpm build:android       # Local Android AAB release build
+pnpm lint                # ESLint
+pnpm format              # Prettier check
+pnpm format:fix          # Prettier write (auto-fix)
+pnpm typecheck           # tsc --noEmit
+pnpm test                # Jest unit tests
+pnpm test:coverage       # Jest with coverage report
+pnpm test:watch          # Jest watch mode
+pnpm e2e:build           # Build debug APK for Detox
+pnpm e2e:test            # Run Detox tests (android.emu.debug)
+pnpm e2e:test:release    # Detox on release build
+pnpm e2e:test:auth       # Detox – auth tests only
 ```
 
 ---
@@ -133,14 +135,14 @@ npm run e2e:test:auth       # Detox – auth tests only
 Before committing or raising a PR, all of the following must pass:
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
 
 Run additionally when applicable:
-- **E2E tests** – when UI flows change: `npm run e2e:build && npm run e2e:test`
-- **Android build** – when native/Android-specific code changes: `npm run build:android`
+- **E2E tests** – when UI flows change: `pnpm e2e:build && pnpm e2e:test`
+- **Android build** – when native/Android-specific code changes: `pnpm build:android`
 
 ---
 
