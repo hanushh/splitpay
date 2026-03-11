@@ -81,7 +81,9 @@ export default function AddExpenseScreen() {
   const [expenseCurrency, setExpenseCurrency] = useState<Currency>(appCurrency);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [paidBy, setPaidBy] = useState<string>('');
+  const [paidByPickerOpen, setPaidByPickerOpen] = useState(false);
   const [splitMethod, setSplitMethod] = useState<'equally' | 'exact' | 'percent'>('equally');
+  const [splitCustomized, setSplitCustomized] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const { detect, saveMapping, reinforceMapping } = useCategoryCache();
   const [detectedCategory, setDetectedCategory] = useState<string>('other');
@@ -281,6 +283,7 @@ export default function AddExpenseScreen() {
     setMembers([]);
     setSelectedMembers(new Set());
     setPaidBy('');
+    setSplitCustomized(false);
   };
 
   return (
@@ -374,88 +377,96 @@ export default function AddExpenseScreen() {
             <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
           ) : (
             <>
-              {/* Paid by */}
-              <View style={s.section}>
-                <View style={s.sectionHeader}>
-                  <MaterialIcons name="person" size={20} color={C.slate400} />
-                  <Text style={s.sectionLabel}>Paid by</Text>
-                </View>
-                <View style={s.memberPills} testID="paid-by-section">
-                  {members.map((m) => (
-                    <Pressable
-                      key={m.id}
-                      style={[s.paidPill, paidBy === m.id && s.paidPillActive]}
-                      onPress={() => setPaidBy(m.id)}
-                      testID={`paid-by-${m.id}`}
-                    >
-                      <View style={[s.paidInitial, paidBy === m.id && s.paidInitialActive]}>
-                        <Text style={[s.paidInitialText, paidBy === m.id && { color: C.bg }]}>
-                          {(m.display_name || '?')[0].toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={[s.paidName, paidBy === m.id && { color: C.white }]}>
-                        {m.display_name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Split method */}
-              <View style={s.section}>
-                <View style={s.sectionHeader}>
-                  <MaterialIcons name="call-split" size={20} color={C.slate400} />
-                  <Text style={s.sectionLabel}>Split</Text>
-                </View>
-                <View style={s.splitRow}>
-                  {(['equally', 'exact', 'percent'] as const).map((m) => (
-                    <Pressable
-                      key={m}
-                      style={[s.splitBtn, splitMethod === m && s.splitBtnActive]}
-                      onPress={() => setSplitMethod(m)}
-                      testID={`split-method-${m}`}
-                    >
-                      <Text style={[s.splitBtnText, splitMethod === m && s.splitBtnTextActive]}>
-                        {m === 'equally' ? 'Equally' : m === 'exact' ? 'Exact' : 'Percent'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {splitMethod !== 'equally' && (
-                  <Text style={s.splitComingSoon}>
-                    Only equal splits are supported right now. Exact and percent splits coming soon.
-                  </Text>
-                )}
-              </View>
-
-              {/* Share with */}
-              <View style={s.section}>
-                <View style={s.sectionHeader}>
-                  <MaterialIcons name="people" size={20} color={C.slate400} />
-                  <Text style={s.sectionLabel}>Share with</Text>
-                </View>
-                <View style={s.shareGrid} testID="share-with-section">
-                  {members.map((m) => {
-                    const selected = selectedMembers.has(m.id);
-                    return (
-                      <Pressable key={m.id} style={s.shareItem} onPress={() => toggleMember(m.id)} testID={`member-toggle-${m.id}`}>
-                        <View style={[s.shareAvatar, selected && s.shareAvatarSelected]}>
-                          <Text style={[s.shareInitial, selected && { color: C.bg }]}>
-                            {(m.display_name || '?')[0].toUpperCase()}
+              {/* Paid by — compact row, picker opens on tap */}
+              {(() => {
+                const payer = members.find((m) => m.id === paidBy);
+                return (
+                  <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [s.compactRow, pressed && { opacity: 0.7 }]}
+                    onPress={() => setPaidByPickerOpen(true)}
+                    testID="paid-by-section"
+                  >
+                    <MaterialIcons name="person" size={20} color={C.slate400} />
+                    <Text style={s.compactRowLabel}>Paid by</Text>
+                    <View style={s.compactRowValue}>
+                      {payer && (
+                        <View style={s.compactAvatar}>
+                          <Text style={s.compactAvatarText}>
+                            {(payer.display_name || '?')[0].toUpperCase()}
                           </Text>
-                          {selected && (
-                            <View style={s.checkBadge}>
-                              <MaterialIcons name="check" size={10} color={C.bg} />
-                            </View>
-                          )}
                         </View>
-                        <Text style={[s.shareName, selected && { color: C.white }]}>
-                          {m.display_name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                      )}
+                      <Text style={s.compactRowValueText}>{payer?.display_name ?? '—'}</Text>
+                    </View>
+                    <Text style={s.compactChange}>Change</Text>
+                    <MaterialIcons name="chevron-right" size={18} color={C.slate500} />
+                  </Pressable>
+                );
+              })()}
+
+              {/* Split — compact summary, expands to customise */}
+              <View style={s.section}>
+                <Pressable
+                  style={({ pressed }: { pressed: boolean }) => [s.splitSummaryRow, pressed && { opacity: 0.7 }]}
+                  onPress={() => setSplitCustomized((v) => !v)}
+                  testID="split-summary-row"
+                >
+                  <MaterialIcons name="call-split" size={20} color={C.slate400} />
+                  <Text style={s.compactRowLabel}>Split</Text>
+                  <Text style={s.splitSummaryText}>
+                    {splitMethod === 'equally'
+                      ? `Equally · ${selectedMembers.size} member${selectedMembers.size !== 1 ? 's' : ''}`
+                      : splitMethod === 'exact' ? 'Exact amounts' : 'By percent'}
+                  </Text>
+                  <Text style={s.compactChange}>{splitCustomized ? 'Done' : 'Customize'}</Text>
+                  <MaterialIcons name={splitCustomized ? 'expand-less' : 'expand-more'} size={18} color={C.slate500} />
+                </Pressable>
+
+                {splitCustomized && (
+                  <>
+                    <View style={[s.splitRow, { marginTop: 12 }]}>
+                      {(['equally', 'exact', 'percent'] as const).map((m) => (
+                        <Pressable
+                          key={m}
+                          style={[s.splitBtn, splitMethod === m && s.splitBtnActive]}
+                          onPress={() => setSplitMethod(m)}
+                          testID={`split-method-${m}`}
+                        >
+                          <Text style={[s.splitBtnText, splitMethod === m && s.splitBtnTextActive]}>
+                            {m === 'equally' ? 'Equally' : m === 'exact' ? 'Exact' : 'Percent'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    {splitMethod !== 'equally' && (
+                      <Text style={s.splitComingSoon}>
+                        Only equal splits are supported right now. Exact and percent splits coming soon.
+                      </Text>
+                    )}
+                    <View style={[s.shareGrid, { marginTop: 16 }]} testID="share-with-section">
+                      {members.map((m) => {
+                        const selected = selectedMembers.has(m.id);
+                        return (
+                          <Pressable key={m.id} style={s.shareItem} onPress={() => toggleMember(m.id)} testID={`member-toggle-${m.id}`}>
+                            <View style={[s.shareAvatar, selected && s.shareAvatarSelected]}>
+                              <Text style={[s.shareInitial, selected && { color: C.bg }]}>
+                                {(m.display_name || '?')[0].toUpperCase()}
+                              </Text>
+                              {selected && (
+                                <View style={s.checkBadge}>
+                                  <MaterialIcons name="check" size={10} color={C.bg} />
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[s.shareName, selected && { color: C.white }]}>
+                              {m.display_name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
               </View>
             </>
           )
@@ -561,6 +572,43 @@ export default function AddExpenseScreen() {
               ItemSeparatorComponent={() => <View style={s.separator} />}
               scrollEnabled={false}
             />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Paid-by picker modal ───────────────────────────── */}
+      <Modal
+        visible={paidByPickerOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPaidByPickerOpen(false)}
+      >
+        <Pressable style={s.modalOverlay} onPress={() => setPaidByPickerOpen(false)}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Who paid?</Text>
+            {members.map((m) => {
+              const isSelected = m.id === paidBy;
+              return (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[s.pickerRow, isSelected && s.pickerRowSelected]}
+                  onPress={() => { setPaidBy(m.id); setPaidByPickerOpen(false); }}
+                  activeOpacity={0.7}
+                  testID={`paid-by-${m.id}`}
+                >
+                  <View style={[s.paidInitial, isSelected && s.paidInitialActive]}>
+                    <Text style={[s.paidInitialText, isSelected && { color: C.bg }]}>
+                      {(m.display_name || '?')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={[s.pickerRowText, isSelected && { color: C.primary }]}>
+                    {m.display_name}
+                  </Text>
+                  {isSelected && <MaterialIcons name="check" size={20} color={C.primary} />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Pressable>
       </Modal>
@@ -697,4 +745,14 @@ const s = StyleSheet.create({
   currencyName: { color: C.slate400, fontSize: 12, marginTop: 1 },
   currencySymbolText: { color: C.slate400, fontSize: 14, fontWeight: '500' },
   separator: { height: 1, backgroundColor: C.surfaceHL, marginHorizontal: 4 },
+  // Compact rows (paid-by, split summary)
+  compactRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.surfaceHL },
+  compactRowLabel: { color: C.slate400, fontSize: 14, fontWeight: '600', minWidth: 52 },
+  compactRowValue: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  compactRowValueText: { color: C.white, fontSize: 14, fontWeight: '600' },
+  compactAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.surfaceHL, alignItems: 'center', justifyContent: 'center' },
+  compactAvatarText: { color: C.primary, fontWeight: '700', fontSize: 11 },
+  compactChange: { color: C.primary, fontSize: 13, fontWeight: '600' },
+  splitSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  splitSummaryText: { flex: 1, color: C.white, fontSize: 14, fontWeight: '600' },
 });
