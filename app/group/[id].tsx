@@ -184,7 +184,7 @@ export default function GroupDetailScreen() {
       : `You owe ${format(group.balance_cents)}`;
 
   const grouped = groupByMonth(expenses);
-  const isCreator = !group.created_by || user?.id === group.created_by;
+  const isCreator = !!group.created_by && user?.id === group.created_by;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
