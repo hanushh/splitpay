@@ -1,4 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -90,6 +93,8 @@ export default function AddExpenseScreen() {
   const [customCategory, setCustomCategory] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
   // Load only groups the current user is a member of
   useEffect(() => {
@@ -209,6 +214,60 @@ export default function AddExpenseScreen() {
     });
   };
 
+  const handlePickReceipt = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setError('Camera roll permission is required to add a receipt photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setReceiptUploading(true);
+    setError(null);
+
+    try {
+      // Compress and resize: max 1200px on the longest side, JPEG quality 0.7
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: Math.min(asset.width, 1200) } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      // Read the file as a Blob-compatible ArrayBuffer via fetch
+      const fileResponse = await fetch(manipulated.uri);
+      const blob = await fileResponse.blob();
+
+      const ext = 'jpg';
+      const timestamp = Date.now();
+      // Path: <group_id>/<timestamp>.<ext>  (group_id used in storage RLS)
+      const storagePath = `${groupId}/${timestamp}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(storagePath);
+
+      setReceiptUri(urlData.publicUrl);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload receipt photo.');
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
+
   const canSave = !!description && !!amount && !!groupId && selectedMembers.size > 0 && !!paidBy;
 
   const handleSave = async () => {
@@ -237,6 +296,7 @@ export default function AddExpenseScreen() {
         amount_cents: amtCents,
         paid_by_member_id: paidBy,
         category: finalCategory,
+        ...(receiptUri ? { receipt_url: receiptUri } : {}),
       })
       .select('id')
       .single();
@@ -504,10 +564,41 @@ export default function AddExpenseScreen() {
           </View>
         )}
 
-        <Pressable style={s.addReceiptBtn}>
-          <MaterialIcons name="add-a-photo" size={20} color={C.slate400} />
-          <Text style={s.addReceiptText}>Add receipt photo</Text>
-        </Pressable>
+        {receiptUri ? (
+          <View style={s.receiptPreviewWrapper}>
+            <Image
+              source={{ uri: receiptUri }}
+              style={s.receiptPreview}
+              contentFit="cover"
+            />
+            <Pressable
+              style={s.receiptRemoveBtn}
+              onPress={() => setReceiptUri(null)}
+              testID="remove-receipt-button"
+            >
+              <MaterialIcons name="close" size={16} color={C.white} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [
+              s.addReceiptBtn,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={handlePickReceipt}
+            disabled={receiptUploading}
+            testID="add-receipt-button"
+          >
+            {receiptUploading ? (
+              <ActivityIndicator size="small" color={C.slate400} />
+            ) : (
+              <MaterialIcons name="add-a-photo" size={20} color={C.slate400} />
+            )}
+            <Text style={s.addReceiptText}>
+              {receiptUploading ? 'Uploading…' : 'Add receipt photo'}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* Save button */}
@@ -727,6 +818,9 @@ const s = StyleSheet.create({
   splitComingSoon: { color: C.slate500, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   addReceiptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: C.surfaceHL, borderStyle: 'dashed' },
   addReceiptText: { color: C.slate400, fontSize: 14, fontWeight: '600' },
+  receiptPreviewWrapper: { margin: 16, borderRadius: 12, overflow: 'hidden', position: 'relative' },
+  receiptPreview: { width: '100%', height: 180, borderRadius: 12 },
+  receiptRemoveBtn: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.surfaceHL, backgroundColor: C.bg },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 16 },
   saveBtnText: { color: C.bg, fontWeight: '700', fontSize: 16 },
