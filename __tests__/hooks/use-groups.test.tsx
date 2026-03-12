@@ -224,10 +224,10 @@ describe('useGroups', () => {
     expect(result.current.groups).toHaveLength(1);
   });
 
-  it('initializes demo data on first load', async () => {
+  it('fetches groups on first load without seeding demo data', async () => {
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
-    expect(supabase.rpc).toHaveBeenCalledWith('initialize_demo_data', { p_user_id: 'user-123' });
+    expect(supabase.rpc).not.toHaveBeenCalledWith('initialize_demo_data', expect.anything());
     expect(result.current.groups).toHaveLength(2);
   });
 

@@ -63,6 +63,23 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run Supabase migrations
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --project-ref yapfqffhgcncqxovjcsr
+
+      - name: Deploy Supabase edge functions
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref yapfqffhgcncqxovjcsr
+
       - name: Generate native Android project
         run: pnpm exec expo prebuild --platform android --no-install
 

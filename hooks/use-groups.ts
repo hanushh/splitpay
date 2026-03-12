@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/auth';
 
@@ -29,7 +29,6 @@ export function useGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const initializedRef = useRef(false);
 
   const fetchGroups = useCallback(async () => {
     if (!user) return;
@@ -107,15 +106,8 @@ export function useGroups() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || initializedRef.current) return;
-    initializedRef.current = true;
-
-    const init = async () => {
-      await supabase.rpc('initialize_demo_data', { p_user_id: user.id });
-      await fetchGroups();
-    };
-
-    init();
+    if (!user) return;
+    fetchGroups();
   }, [user, fetchGroups]);
 
   const totalBalanceCents = groups.reduce((sum, g) => sum + g.balance_cents, 0);
