@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
-import { APP_DISPLAY_NAME, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
@@ -201,9 +201,16 @@ export default function InviteFriendScreen() {
         return;
       }
 
-      // Deep link into app: scheme://invite?token=xxx
-      link = `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`;
+      // Use an HTTPS web link when configured so the URL is clickable in
+      // messaging apps (e.g. WhatsApp). Falls back to the custom deep-link scheme.
+      const linkBase = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
+      link = `${linkBase}?token=${encodeURIComponent(token)}`;
       setSentEmail(normalizedEmail);
+
+      // Trigger email notification to the invited address (non-fatal)
+      supabase.functions.invoke('send-invitation-email', {
+        body: { tokens: [token] },
+      }).catch((err: unknown) => console.warn('[Email] Failed to send invitation email:', err));
     } else {
       setSentEmail('');
     }

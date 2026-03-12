@@ -22,3 +22,15 @@ export const AUTH_LINK_PREFIX = `${APP_LINK_BASE}auth`;
 
 /** Invite deep link prefix (e.g. paysplit://invite) */
 export const INVITE_LINK_PREFIX = `${APP_LINK_BASE}invite`;
+
+/**
+ * HTTPS base URL used when sharing invite links externally (e.g. via WhatsApp).
+ * Custom-scheme URLs (paysplit://) are not rendered as clickable links in most
+ * messaging apps. Setting this to a real HTTPS domain that redirects to the app
+ * makes the shared link tappable.
+ *
+ * When empty the app falls back to the custom scheme (paysplit://invite).
+ * To enable: set to your web redirect URL, e.g. "https://paysplit.app/invite",
+ * and ensure the page redirects to `paysplit://invite?token=<token>`.
+ */
+export const INVITE_WEB_LINK_BASE = '';
