@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import {
   registerPushTokenForCurrentUser,
   removePushToken,
@@ -75,8 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
       const url = event.url;
-      // Invite: scheme://invite?token=xxx — store token for post-auth redeem
-      if (url.startsWith(INVITE_LINK_PREFIX)) {
+      // Invite: paysplit://invite?token=xxx  OR  https://<domain>/invite?token=xxx
+      // Store the token for redemption after the user authenticates.
+      const isInviteDeepLink = url.startsWith(INVITE_LINK_PREFIX);
+      const isInviteWebLink = INVITE_WEB_LINK_BASE !== '' && url.startsWith(INVITE_WEB_LINK_BASE);
+      if (isInviteDeepLink || isInviteWebLink) {
         try {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');

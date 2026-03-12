@@ -100,62 +100,76 @@ export default function CreateGroupScreen() {
     setError(null);
     setSaving(true);
 
-    // Pre-generate the group ID so we never need to read the row back after insert
-    const groupId = crypto.randomUUID();
+    try {
+      // Pre-generate the group ID so we never need to read the row back after insert
+      const groupId = crypto.randomUUID();
 
-    // Insert group
-    const { error: groupErr } = await supabase
-      .from('groups')
-      .insert({
-        id: groupId,
-        name: name.trim(),
-        description: description.trim() || null,
-        bg_color: selectedColor,
-        icon_name: selectedIcon,
-        created_by: user.id,
-        archived: false,
-      });
+      // Insert group
+      const { error: groupErr } = await supabase
+        .from('groups')
+        .insert({
+          id: groupId,
+          name: name.trim(),
+          description: description.trim() || null,
+          bg_color: selectedColor,
+          icon_name: selectedIcon,
+          created_by: user.id,
+          archived: false,
+        });
 
-    if (groupErr) {
-      setError(groupErr.message ?? 'Failed to create group. Please try again.');
-      setSaving(false);
-      return;
-    }
-
-    // Add creator as member
-    const { error: memberErr } = await supabase
-      .from('group_members')
-      .insert({ group_id: groupId, user_id: user.id });
-
-    if (memberErr) {
-      setError(memberErr.message ?? 'Group created but failed to add you as member.');
-      setSaving(false);
-      return;
-    }
-
-    // Insert balance row for creator (ignore error — view may auto-populate)
-    await supabase
-      .from('group_balances')
-      .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
-
-    // Create invitations for each added email
-    if (memberEmails.length > 0) {
-      const rows = memberEmails.map((invitee_email) => ({
-        inviter_id: user.id,
-        invitee_email,
-        group_id: groupId,
-        token: generateInviteToken(),
-        status: 'pending',
-      }));
-      const { error: inviteErr } = await supabase.from('invitations').insert(rows);
-      if (inviteErr) {
-        // Non-fatal: group is created, just warn
-        console.warn('Failed to create invitations:', inviteErr.message);
+      if (groupErr) {
+        setError(groupErr.message ?? 'Failed to create group. Please try again.');
+        setSaving(false);
+        return;
       }
-    }
 
-    setSaving(false);
-    router.replace({ pathname: '/group/[id]', params: { id: groupId } });
+      // Add creator as member
+      const { error: memberErr } = await supabase
+        .from('group_members')
+        .insert({ group_id: groupId, user_id: user.id });
+
+      if (memberErr) {
+        setError(memberErr.message ?? 'Group created but failed to add you as member.');
+        setSaving(false);
+        return;
+      }
+
+      // Insert balance row for creator (ignore error — view may auto-populate)
+      await supabase
+        .from('group_balances')
+        .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
+
+      // Create invitations for each added email and send notification emails
+      if (memberEmails.length > 0) {
+        const inviteTokens: string[] = [];
+        const rows = memberEmails.map((invitee_email) => {
+          const token = generateInviteToken();
+          inviteTokens.push(token);
+          return { inviter_id: user.id, invitee_email, group_id: groupId, token, status: 'pending' };
+        });
+        const { error: inviteErr } = await supabase.from('invitations').insert(rows);
+        if (inviteErr) {
+          // Non-fatal: group is created, just warn
+          console.warn('Failed to create invitations:', inviteErr.message);
+        } else {
+          // Trigger email notifications for invited members (non-fatal)
+          supabase.functions.invoke('send-invitation-email', {
+            body: { tokens: inviteTokens },
+          }).catch((err: unknown) => console.warn('[Email] Failed to dispatch invitation emails:', err));
+        }
+      }
+
+      setSaving(false);
+      // Dismiss the modal first, then navigate to the new group.
+      // router.replace() from inside a modal does not reliably navigate to a
+      // non-modal screen in Expo Router — dismissAll + push is the documented pattern.
+      router.dismissAll();
+      router.push({ pathname: '/group/[id]', params: { id: groupId } });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(message);
+      setSaving(false);
+    }
   };
 
   return (

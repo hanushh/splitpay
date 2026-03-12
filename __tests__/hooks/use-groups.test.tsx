@@ -1,11 +1,14 @@
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useGroups } from '@/hooks/use-groups';
 import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase');
-jest.mock('@/context/auth', () => ({
-  useAuth: () => ({ user: { id: 'user-123' }, session: {}, loading: false }),
-}));
+jest.mock('@/context/auth', () => {
+  const user = { id: 'user-123' };
+  return {
+    useAuth: () => ({ user, session: {}, loading: false }),
+  };
+});
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -68,13 +71,13 @@ describe('useGroups', () => {
 
   it('returns groups after load', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups.length).toBe(2);
   });
 
   it('maps group names correctly', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     const names = result.current.groups.map((g) => g.name);
     expect(names).toContain('Japan Trip');
     expect(names).toContain('Roommates');
@@ -82,21 +85,21 @@ describe('useGroups', () => {
 
   it('computes totalBalanceCents as sum of all group balances', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     // 5000 + (-2000) = 3000
     expect(result.current.totalBalanceCents).toBe(3000);
   });
 
   it('sets status "owed" for positive balance', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     const g = result.current.groups.find((x) => x.id === 'g1');
     expect(g?.status).toBe('owed');
   });
 
   it('sets status "owes" for negative balance', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     const g = result.current.groups.find((x) => x.id === 'g2');
     expect(g?.status).toBe('owes');
   });
@@ -104,7 +107,7 @@ describe('useGroups', () => {
   it('starts loading then sets loading false', async () => {
     const { result } = renderHook(() => useGroups());
     // loading may be true initially
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.loading).toBe(false);
   });
 
@@ -113,7 +116,7 @@ describe('useGroups', () => {
       makeFromMock(null, { message: 'DB error' }),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups).toEqual([]);
     expect(result.current.error).toBeTruthy();
   });
@@ -134,7 +137,7 @@ describe('useGroups', () => {
       makeFromMock(settledRow, null, [{ group_id: 'g3' }]),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups[0].status).toBe('settled');
     expect(result.current.groups[0].balance_cents).toBe(0);
   });
@@ -155,7 +158,7 @@ describe('useGroups', () => {
       makeFromMock(noBalanceRow, null, [{ group_id: 'g4' }]),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups[0].balance_cents).toBe(0);
     expect(result.current.groups[0].status).toBe('settled');
   });
@@ -177,7 +180,7 @@ describe('useGroups', () => {
       makeFromMock(nullColorRow, null, [{ group_id: 'g5' }]),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups[0].bg_color).toBe('rgba(99,102,241,0.25)');
     expect(result.current.groups[0].archived).toBe(false);
   });
@@ -202,7 +205,7 @@ describe('useGroups', () => {
       makeFromMock(rowWithMembers, null, [{ group_id: 'g6' }]),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     // Only Alice passes both filters (different user_id AND has avatar_url)
     expect(result.current.groups[0].members).toHaveLength(1);
     expect(result.current.groups[0].members[0].display_name).toBe('Alice');
@@ -210,7 +213,7 @@ describe('useGroups', () => {
 
   it('refetch re-fetches groups from Supabase', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups).toHaveLength(2);
 
     const updatedRows = [mockGroupRows[0]];
@@ -221,13 +224,14 @@ describe('useGroups', () => {
     await act(async () => {
       await result.current.refetch();
     });
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups).toHaveLength(1);
   });
 
-  it('initializes demo data on first load', async () => {
+  it('fetches groups on first load without seeding demo data', async () => {
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
-    expect(supabase.rpc).toHaveBeenCalledWith('initialize_demo_data', { p_user_id: 'user-123' });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(supabase.rpc).not.toHaveBeenCalledWith('initialize_demo_data', expect.anything());
     expect(result.current.groups).toHaveLength(2);
   });
 
@@ -247,7 +251,7 @@ describe('useGroups', () => {
       makeFromMock([activeGroupRow], null, [{ group_id: 'g1' }], eqMock),
     );
     const { result } = renderHook(() => useGroups());
-    await act(async () => {});
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(eqMock).toHaveBeenCalledWith('archived', false);
     expect(result.current.groups).toHaveLength(1);
     expect(result.current.groups[0].name).toBe('Active Group');
