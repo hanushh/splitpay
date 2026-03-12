@@ -26,7 +26,7 @@ beforeEach(() => {
     in: jest.fn().mockReturnThis(),
     update: jest.fn().mockResolvedValue({ error: null }),
   });
-  (supabase.rpc as jest.Mock) = jest.fn().mockResolvedValue({ error: null });
+  (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
 });
 
 describe('useCategoryCache', () => {
