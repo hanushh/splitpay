@@ -15,7 +15,6 @@ export interface Group {
   name: string;
   description: string | null;
   image_url: string | null;
-  bg_color: string;
   icon_name: string | null;
   archived: boolean;
   status: GroupStatus;
@@ -55,7 +54,7 @@ export function useGroups() {
       const { data: groupRows, error: groupsErr } = await supabase
         .from('groups')
         .select(`
-          id, name, description, image_url, bg_color, icon_name, archived,
+          id, name, description, image_url, icon_name, archived,
           group_balances!left ( balance_cents ),
           group_members ( id, display_name, avatar_url, user_id )
         `)
@@ -88,7 +87,6 @@ export function useGroups() {
           name: row.name,
           description: row.description,
           image_url: row.image_url,
-          bg_color: row.bg_color ?? 'rgba(99,102,241,0.25)',
           icon_name: row.icon_name,
           archived: row.archived ?? false,
           status,

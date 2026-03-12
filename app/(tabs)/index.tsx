@@ -46,7 +46,7 @@ function GroupCard({ group }: { group: Group }) {
       onPress={() => router.push({ pathname: '/group/[id]', params: { id: group.id } })}
       testID={`group-card-${group.id}`}
     >
-      <View style={[s.groupIcon, { backgroundColor: group.bg_color }]}>
+      <View style={s.groupIcon}>
         {group.image_url ? (
           <Image source={{ uri: group.image_url }} style={s.groupImage} />
         ) : (
@@ -226,7 +226,7 @@ export default function GroupsScreen() {
       {/* FAB */}
       <Pressable
         style={({ pressed }: { pressed: boolean }) => [s.fab, { bottom: insets.bottom + 72 }, pressed && { opacity: 0.85 }]}
-        onPress={() => router.push('/add-expense')}
+        onPress={() => groups.length === 0 ? router.push('/create-group') : router.push('/add-expense')}
         testID="fab-add-expense"
       >
         <MaterialIcons name="add" size={32} color={C.bg} />
@@ -297,6 +297,7 @@ const s = StyleSheet.create({
     width: 56, height: 56, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden', flexShrink: 0,
+    backgroundColor: C.surfaceHL,
   },
   groupImage: { width: '100%', height: '100%' },
   groupInfo: { flex: 1, minWidth: 0 },

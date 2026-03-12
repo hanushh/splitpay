@@ -50,7 +50,6 @@ interface GroupOption {
   id: string;
   name: string;
   icon_name: string | null;
-  bg_color: string;
 }
 
 interface Member {
@@ -101,7 +100,7 @@ export default function AddExpenseScreen() {
     if (!user) return;
     supabase
       .from('group_members')
-      .select('groups!inner(id, name, icon_name, bg_color)')
+      .select('groups!inner(id, name, icon_name)')
       .eq('user_id', user.id)
       .then(({ data }) => {
         const seen = new Set<string>();
@@ -644,7 +643,7 @@ export default function AddExpenseScreen() {
                     activeOpacity={0.7}
                     testID={`group-option-${index}`}
                   >
-                    <View style={[s.groupIcon, { backgroundColor: item.bg_color }]}>
+                    <View style={s.groupIcon}>
                       <MaterialIcons
                         name={(item.icon_name as keyof typeof MaterialIcons.glyphMap) ?? 'group'}
                         size={20}
@@ -832,7 +831,7 @@ const s = StyleSheet.create({
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderRadius: 10, paddingHorizontal: 4 },
   pickerRowSelected: { backgroundColor: 'rgba(23,232,107,0.08)' },
   pickerRowText: { flex: 1, color: C.white, fontSize: 15, fontWeight: '600' },
-  groupIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  groupIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceHL },
   currencyFlag: { fontSize: 26, marginRight: 2 },
   currencyInfo: { flex: 1 },
   currencyCode: { color: C.white, fontSize: 15, fontWeight: '600' },
