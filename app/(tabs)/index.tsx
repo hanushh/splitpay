@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -130,6 +130,12 @@ export default function GroupsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
 
