@@ -28,31 +28,29 @@ const C = {
   orange: '#f97316',
 };
 
-const ICONS: { name: keyof typeof MaterialIcons.glyphMap; label: string }[] = [
-  { name: 'group',           label: 'Group'      },
-  { name: 'home',            label: 'Home'        },
-  { name: 'flight',          label: 'Travel'      },
-  { name: 'restaurant',      label: 'Food'        },
-  { name: 'beach-access',    label: 'Vacation'    },
-  { name: 'directions-car',  label: 'Road trip'   },
-  { name: 'shopping-cart',   label: 'Shopping'    },
-  { name: 'sports-soccer',   label: 'Sports'      },
-  { name: 'music-note',      label: 'Music'       },
-  { name: 'local-hospital',  label: 'Medical'     },
-  { name: 'school',          label: 'Education'   },
-  { name: 'work',            label: 'Work'        },
-];
 
-const COLORS = [
-  { value: 'rgba(99,102,241,0.3)',  display: '#818cf8' },
-  { value: 'rgba(20,184,166,0.3)',  display: '#2dd4bf' },
-  { value: 'rgba(249,115,22,0.3)', display: '#f97316' },
-  { value: 'rgba(239,68,68,0.3)',  display: '#f87171' },
-  { value: 'rgba(234,179,8,0.3)',  display: '#facc15' },
-  { value: 'rgba(23,232,107,0.3)', display: '#17e86b' },
-  { value: 'rgba(168,85,247,0.3)', display: '#c084fc' },
-  { value: 'rgba(236,72,153,0.3)', display: '#f472b6' },
-];
+type IconName = keyof typeof MaterialIcons.glyphMap;
+
+function inferIcon(name: string): IconName {
+  const t = name.toLowerCase();
+  const rules: { keywords: string[]; icon: IconName }[] = [
+    { keywords: ['trip', 'travel', 'flight', 'fly', 'tour', 'backpack', 'japan', 'paris', 'london', 'bali', 'euro'], icon: 'flight'           },
+    { keywords: ['beach', 'holiday', 'resort', 'vacation', 'summer', 'island', 'ski', 'snow', 'camp', 'hike'],       icon: 'beach-access'     },
+    { keywords: ['home', 'house', 'apartment', 'apt', 'flat', 'rent', 'roommate', 'condo'],                          icon: 'home'             },
+    { keywords: ['dinner', 'lunch', 'breakfast', 'food', 'restaurant', 'eat', 'brunch', 'cafe', 'coffee', 'pizza'],  icon: 'restaurant'       },
+    { keywords: ['car', 'drive', 'road', 'auto', 'uber', 'taxi'],                                                    icon: 'directions-car'   },
+    { keywords: ['shop', 'mall', 'market', 'grocery', 'store', 'buy'],                                               icon: 'shopping-cart'    },
+    { keywords: ['sport', 'soccer', 'football', 'cricket', 'gym', 'tennis', 'basketball', 'game', 'match'],          icon: 'sports-soccer'    },
+    { keywords: ['music', 'concert', 'band', 'festival', 'party', 'gig'],                                            icon: 'music-note'       },
+    { keywords: ['work', 'office', 'project', 'team', 'client', 'business', 'conf'],                                 icon: 'work'             },
+    { keywords: ['school', 'class', 'course', 'study', 'college', 'university'],                                     icon: 'school'           },
+    { keywords: ['hospital', 'clinic', 'medical', 'health', 'doctor'],                                               icon: 'local-hospital'   },
+  ];
+  for (const rule of rules) {
+    if (rule.keywords.some((kw) => t.includes(kw))) return rule.icon;
+  }
+  return 'group';
+}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -66,9 +64,9 @@ export default function CreateGroupScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState<keyof typeof MaterialIcons.glyphMap>('group');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
   const [memberEmails, setMemberEmails] = useState<string[]>([]);
+
+  const selectedIcon: IconName = inferIcon(name);
   const [emailInput, setEmailInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +109,6 @@ export default function CreateGroupScreen() {
           id: groupId,
           name: name.trim(),
           description: description.trim() || null,
-          bg_color: selectedColor,
           icon_name: selectedIcon,
           created_by: user.id,
           archived: false,
@@ -196,10 +193,12 @@ export default function CreateGroupScreen() {
       >
         {/* Icon preview */}
         <View style={s.previewWrap}>
-          <View style={[s.preview, { backgroundColor: selectedColor }]}>
+          <View style={s.preview}>
             <MaterialIcons name={selectedIcon} size={48} color={C.primary} />
           </View>
-          <Text style={s.previewHint}>Choose an icon and colour below</Text>
+          <Text style={s.previewHint}>
+            {name.trim() ? 'Auto-selected · tap below to override' : 'Icon and colour chosen from group name'}
+          </Text>
         </View>
 
         {/* Name */}
@@ -231,49 +230,6 @@ export default function CreateGroupScreen() {
             maxLength={160}
             testID="group-description-input"
           />
-        </View>
-
-        {/* Icon picker */}
-        <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>ICON</Text>
-          <View style={s.iconGrid}>
-            {ICONS.map((ic) => {
-              const active = selectedIcon === ic.name;
-              return (
-                <Pressable
-                  key={ic.name}
-                  style={({ pressed }: { pressed: boolean }) => [s.iconCell, active && s.iconCellActive, pressed && { opacity: 0.7 }]}
-                  onPress={() => setSelectedIcon(ic.name)}
-                >
-                  <MaterialIcons
-                    name={ic.name}
-                    size={26}
-                    color={active ? C.bg : C.slate400}
-                  />
-                  <Text style={[s.iconLabel, active && s.iconLabelActive]}>{ic.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Color picker */}
-        <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>COLOUR</Text>
-          <View style={s.colorRow}>
-            {COLORS.map((c) => {
-              const active = selectedColor === c.value;
-              return (
-                <Pressable
-                  key={c.value}
-                  style={({ pressed }: { pressed: boolean }) => [s.colorSwatch, { backgroundColor: c.display }, active && s.colorSwatchActive, pressed && { opacity: 0.8 }]}
-                  onPress={() => setSelectedColor(c.value)}
-                >
-                  {active && <MaterialIcons name="check" size={18} color="#fff" />}
-                </Pressable>
-              );
-            })}
-          </View>
         </View>
 
         {/* Add members */}
@@ -366,6 +322,7 @@ const s = StyleSheet.create({
   preview: {
     width: 100, height: 100, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.surfaceHL,
   },
   previewHint: { color: C.slate400, fontSize: 13 },
   // Fields
@@ -383,28 +340,6 @@ const s = StyleSheet.create({
     borderColor: C.surfaceHL,
   },
   fieldTextarea: { minHeight: 80, textAlignVertical: 'top' },
-  // Icon grid
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  iconCell: {
-    width: 72, alignItems: 'center', gap: 6,
-    paddingVertical: 12, borderRadius: 12,
-    backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.surfaceHL,
-  },
-  iconCellActive: { backgroundColor: C.primary, borderColor: C.primary },
-  iconLabel: { color: C.slate400, fontSize: 10, fontWeight: '600' },
-  iconLabelActive: { color: C.bg },
-  // Color row
-  colorRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  colorSwatch: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  colorSwatchActive: {
-    borderWidth: 3, borderColor: C.white,
-    shadowColor: '#fff', shadowOpacity: 0.4, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
   // Add members
   emailRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   emailInput: {

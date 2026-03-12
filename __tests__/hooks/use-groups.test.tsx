@@ -17,7 +17,6 @@ const mockGroupRows = [
     id: 'g1',
     name: 'Japan Trip',
     icon_name: 'flight',
-    bg_color: '#1a3324',
     created_at: '2026-01-01T00:00:00Z',
     group_balances: [{ balance_cents: 5000 }],
     group_members: [{ user_id: 'user-123' }],
@@ -26,7 +25,6 @@ const mockGroupRows = [
     id: 'g2',
     name: 'Roommates',
     icon_name: 'home',
-    bg_color: '#244732',
     created_at: '2026-01-02T00:00:00Z',
     group_balances: [{ balance_cents: -2000 }],
     group_members: [{ user_id: 'user-123' }],
@@ -106,7 +104,6 @@ describe('useGroups', () => {
 
   it('starts loading then sets loading false', async () => {
     const { result } = renderHook(() => useGroups());
-    // loading may be true initially
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.loading).toBe(false);
   });
@@ -127,7 +124,6 @@ describe('useGroups', () => {
         id: 'g3',
         name: 'Settled Group',
         icon_name: 'group',
-        bg_color: '#1a3324',
         created_at: '2026-01-03T00:00:00Z',
         group_balances: [{ balance_cents: 0 }],
         group_members: [{ user_id: 'user-123' }],
@@ -148,7 +144,6 @@ describe('useGroups', () => {
         id: 'g4',
         name: 'No Balance Group',
         icon_name: 'group',
-        bg_color: null,
         created_at: '2026-01-04T00:00:00Z',
         group_balances: [],
         group_members: [{ user_id: 'user-123' }],
@@ -163,35 +158,12 @@ describe('useGroups', () => {
     expect(result.current.groups[0].status).toBe('settled');
   });
 
-  it('uses default bg_color when group bg_color is null', async () => {
-    const nullColorRow = [
-      {
-        id: 'g5',
-        name: 'No Color Group',
-        icon_name: null,
-        bg_color: null,
-        archived: null,
-        created_at: '2026-01-05T00:00:00Z',
-        group_balances: [{ balance_cents: 100 }],
-        group_members: [{ user_id: 'user-123' }],
-      },
-    ];
-    (supabase.from as jest.Mock).mockImplementation(
-      makeFromMock(nullColorRow, null, [{ group_id: 'g5' }]),
-    );
-    const { result } = renderHook(() => useGroups());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.groups[0].bg_color).toBe('rgba(99,102,241,0.25)');
-    expect(result.current.groups[0].archived).toBe(false);
-  });
-
   it('includes members with different user_id and avatar_url', async () => {
     const rowWithMembers = [
       {
         id: 'g6',
         name: 'Group With Members',
         icon_name: 'group',
-        bg_color: '#1a3324',
         created_at: '2026-01-06T00:00:00Z',
         group_balances: [{ balance_cents: 1000 }],
         group_members: [
@@ -240,7 +212,6 @@ describe('useGroups', () => {
       id: 'g1',
       name: 'Active Group',
       icon_name: 'group',
-      bg_color: '#1a3324',
       archived: false,
       created_at: '2026-01-01T00:00:00Z',
       group_balances: [{ balance_cents: 1000 }],

@@ -46,7 +46,6 @@ interface GroupDetail {
   name: string;
   description: string | null;
   image_url: string | null;
-  bg_color: string;
   balance_cents: number;
   created_by: string | null;
 }
@@ -92,7 +91,7 @@ export default function GroupDetailScreen() {
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
     const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }] = await Promise.all([
-      supabase.from('groups').select('id, name, description, image_url, bg_color, created_by').eq('id', id).single(),
+      supabase.from('groups').select('id, name, description, image_url, created_by').eq('id', id).single(),
       supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
     ]);
@@ -120,39 +119,57 @@ export default function GroupDetailScreen() {
 
   useEffect(() => { fetchGroup(); }, [fetchGroup]);
 
+  const leaveGroup = useCallback(async () => {
+    if (!group || !user) return;
+    const { error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', group.id)
+      .eq('user_id', user.id);
+    return error;
+  }, [group, user]);
+
   const handleDelete = useCallback(async () => {
     if (!group || deleteInput !== group.name) return;
     setActionLoading(true);
     setActionError(null);
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', group.id);
-    setActionLoading(false);
-    if (error) {
-      setActionError(error.message);
-      return;
+    const groupIsCreator = !group.created_by || user?.id === group.created_by;
+    if (!groupIsCreator) {
+      const error = await leaveGroup();
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
+    } else {
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', group.id);
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
     }
     setShowDeleteModal(false);
     router.replace('/');
-  }, [group, deleteInput]);
+  }, [group, deleteInput, user, leaveGroup]);
 
   const handleArchive = useCallback(async () => {
     if (!group) return;
     setActionLoading(true);
     setActionError(null);
-    const { error } = await supabase
-      .from('groups')
-      .update({ archived: true })
-      .eq('id', group.id);
-    setActionLoading(false);
-    if (error) {
-      setActionError(error.message);
-      return;
+    const groupIsCreator = !group.created_by || user?.id === group.created_by;
+    if (!groupIsCreator) {
+      const error = await leaveGroup();
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
+    } else {
+      const { error } = await supabase
+        .from('groups')
+        .update({ archived: true })
+        .eq('id', group.id);
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
     }
     setShowSettings(false);
     router.replace('/');
-  }, [group]);
+  }, [group, user, leaveGroup]);
 
   if (loading) {
     return (
@@ -196,14 +213,10 @@ export default function GroupDetailScreen() {
         <Text style={s.topTitle} numberOfLines={1} testID="group-detail-title">{group.name}</Text>
         <Pressable
           style={s.backBtn}
-          onPress={isCreator ? () => setShowSettings(true) : undefined}
+          onPress={() => setShowSettings(true)}
           testID="settings-button"
         >
-          <MaterialIcons
-            name="settings"
-            size={24}
-            color={isCreator ? C.white : C.slate500}
-          />
+          <MaterialIcons name="settings" size={24} color={C.white} />
         </Pressable>
       </View>
 
@@ -213,7 +226,7 @@ export default function GroupDetailScreen() {
           {group.image_url ? (
             <Image source={{ uri: group.image_url }} style={s.coverImage} />
           ) : (
-            <View style={[s.coverImage, { backgroundColor: group.bg_color }]} />
+            <View style={[s.coverImage, { backgroundColor: C.surfaceHL }]} />
           )}
           <View style={s.coverOverlay} />
           <View style={s.coverContent}>
@@ -339,27 +352,41 @@ export default function GroupDetailScreen() {
               <Text style={s.errorText}>{actionError}</Text>
             ) : null}
 
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-              onPress={handleArchive}
-              disabled={actionLoading}
-            >
-              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
-                <MaterialIcons name="inventory" size={20} color={C.orange} />
-              </View>
-              <Text style={s.sheetRowText}>Archive Group</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-              onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
-              disabled={actionLoading}
-            >
-              <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
-                <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
-              </View>
-              <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
-            </Pressable>
+            {isCreator ? (
+              <>
+                <Pressable
+                  style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+                  onPress={handleArchive}
+                  disabled={actionLoading}
+                >
+                  <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                    <MaterialIcons name="inventory" size={20} color={C.orange} />
+                  </View>
+                  <Text style={s.sheetRowText}>Archive Group</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+                  onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+                  disabled={actionLoading}
+                >
+                  <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+                    <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
+                  </View>
+                  <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+                onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+                disabled={actionLoading}
+              >
+                <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+                  <MaterialIcons name="exit-to-app" size={20} color="#ff5252" />
+                </View>
+                <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Leave Group</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </Modal>
@@ -376,11 +403,12 @@ export default function GroupDetailScreen() {
             <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)', alignSelf: 'center', marginBottom: 16 }]}>
               <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
             </View>
-            <Text style={s.deleteTitle}>Delete Group</Text>
+            <Text style={s.deleteTitle}>{isCreator ? 'Delete Group' : 'Leave Group'}</Text>
             <Text style={s.deleteWarning}>
-              This will permanently delete{' '}
-              <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text>
-              {' '}and all its expenses. This cannot be undone.
+              {isCreator
+                ? <>This will permanently delete{' '}<Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text>{' '}and all its expenses. This cannot be undone.</>
+                : <>You will be removed from{' '}<Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text>. You can rejoin via an invite link.</>
+              }
             </Text>
             <Text style={s.deleteLabel}>
               Type <Text style={{ fontWeight: '700', color: C.white }}>{group?.name}</Text> to confirm
@@ -407,7 +435,7 @@ export default function GroupDetailScreen() {
               testID="delete-confirm-button"
             >
               <Text style={s.deleteConfirmBtnText}>
-                {actionLoading ? 'Deleting…' : 'Delete Group'}
+                {actionLoading ? (isCreator ? 'Deleting…' : 'Leaving…') : (isCreator ? 'Delete Group' : 'Leave Group')}
               </Text>
             </Pressable>
             <Pressable
