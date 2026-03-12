@@ -72,7 +72,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase db push --db-url "${{ secrets.DATABASE_URL }}"
+        run: supabase db push --db-url "${{ secrets.DATABASE_URL }}" --debug
 
       - name: Deploy Supabase edge functions
         if: github.ref == 'refs/heads/main'
