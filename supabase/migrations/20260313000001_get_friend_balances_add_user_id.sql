@@ -42,3 +42,5 @@ LANGUAGE SQL SECURITY DEFINER SET search_path = public STABLE AS $$
   GROUP BY gm.user_id, gm.display_name
   ORDER BY ABS(SUM(c.balance_cents)) DESC;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_friend_balances(UUID) TO authenticated;

@@ -1,7 +1,8 @@
 import * as Contacts from 'expo-contacts';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth';
+import { DEFAULT_COUNTRY_CODE } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
 
 export interface MatchedFriend {
@@ -29,8 +30,9 @@ export interface UseFriendsResult {
 
 export function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits[0] === '1') return `+${digits}`;
+  const cc = DEFAULT_COUNTRY_CODE.replace('+', ''); // e.g. '1'
+  if (digits.length === 10) return `${DEFAULT_COUNTRY_CODE}${digits}`;
+  if (digits.length === 11 && digits[0] === cc) return `+${digits}`;
   if (digits.length > 6) return `+${digits}`;
   return null;
 }
@@ -165,6 +167,10 @@ export function useFriends(): UseFriendsResult {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   return { matched, unmatched, loading, error, permissionDenied, refetch };
 }

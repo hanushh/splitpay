@@ -1,9 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Modal,
   Pressable,
@@ -20,7 +20,7 @@ import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { useFriends, type MatchedFriend, type UnmatchedContact } from '@/hooks/use-friends';
 import { APP_DISPLAY_NAME, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
-import { supabase } from '@/lib/supabase';
+import { findTopSharedGroup } from '@/lib/friend-utils';
 
 const C = {
   primary: '#17e86b',
@@ -123,41 +123,9 @@ export default function FriendsScreen() {
 
   const handleViewBalance = useCallback(async (friend: MatchedFriend) => {
     if (!user) return;
-    const { data: friendMemberships } = await supabase
-      .from('group_members')
-      .select('group_id, groups!inner(name)')
-      .eq('user_id', friend.userId);
-
-    const friendGroupIds = new Set(
-      ((friendMemberships as { group_id: string }[] | null) ?? []).map((r) => r.group_id)
-    );
-
-    const { data: myMemberships } = await supabase
-      .from('group_members')
-      .select('group_id')
-      .eq('user_id', user.id);
-
-    const sharedGroupIds = ((myMemberships as { group_id: string }[] | null) ?? [])
-      .map((r) => r.group_id)
-      .filter((id) => friendGroupIds.has(id));
-
-    if (sharedGroupIds.length === 0) return;
-
-    const { data: balances } = await supabase
-      .from('group_balances')
-      .select('group_id, balance_cents')
-      .eq('user_id', user.id)
-      .in('group_id', sharedGroupIds);
-
-    const topGroup = ((balances as { group_id: string; balance_cents: number }[] | null) ?? [])
-      .sort((a, b) => Math.abs(b.balance_cents) - Math.abs(a.balance_cents))[0];
-
-    const groupId = topGroup?.group_id ?? sharedGroupIds[0];
-    const groupRow = ((friendMemberships as { group_id: string; groups: { name: string } }[] | null) ?? [])
-      .find((r) => r.group_id === groupId);
-    const groupName = groupRow?.groups?.name ?? 'Group';
-
-    router.push({ pathname: '/group/balances', params: { groupId, groupName } });
+    const result = await findTopSharedGroup(user.id, friend.userId);
+    if (!result) return;
+    router.push({ pathname: '/group/balances', params: { groupId: result.groupId, groupName: result.groupName } });
   }, [user]);
 
   const handleAddToGroup = useCallback((friend: MatchedFriend) => {
@@ -204,9 +172,15 @@ export default function FriendsScreen() {
     );
   }
 
-  const sections = [
-    { title: 'On PaySplit', data: matched as (MatchedFriend | UnmatchedContact)[], key: 'matched' },
-    { title: 'Invite to PaySplit', data: visibleUnmatched as (MatchedFriend | UnmatchedContact)[], key: 'unmatched' },
+  type FriendSection = {
+    title: string;
+    data: (MatchedFriend | UnmatchedContact)[];
+    key: 'matched' | 'unmatched';
+  };
+
+  const sections: FriendSection[] = [
+    { title: 'On PaySplit', data: matched, key: 'matched' },
+    { title: 'Invite to PaySplit', data: visibleUnmatched, key: 'unmatched' },
   ];
 
   const renderMatchedItem = ({ item }: { item: MatchedFriend }) => {
@@ -255,7 +229,7 @@ export default function FriendsScreen() {
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <Text style={s.screenTitle}>Friends</Text>
-      <SectionList
+      <SectionList<MatchedFriend | UnmatchedContact, FriendSection>
         sections={sections}
         keyExtractor={(item, index) => 'userId' in item ? item.userId : `unmatched-${index}`}
         renderItem={({ item, section }) =>

@@ -12,6 +12,7 @@ module.exports = {
     '^expo/src/winter$': '<rootDir>/__mocks__/expo-winter.js',
     '^(\\.\\.?/)*lib/supabase$': '<rootDir>/lib/__mocks__/supabase.ts',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.ts',
+    '^expo-contacts$': '<rootDir>/lib/__mocks__/expo-contacts.ts',
   },
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],
   collectCoverageFrom: [
