@@ -34,6 +34,12 @@ const C = {
   danger: '#ff5252',
 };
 
+type FriendSection = {
+  title: string;
+  data: (MatchedFriend | UnmatchedContact)[];
+  key: 'matched' | 'unmatched';
+};
+
 const UNMATCHED_PAGE_SIZE = 50;
 
 function initials(name: string): string {
@@ -172,12 +178,6 @@ export default function FriendsScreen() {
     );
   }
 
-  type FriendSection = {
-    title: string;
-    data: (MatchedFriend | UnmatchedContact)[];
-    key: 'matched' | 'unmatched';
-  };
-
   const sections: FriendSection[] = [
     { title: 'On PaySplit', data: matched, key: 'matched' },
     { title: 'Invite to PaySplit', data: visibleUnmatched, key: 'unmatched' },
@@ -231,16 +231,16 @@ export default function FriendsScreen() {
       <Text style={s.screenTitle}>Friends</Text>
       <SectionList<MatchedFriend | UnmatchedContact, FriendSection>
         sections={sections}
-        keyExtractor={(item, index) => 'userId' in item ? item.userId : `unmatched-${index}`}
-        renderItem={({ item, section }) =>
+        keyExtractor={(item: MatchedFriend | UnmatchedContact, index: number) => 'userId' in item ? item.userId : `unmatched-${index}`}
+        renderItem={({ item, section }: { item: MatchedFriend | UnmatchedContact; section: FriendSection }) =>
           section.key === 'matched'
             ? renderMatchedItem({ item: item as MatchedFriend })
             : renderUnmatchedItem({ item: item as UnmatchedContact })
         }
-        renderSectionHeader={({ section }) => (
+        renderSectionHeader={({ section }: { section: FriendSection }) => (
           <Text style={s.sectionHeader}>{section.title.toUpperCase()}</Text>
         )}
-        renderSectionFooter={({ section }) => {
+        renderSectionFooter={({ section }: { section: FriendSection }) => {
           if (section.key === 'matched' && matched.length === 0) {
             return <Text style={s.emptyText}>None of your contacts are on PaySplit yet.</Text>;
           }

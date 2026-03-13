@@ -166,7 +166,7 @@ export function useFriends(): UseFriendsResult {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     refetch();
