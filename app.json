@@ -47,6 +47,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow PaySplit to access your contacts to find friends on the app."
+        }
+      ],
       "expo-notifications",
       "@config-plugins/detox"
     ],

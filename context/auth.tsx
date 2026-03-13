@@ -143,6 +143,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const email = session?.user?.email;
+    if (!userId || !email) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email_hash')
+          .eq('id', userId)
+          .single();
+
+        if (cancelled || profile?.email_hash) return;
+
+        const { digestStringAsync, CryptoDigestAlgorithm } = await import('expo-crypto');
+        const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256, email.toLowerCase().trim());
+        if (!cancelled) {
+          await supabase.from('profiles').update({ email_hash: hash }).eq('id', userId);
+        }
+      } catch {
+        // Non-fatal: hash will be set on next session load
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [session?.user?.id, session?.user?.email]);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
