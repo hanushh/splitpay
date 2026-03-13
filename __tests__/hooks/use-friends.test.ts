@@ -11,9 +11,10 @@ jest.mock('expo-crypto', () => ({
     Promise.resolve(`hash:${value}`)
   ),
 }));
-jest.mock('@/context/auth', () => ({
-  useAuth: () => ({ user: { id: 'user-123' } }),
-}));
+jest.mock('@/context/auth', () => {
+  const user = { id: 'user-123' };
+  return { useAuth: () => ({ user }) };
+});
 
 const mockContacts = [
   { name: 'Alice Smith', emails: [{ email: 'alice@example.com' }], phoneNumbers: [] },
