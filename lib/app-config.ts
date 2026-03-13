@@ -34,3 +34,10 @@ export const INVITE_LINK_PREFIX = `${APP_LINK_BASE}invite`;
  * and ensure the page redirects to `paysplit://invite?token=<token>`.
  */
 export const INVITE_WEB_LINK_BASE = '';
+
+/**
+ * Default country code for phone normalization (E.164).
+ * Used by the Friends tab contact matching pipeline.
+ * Change this for non-US deployments.
+ */
+export const DEFAULT_COUNTRY_CODE = '+1';
