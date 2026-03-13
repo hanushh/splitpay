@@ -117,6 +117,9 @@ importers:
         specifier: 0.7.2
         version: 0.7.2(@babel/core@7.29.0)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
     devDependencies:
+      '@babel/runtime':
+        specifier: ^7.28.6
+        version: 7.28.6
       '@config-plugins/detox':
         specifier: ^11.0.0
         version: 11.0.0(expo@55.0.5)

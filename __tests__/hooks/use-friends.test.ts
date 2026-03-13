@@ -76,6 +76,8 @@ describe('useFriends', () => {
 
   it('refetch re-runs permission check', async () => {
     const { result } = renderHook(() => useFriends());
+    await act(async () => {}); // let mount effect settle
+    jest.clearAllMocks();      // reset counts after auto-run
     await act(async () => { await result.current.refetch(); });
     await act(async () => { await result.current.refetch(); });
     expect(Contacts.requestPermissionsAsync).toHaveBeenCalledTimes(2);
