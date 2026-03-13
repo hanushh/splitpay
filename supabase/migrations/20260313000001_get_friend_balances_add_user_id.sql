@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS public.get_friend_balances(UUID);
+
 CREATE OR REPLACE FUNCTION public.get_friend_balances(p_user_id UUID)
 RETURNS TABLE (
   user_id       UUID,
