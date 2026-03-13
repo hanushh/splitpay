@@ -70,22 +70,18 @@ export function useFriends(): UseFriendsResult {
 
       const emailSet = new Set<string>();
       const phoneSet = new Set<string>();
-      const contactsByEmail = new Map<string, Contacts.Contact>();
-      const contactsByPhone = new Map<string, Contacts.Contact>();
 
       for (const contact of contacts) {
         for (const e of contact.emails ?? []) {
           const norm = e.email?.toLowerCase().trim();
           if (norm) {
             emailSet.add(norm);
-            contactsByEmail.set(norm, contact);
           }
         }
         for (const p of contact.phoneNumbers ?? []) {
           const norm = normalizePhone(p.number ?? '');
           if (norm) {
             phoneSet.add(norm);
-            contactsByPhone.set(norm, contact);
           }
         }
       }
@@ -146,20 +142,14 @@ export function useFriends(): UseFriendsResult {
         return { userId: profile.id, name: profile.name, avatarUrl: profile.avatar_url, balanceCents, balanceStatus };
       }).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 
-      // Build unmatched: contacts whose emails/phones were not the source of a match.
-      // Track which contact names contributed to a match result.
-      const potentiallyMatchedNames = new Set<string>();
-      if (matchedFriends.length > 0) {
-        for (const [emailNorm, contact] of contactsByEmail) {
-          if (emailSet.has(emailNorm) && contact.name) potentiallyMatchedNames.add(contact.name);
-        }
-        for (const [phoneNorm, contact] of contactsByPhone) {
-          if (phoneSet.has(phoneNorm) && contact.name) potentiallyMatchedNames.add(contact.name);
-        }
-      }
+      // Build unmatched: contacts whose name doesn't match any matched profile name.
+      // Since hashes cannot be reversed, we use profile.name as the best proxy.
+      const matchedProfileNames = new Set(
+        matchedFriends.map((f) => f.name.toLowerCase().trim())
+      );
 
       const finalUnmatched: UnmatchedContact[] = contacts
-        .filter((c) => c.name && !potentiallyMatchedNames.has(c.name))
+        .filter((c) => c.name && !matchedProfileNames.has(c.name.toLowerCase().trim()))
         .map((c) => ({
           name: c.name!,
           phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),

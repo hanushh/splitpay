@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -66,9 +67,13 @@ function FriendActionSheet({ friend, onClose, onViewBalance, onAddToGroup }: Bot
       <View style={s.sheet}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <View style={s.avatarCircle}>
-            <Text style={s.avatarInitials}>{ini}</Text>
-          </View>
+          {friend.avatarUrl ? (
+            <Image source={{ uri: friend.avatarUrl }} style={s.avatarCircle} />
+          ) : (
+            <View style={s.avatarCircle}>
+              <Text style={s.avatarInitials}>{ini}</Text>
+            </View>
+          )}
           <Text style={s.sheetName}>{friend.name}</Text>
         </View>
 
@@ -216,9 +221,13 @@ export default function FriendsScreen() {
 
     return (
       <Pressable style={s.row} onPress={() => setSelectedFriend(item)}>
-        <View style={s.avatarCircle}>
-          <Text style={s.avatarInitials}>{ini}</Text>
-        </View>
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={s.avatarCircle} />
+        ) : (
+          <View style={s.avatarCircle}>
+            <Text style={s.avatarInitials}>{ini}</Text>
+          </View>
+        )}
         <Text style={s.rowName}>{item.name}</Text>
         <Text style={[s.chip, { color: chipColor }]}>{chipText}</Text>
       </Pressable>
