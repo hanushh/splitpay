@@ -56,3 +56,5 @@ coverage/
 .superpowers.superpowers
 .superpowers/
 .mcp.json
+
+.playwright-mcp
