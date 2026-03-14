@@ -227,6 +227,7 @@ $$;
 -- ── 5. get_user_activity (full replacement) ───────────────────────────────────
 -- UNIONs settlements into expenses. ORDER BY/LIMIT on outermost subquery.
 -- Adds payee_name column (NULL for expenses, payee display_name for settlements).
+DROP FUNCTION IF EXISTS public.get_user_activity(UUID, INT);
 CREATE OR REPLACE FUNCTION public.get_user_activity(p_user_id UUID, p_limit INT DEFAULT 50)
 RETURNS TABLE (
   expense_id          UUID,
