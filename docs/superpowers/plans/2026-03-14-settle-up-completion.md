@@ -813,15 +813,16 @@ git commit -m "feat: wire settle-up screen — editable amount, save, error hand
 
 Two changes: (a) pass `friendMemberId` + `amountCents` to the settle-up route params, (b) add `useFocusEffect` to refetch on screen focus.
 
-- [ ] **Step 1: Add `useFocusEffect` import from `@react-navigation/native`**
+- [ ] **Step 1: Add `useFocusEffect` to the `expo-router` import**
 
-At the top of `app/group/balances.tsx`, update the React import to include `useCallback` if not already present (it already is), and add the `useFocusEffect` import:
+`app/group/balances.tsx` already imports from `expo-router`. Add `useFocusEffect` to that same import line (not `@react-navigation/native` — this codebase uses `expo-router` for all navigation imports):
 
 ```ts
-import { useFocusEffect } from '@react-navigation/native';
+// Before:
+import { router, useLocalSearchParams } from 'expo-router';
+// After:
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 ```
-
-Add after the existing imports.
 
 - [ ] **Step 2: Add `useFocusEffect` call inside the component**
 
@@ -926,7 +927,7 @@ interface ActivityRow {
   paid_by_avatar: string | null;
   paid_by_is_user: boolean;
   your_split_cents: number;
-  payee_name: string | null;   // ← add this line
+  payee_name?: string | null;   // ← add this line (optional — null for expense rows)
 }
 ```
 
