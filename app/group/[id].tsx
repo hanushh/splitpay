@@ -241,7 +241,7 @@ export default function GroupDetailScreen() {
         <View style={s.actions}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/settle-up', params: { groupId: id, groupName: group.name, amountCents: String(group.balance_cents) } })}
+            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>Settle up</Text>

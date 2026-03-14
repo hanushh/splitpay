@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
+import { settlementEvents } from '@/lib/settlement-events';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -42,16 +43,19 @@ export default function GroupBalancesScreen() {
   const [members, setMembers] = useState<MemberBalance[]>([]);
   const [totalCents, setTotalCents] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
   const fetchBalances = useCallback(async () => {
     if (!user || !groupId) return;
 
-    const [{ data: myBalance }, { data: memberRows }] = await Promise.all([
+    const [{ data: myBalance }, { data: memberRows }, { data: myMember }] = await Promise.all([
       supabase.from('group_balances').select('balance_cents').eq('group_id', groupId).eq('user_id', user.id).single(),
       supabase.rpc('get_group_member_balances', { p_group_id: groupId, p_user_id: user.id }),
+      supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', user.id).single(),
     ]);
 
     setTotalCents(myBalance?.balance_cents ?? 0);
+    setMyMemberId((myMember as { id: string } | null)?.id ?? null);
 
     const list: MemberBalance[] = ((memberRows as { member_id: string; display_name: string; avatar_url: string | null; balance_cents: number }[]) ?? [])
       .map((row) => ({
@@ -67,6 +71,8 @@ export default function GroupBalancesScreen() {
   }, [user, groupId]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
+  useFocusEffect(useCallback(() => { fetchBalances(); }, [fetchBalances]));
+  useEffect(() => settlementEvents.subscribe(() => { fetchBalances(); }), [fetchBalances]);
 
   const totalText = totalCents === 0
     ? 'All settled up'
@@ -143,7 +149,21 @@ export default function GroupBalancesScreen() {
                       {!m.isCurrentUser && (
                         <Pressable
                           style={s.settleBtn}
-                          onPress={() => router.push({ pathname: '/settle-up', params: { groupId, groupName, friendName: m.display_name } })}
+                          onPress={() => router.push({
+                            pathname: '/settle-up',
+                            params: {
+                              groupId,
+                              groupName,
+                              friendName: m.display_name,
+                              amountCents: String(Math.abs(m.balance_cents)),
+                              // isOwed=true: they owe me → they are payer, I am payee
+                              // isOwed=false: I owe them → I am payer (RPC default), they are payee
+                              ...(isOwed
+                                ? { payerMemberId: m.id, friendMemberId: myMemberId ?? '' }
+                                : { friendMemberId: m.id }
+                              ),
+                            },
+                          })}
                         >
                           <Text style={s.settleBtnText}>{isOwed ? 'Settle up' : 'Pay'}</Text>
                         </Pressable>

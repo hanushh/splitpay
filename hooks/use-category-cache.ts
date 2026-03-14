@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef } from 'react';
-import { useAuth } from '@/context/auth';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { extractKeywords, scoreDescription, KEYWORD_DICT } from '@/lib/category-keywords';
 
@@ -51,11 +50,19 @@ async function fetchFromSupabase(): Promise<Record<string, Record<string, number
 }
 
 export function useCategoryCache() {
-  const { user } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (!user || initialized.current) return;
+    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!userId || initialized.current) return;
     initialized.current = true;
 
     (async () => {
@@ -75,7 +82,7 @@ export function useCategoryCache() {
       fetchedAt = Date.now();
       await writeCache(fresh);
     })();
-  }, [user]);
+  }, [userId]);
 
   /**
    * Synchronous — reads from in-memory cache. Zero latency.
@@ -83,7 +90,7 @@ export function useCategoryCache() {
    */
   const detect = useCallback((description: string): string => {
     // Background re-fetch if stale — does not block the synchronous return
-    if (user && Date.now() - fetchedAt > CACHE_TTL_MS) {
+    if (userId && Date.now() - fetchedAt > CACHE_TTL_MS) {
       fetchFromSupabase().then((fresh) => {
         inMemory = fresh;
         fetchedAt = Date.now();
@@ -92,7 +99,7 @@ export function useCategoryCache() {
     }
     const keywords = extractKeywords(description);
     return scoreDescription(keywords, inMemory);
-  }, [user]);
+  }, [userId]);
 
   /**
    * Called when user manually enters a custom category for "other".
