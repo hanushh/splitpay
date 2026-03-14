@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
+import { useExistingFriends } from '@/hooks/use-existing-friends';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -62,9 +64,13 @@ export default function CreateGroupScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
+  const { friends } = useExistingFriends();
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [memberEmails, setMemberEmails] = useState<string[]>([]);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
+  const [showEmailInvite, setShowEmailInvite] = useState(false);
 
   const selectedIcon: IconName = inferIcon(name);
   const [emailInput, setEmailInput] = useState('');
@@ -91,6 +97,14 @@ export default function CreateGroupScreen() {
 
   const removeEmail = (email: string) => {
     setMemberEmails((prev) => prev.filter((e) => e !== email));
+  };
+
+  const toggleFriend = (userId: string) => {
+    setSelectedFriendIds((prev) => {
+      const next = new Set(prev);
+      next.has(userId) ? next.delete(userId) : next.add(userId);
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -135,6 +149,21 @@ export default function CreateGroupScreen() {
       await supabase
         .from('group_balances')
         .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
+
+      // Add selected existing friends directly as members
+      if (selectedFriendIds.size > 0) {
+        const friendRows = Array.from(selectedFriendIds).map((userId) => {
+          const friend = friends.find((f) => f.userId === userId);
+          return {
+            group_id: groupId,
+            user_id: userId,
+            display_name: friend?.displayName ?? null,
+            avatar_url: friend?.avatarUrl ?? null,
+          };
+        });
+        const { error: friendErr } = await supabase.from('group_members').insert(friendRows);
+        if (friendErr) console.warn('Failed to add selected friends:', friendErr.message);
+      }
 
       // Create invitations for each added email and send notification emails
       if (memberEmails.length > 0) {
@@ -235,30 +264,82 @@ export default function CreateGroupScreen() {
         {/* Add members */}
         <View style={s.fieldBlock}>
           <Text style={s.fieldLabel}>ADD MEMBERS (OPTIONAL)</Text>
-          <Text style={s.fieldHint}>Enter email addresses to invite. They’ll join this group when they sign up.</Text>
-          <View style={s.emailRow}>
-            <TextInput
-              style={s.emailInput}
-              placeholder="email@example.com"
-              placeholderTextColor={C.slate500}
-              value={emailInput}
-              onChangeText={(t: string) => { setEmailInput(t); setError(null); }}
-              onSubmitEditing={addEmail}
-              returnKeyType="done"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              testID="member-email-input"
+
+          {/* Existing friends picker */}
+          {friends.length > 0 && (
+            <View style={s.friendPickerWrap}>
+              <Text style={s.friendPickerLabel}>From your groups</Text>
+              <View style={s.friendChipWrap}>
+                {friends.map((friend) => {
+                  const selected = selectedFriendIds.has(friend.userId);
+                  return (
+                    <Pressable
+                      key={friend.userId}
+                      style={[s.friendChip, selected && s.friendChipSelected]}
+                      onPress={() => toggleFriend(friend.userId)}
+                    >
+                      {friend.avatarUrl ? (
+                        <Image source={{ uri: friend.avatarUrl }} style={s.friendAvatar} />
+                      ) : (
+                        <View style={[s.friendAvatarPlaceholder, selected && s.friendAvatarPlaceholderSelected]}>
+                          <Text style={[s.friendAvatarInitial, selected && s.friendAvatarInitialSelected]}>
+                            {friend.displayName.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={[s.friendChipName, selected && s.friendChipNameSelected]} numberOfLines={1}>
+                        {friend.displayName}
+                      </Text>
+                      {selected && (
+                        <MaterialIcons name="check-circle" size={16} color={C.bg} style={s.friendChipCheck} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          <Pressable
+            style={s.emailToggle}
+            onPress={() => setShowEmailInvite((v) => !v)}
+          >
+            <MaterialIcons
+              name={showEmailInvite ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={18}
+              color={C.slate400}
             />
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
-              onPress={addEmail}
-              testID="add-member-button"
-            >
-              <MaterialIcons name="person-add" size={20} color={C.bg} />
-              <Text style={s.addEmailBtnText}>Add</Text>
-            </Pressable>
-          </View>
+            <Text style={s.emailToggleText}>Invite by email</Text>
+          </Pressable>
+
+          {showEmailInvite && (
+            <View style={s.emailInviteWrap}>
+              <Text style={s.fieldHint}>They’ll join this group when they sign up.</Text>
+              <View style={s.emailRow}>
+                <TextInput
+                  style={s.emailInput}
+                  placeholder="email@example.com"
+                  placeholderTextColor={C.slate500}
+                  value={emailInput}
+                  onChangeText={(t: string) => { setEmailInput(t); setError(null); }}
+                  onSubmitEditing={addEmail}
+                  returnKeyType="done"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  testID="member-email-input"
+                />
+                <Pressable
+                  style={({ pressed }: { pressed: boolean }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
+                  onPress={addEmail}
+                  testID="add-member-button"
+                >
+                  <MaterialIcons name="person-add" size={20} color={C.bg} />
+                  <Text style={s.addEmailBtnText}>Add</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
           {memberEmails.length > 0 && (
             <View style={s.chipWrap}>
               {memberEmails.map((email) => (
@@ -380,6 +461,51 @@ const s = StyleSheet.create({
   // Error
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   errorText: { color: C.orange, fontSize: 13 },
+  // Email invite toggle
+  emailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+  },
+  emailToggleText: { color: C.slate400, fontSize: 13, fontWeight: '600' },
+  emailInviteWrap: { marginTop: 8 },
+  // Friend picker
+  friendPickerWrap: { marginBottom: 16 },
+  friendPickerLabel: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
+  friendChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  friendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.surfaceHL,
+    paddingVertical: 7,
+    paddingLeft: 6,
+    paddingRight: 10,
+    borderRadius: 999,
+  },
+  friendChipSelected: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  friendAvatar: { width: 24, height: 24, borderRadius: 12 },
+  friendAvatarPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: C.surfaceHL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendAvatarPlaceholderSelected: { backgroundColor: 'rgba(0,0,0,0.2)' },
+  friendAvatarInitial: { color: C.slate400, fontSize: 11, fontWeight: '700' },
+  friendAvatarInitialSelected: { color: C.bg },
+  friendChipName: { color: C.white, fontSize: 13, fontWeight: '500', maxWidth: 100 },
+  friendChipNameSelected: { color: C.bg, fontWeight: '700' },
+  friendChipCheck: { marginLeft: 2 },
   // Create button
   createBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

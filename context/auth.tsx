@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { AUTH_CALLBACK_PATH, AUTH_CALLBACK_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import {
   registerPushTokenForCurrentUser,
   removePushToken,
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const activePushToken = useRef<string | null>(null);
+  const handlingOAuthCallback = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Handle only OAuth callback deep links, not every /auth route.
-      if (!url.startsWith(AUTH_CALLBACK_URL)) return;
+      // Match both the production scheme (paysplit://) and Expo Go (exp://).
+      const callbackPath = AUTH_CALLBACK_PATH; // 'auth/callback'
+      const isOAuthCallback =
+        url.startsWith(AUTH_CALLBACK_URL) || url.includes(`/--/${callbackPath}`);
+      if (!isOAuthCallback) return;
+      // signInWithGoogle handles the callback itself via openAuthSessionAsync;
+      // skip here to avoid exchanging the one-time PKCE code twice on Android.
+      if (handlingOAuthCallback.current) return;
 
       WebBrowser.dismissBrowser();
 
@@ -183,7 +191,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
-    const redirectTo = AUTH_CALLBACK_URL;
+    // Linking.createURL returns the correct scheme for the current environment:
+    // 'exp://...' in Expo Go, 'paysplit://auth/callback' in native builds.
+    const redirectTo = Linking.createURL(AUTH_CALLBACK_PATH);
+    console.log('[Auth] Google sign-in redirectTo:', redirectTo);
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -197,17 +208,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Use AuthSession so the redirect callback is reliably captured in-app.
+    handlingOAuthCallback.current = true;
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    console.log('[Auth] openAuthSessionAsync result type:', result.type);
     if (result.type !== 'success' || !result.url) {
-      return { error: 'Google sign-in was cancelled or did not complete.' };
+      console.log('[Auth] Browser dismissed or failed - relying on deep link handler');
+      handlingOAuthCallback.current = false;
+      return { error: null };
     }
 
+    console.log('[Auth] result.url:', result.url.substring(0, 80));
     try {
       const parsed = new URL(result.url);
       const code = parsed.searchParams.get('code');
       if (code) {
         const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeErr) return { error: exchangeErr.message };
+        if (exchangeErr) {
+          console.error('[Auth] exchangeCodeForSession error:', exchangeErr.message);
+          return { error: exchangeErr.message };
+        }
+        handlingOAuthCallback.current = false;
         router.replace('/(tabs)');
         return { error: null };
       }
@@ -222,14 +242,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           refresh_token: refreshToken,
         });
         if (sessionErr) return { error: sessionErr.message };
+        handlingOAuthCallback.current = false;
         router.replace('/(tabs)');
         return { error: null };
       }
     } catch (err) {
       console.error('[Auth] OAuth callback parse error:', err);
+      handlingOAuthCallback.current = false;
       return { error: 'Failed to finish Google sign-in.' };
     }
 
+    handlingOAuthCallback.current = false;
     return { error: 'Google sign-in callback did not include auth credentials.' };
   };
 

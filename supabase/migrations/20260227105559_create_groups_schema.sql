@@ -79,9 +79,9 @@ CREATE POLICY "users can update own balances" ON group_balances
 
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER LANGUAGE PLPGSQL SECURITY DEFINER AS $$
+RETURNS TRIGGER LANGUAGE PLPGSQL SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO profiles (id, name, avatar_url)
+  INSERT INTO public.profiles (id, name, avatar_url)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
