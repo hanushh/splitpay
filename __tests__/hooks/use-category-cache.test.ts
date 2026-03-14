@@ -4,9 +4,6 @@ import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('@/lib/supabase');
-jest.mock('@/context/auth', () => ({
-  useAuth: () => ({ user: { id: 'user-123' } }),
-}));
 
 const mockRows = [
   { keyword: 'yoga', category: 'health', usage_count: 5 },
@@ -17,6 +14,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   __resetCacheForTesting();
   (AsyncStorage as any).__store = {};
+  (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+    data: { session: { user: { id: 'user-123' } } },
+    error: null,
+  });
   (supabase.from as jest.Mock).mockReturnValue({
     select: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),

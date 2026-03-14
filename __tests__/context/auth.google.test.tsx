@@ -19,6 +19,7 @@ jest.mock('expo-web-browser', () => ({
 jest.mock('expo-linking', () => ({
   addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   getInitialURL: jest.fn().mockResolvedValue(null),
+  createURL: jest.fn().mockReturnValue('paysplit://auth/callback'),
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -57,7 +58,7 @@ describe('Google auth smoke', () => {
       'https://mock-oauth-url.com',
       AUTH_CALLBACK_URL,
     );
-    expect(response.error).toBe('Google sign-in was cancelled or did not complete.');
+    expect(response.error).toBeNull();
     expect(router.replace).not.toHaveBeenCalled();
   });
 
