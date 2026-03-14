@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -57,62 +57,6 @@ const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }
   store: { icon: 'local-convenience-store', bg: 'rgba(234,179,8,0.15)', color: '#eab308' },
   receipt: { icon: 'receipt-long', bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
 };
-
-interface CategoryTotal { category: string; total: number; }
-
-function SpendingChart({ expenses }: { expenses: Expense[] }) {
-  const { format } = useCurrency();
-
-  const totals: CategoryTotal[] = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const e of expenses) {
-      if (e.category === 'settlement') continue;
-      map[e.category] = (map[e.category] ?? 0) + e.total_amount_cents;
-    }
-    return Object.entries(map)
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-  }, [expenses]);
-
-  if (totals.length === 0) return null;
-  const max = totals[0].total;
-
-  return (
-    <View style={sc.wrap}>
-      <Text style={sc.heading}>SPENDING BY CATEGORY</Text>
-      {totals.map(({ category, total }) => {
-        const cat = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.receipt;
-        const fillRatio = total / max;
-        return (
-          <View key={category} style={sc.row}>
-            <View style={[sc.iconBox, { backgroundColor: cat.bg }]}>
-              <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={16} color={cat.color} />
-            </View>
-            <View style={sc.barWrap}>
-              <View style={sc.barTrack}>
-                <View style={[sc.barFill, { flex: fillRatio, backgroundColor: cat.color + '33' }]} />
-                <View style={{ flex: 1 - fillRatio }} />
-              </View>
-            </View>
-            <Text style={[sc.amount, { color: cat.color }]}>{format(total)}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-const sc = StyleSheet.create({
-  wrap: { marginHorizontal: 16, marginBottom: 24, backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.surfaceHL },
-  heading: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  iconBox: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  barWrap: { flex: 1 },
-  barTrack: { height: 8, borderRadius: 4, backgroundColor: C.surfaceHL, flexDirection: 'row', overflow: 'hidden' },
-  barFill: { borderRadius: 4 },
-  amount: { fontSize: 12, fontWeight: '700', minWidth: 60, textAlign: 'right' },
-});
 
 function monthKey(iso: string): string {
   const d = new Date(iso);
@@ -312,23 +256,22 @@ export default function GroupDetailScreen() {
         </View>
         <View style={s.actionsBottom}>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, { flex: 1 }, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
             testID="invite-member-button"
           >
-            <MaterialIcons name="person-add" size={20} color={C.primary} />
-            <Text style={s.inviteBtnText}>Add member</Text>
+            <MaterialIcons name="person-add" size={20} color={C.white} />
+            <Text style={s.actionSecondaryText}>Add member</Text>
           </Pressable>
         </View>
-
-        {/* Spending chart */}
-        <SpendingChart expenses={expenses} />
 
         {/* Expenses section */}
         <View style={s.expensesHeader}>
           <Text style={s.expensesTitle}>Expenses</Text>
-          <Pressable>
-            <Text style={s.viewAll}>View all</Text>
+          <Pressable
+            onPress={() => router.push({ pathname: '/group/spending', params: { groupId: id, groupName: group.name } })}
+          >
+            <Text style={s.viewAll}>Spending →</Text>
           </Pressable>
         </View>
 
@@ -530,18 +473,6 @@ const s = StyleSheet.create({
   actionPrimaryText: { color: C.bg, fontWeight: '700', fontSize: 15 },
   actionSecondary: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceHL },
   actionSecondaryText: { color: C.white, fontWeight: '600', fontSize: 15 },
-  inviteBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  inviteBtnText: { color: C.white, fontWeight: '600', fontSize: 15 },
   expensesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 },
   expensesTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
   viewAll: { color: C.primary, fontSize: 13, fontWeight: '600' },
