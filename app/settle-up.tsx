@@ -1,7 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { useCurrency } from '@/context/currency';
 import { useSettlement } from '@/hooks/use-settlement';
 import {
   KeyboardAvoidingView,
@@ -48,7 +47,6 @@ export default function SettleUpScreen() {
   );
 
   const { settle, error } = useSettlement();
-  const { format } = useCurrency();
 
   const parsedCents = Math.round(parseFloat(amountInput) * 100);
   const isValidAmount = !isNaN(parsedCents) && parsedCents > 0;
