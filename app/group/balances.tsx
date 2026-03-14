@@ -42,16 +42,19 @@ export default function GroupBalancesScreen() {
   const [members, setMembers] = useState<MemberBalance[]>([]);
   const [totalCents, setTotalCents] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
   const fetchBalances = useCallback(async () => {
     if (!user || !groupId) return;
 
-    const [{ data: myBalance }, { data: memberRows }] = await Promise.all([
+    const [{ data: myBalance }, { data: memberRows }, { data: myMember }] = await Promise.all([
       supabase.from('group_balances').select('balance_cents').eq('group_id', groupId).eq('user_id', user.id).single(),
       supabase.rpc('get_group_member_balances', { p_group_id: groupId, p_user_id: user.id }),
+      supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', user.id).single(),
     ]);
 
     setTotalCents(myBalance?.balance_cents ?? 0);
+    setMyMemberId((myMember as { id: string } | null)?.id ?? null);
 
     const list: MemberBalance[] = ((memberRows as { member_id: string; display_name: string; avatar_url: string | null; balance_cents: number }[]) ?? [])
       .map((row) => ({
@@ -150,8 +153,13 @@ export default function GroupBalancesScreen() {
                               groupId,
                               groupName,
                               friendName: m.display_name,
-                              friendMemberId: m.id,
                               amountCents: String(Math.abs(m.balance_cents)),
+                              // isOwed=true: they owe me → they are payer, I am payee
+                              // isOwed=false: I owe them → I am payer (RPC default), they are payee
+                              ...(isOwed
+                                ? { payerMemberId: m.id, friendMemberId: myMemberId ?? '' }
+                                : { friendMemberId: m.id }
+                              ),
                             },
                           })}
                         >

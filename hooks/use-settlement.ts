@@ -8,6 +8,7 @@ interface SettleParams {
   amountCents: number;
   paymentMethod: 'cash' | 'venmo' | 'other';
   note?: string;
+  payerMemberId?: string; // if provided, this member pays the current user
 }
 
 export function useSettlement() {
@@ -19,11 +20,12 @@ export function useSettlement() {
     setError(null);
     try {
       const { error: rpcErr } = await supabase.rpc('record_settlement', {
-        p_group_id:        params.groupId,
-        p_payee_member_id: params.payeeMemberId,
-        p_amount_cents:    params.amountCents,
-        p_payment_method:  params.paymentMethod,
-        p_note:            params.note ?? null,
+        p_group_id:         params.groupId,
+        p_payee_member_id:  params.payeeMemberId,
+        p_amount_cents:     params.amountCents,
+        p_payment_method:   params.paymentMethod,
+        p_note:             params.note ?? null,
+        p_payer_member_id:  params.payerMemberId ?? null,
       });
       if (rpcErr) throw rpcErr;
       return true;

@@ -27,11 +27,12 @@ describe('useSettlement', () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith('record_settlement', {
-      p_group_id:        'group-1',
-      p_payee_member_id: 'member-2',
-      p_amount_cents:    5000,
-      p_payment_method:  'cash',
-      p_note:            'test note',
+      p_group_id:         'group-1',
+      p_payee_member_id:  'member-2',
+      p_amount_cents:     5000,
+      p_payment_method:   'cash',
+      p_note:             'test note',
+      p_payer_member_id:  null,
     });
     expect(ok!).toBe(true);
     expect(result.current.error).toBeNull();

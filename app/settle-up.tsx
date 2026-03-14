@@ -30,13 +30,14 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const insets = useSafeAreaInsets();
-  const { groupId, groupName, friendName, amountCents, friendMemberId } =
+  const { groupId, groupName, friendName, amountCents, friendMemberId, payerMemberId } =
     useLocalSearchParams<{
       groupId?: string;
       groupName?: string;
       friendName?: string;
       amountCents?: string;
       friendMemberId?: string;
+      payerMemberId?: string;
     }>();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -53,6 +54,7 @@ export default function SettleUpScreen() {
   const isOverpayment = amountCents ? parsedCents > Number(amountCents) : false;
   const canSave = isValidAmount && !!friendMemberId && !!groupId && !saving;
 
+  const iThemPay = !!payerMemberId; // they are paying me
   const payeeName = friendName ?? groupName ?? 'your group';
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -65,6 +67,7 @@ export default function SettleUpScreen() {
       amountCents: parsedCents,
       paymentMethod,
       note: note.trim() || undefined,
+      payerMemberId: payerMemberId || undefined,
     });
     setSaving(false);
     if (ok) router.back();
@@ -106,7 +109,7 @@ export default function SettleUpScreen() {
           <View style={s.checkCircle}>
             <MaterialIcons name="check-circle" size={52} color={C.primary} />
           </View>
-          <Text style={s.amountLabel}>You paid {payeeName}</Text>
+          <Text style={s.amountLabel}>{iThemPay ? `${payeeName} paid you` : `You paid ${payeeName}`}</Text>
           <TextInput
             style={s.amountValue}
             value={amountInput}
