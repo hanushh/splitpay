@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -67,6 +67,7 @@ export default function GroupBalancesScreen() {
   }, [user, groupId]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
+  useFocusEffect(useCallback(() => { fetchBalances(); }, [fetchBalances]));
 
   const totalText = totalCents === 0
     ? 'All settled up'
@@ -143,7 +144,16 @@ export default function GroupBalancesScreen() {
                       {!m.isCurrentUser && (
                         <Pressable
                           style={s.settleBtn}
-                          onPress={() => router.push({ pathname: '/settle-up', params: { groupId, groupName, friendName: m.display_name } })}
+                          onPress={() => router.push({
+                            pathname: '/settle-up',
+                            params: {
+                              groupId,
+                              groupName,
+                              friendName: m.display_name,
+                              friendMemberId: m.id,
+                              amountCents: String(Math.abs(m.balance_cents)),
+                            },
+                          })}
                         >
                           <Text style={s.settleBtnText}>{isOwed ? 'Settle up' : 'Pay'}</Text>
                         </Pressable>
