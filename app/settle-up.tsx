@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
 import {
   KeyboardAvoidingView,
@@ -70,7 +71,7 @@ export default function SettleUpScreen() {
       payerMemberId: payerMemberId || undefined,
     });
     setSaving(false);
-    if (ok) router.back();
+    if (ok) { settlementEvents.emit(); router.back(); }
   };
 
   return (

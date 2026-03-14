@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
+import { settlementEvents } from '@/lib/settlement-events';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -71,6 +72,7 @@ export default function GroupBalancesScreen() {
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
   useFocusEffect(useCallback(() => { fetchBalances(); }, [fetchBalances]));
+  useEffect(() => settlementEvents.subscribe(() => { fetchBalances(); }), [fetchBalances]);
 
   const totalText = totalCents === 0
     ? 'All settled up'
