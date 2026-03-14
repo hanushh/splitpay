@@ -34,6 +34,7 @@ const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }
   store: { icon: 'local-convenience-store', bg: 'rgba(234,179,8,0.15)', color: '#eab308' },
   receipt: { icon: 'receipt-long', bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
   payment: { icon: 'payments', bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
+  settlement: { icon: 'payments', bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
 };
 
 interface ActivityRow {
@@ -48,6 +49,7 @@ interface ActivityRow {
   paid_by_avatar: string | null;
   paid_by_is_user: boolean;
   your_split_cents: number;
+  payee_name?: string | null;
 }
 
 interface Section {
@@ -104,6 +106,34 @@ function ActivityCard({ item }: { item: ActivityRow }) {
         </Text>
         <Text style={[s.cardAmount, { color: amountPositive ? C.primary : C.orange }]}>
           {format(yourAmount)}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function SettlementCard({ item }: { item: ActivityRow }) {
+  const { format } = useCurrency();
+  const label = item.paid_by_is_user
+    ? `You paid ${item.payee_name ?? 'someone'}`
+    : `${item.paid_by_name ?? 'Someone'} paid you`;
+
+  return (
+    <Pressable style={({ pressed }: { pressed: boolean }) => [s.card, pressed && { opacity: 0.8 }]}>
+      <View style={[s.iconBox, { backgroundColor: 'rgba(23,232,107,0.15)' }]}>
+        <MaterialIcons name="payments" size={22} color="#17e86b" />
+      </View>
+      <View style={s.cardInfo}>
+        <Text style={s.cardTitle} numberOfLines={1}>{label}</Text>
+        <Text style={s.cardSubtitle} numberOfLines={1}>
+          <Text style={s.groupTag}>{item.group_name}</Text>
+        </Text>
+        <Text style={s.timestamp}>{relativeTime(item.created_at)}</Text>
+      </View>
+      <View style={s.cardRight}>
+        <Text style={[s.amountLabel, { color: '#17e86b' }]}>settled</Text>
+        <Text style={[s.cardAmount, { color: '#17e86b' }]}>
+          {format(item.total_amount_cents)}
         </Text>
       </View>
     </Pressable>
@@ -168,7 +198,11 @@ export default function ActivityScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item: ActivityRow) => item.expense_id}
-          renderItem={({ item }: { item: ActivityRow }) => <ActivityCard item={item} />}
+          renderItem={({ item }: { item: ActivityRow }) =>
+            item.category === 'settlement'
+              ? <SettlementCard item={item} />
+              : <ActivityCard item={item} />
+          }
           renderSectionHeader={({ section }: { section: Section }) => (
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>{section.title.toUpperCase()}</Text>
