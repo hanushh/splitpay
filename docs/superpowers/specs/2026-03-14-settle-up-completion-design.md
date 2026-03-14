@@ -310,9 +310,15 @@ UNIONs settlements into the expense result. Wrapped in a subquery so `ORDER BY`/
 | `description` | `'Settlement'` | Static label; client overrides display based on `category` |
 | `category` | `'settlement'` | Triggers distinct rendering branch in `activity.tsx` |
 | `total_amount_cents` | `s.amount_cents` | The full settled amount |
-| `paid_by_name` | `payer.display_name` | Who made the payment |
+| `paid_by_name` | `payer.display_name` | Who made the payment (payer's own name) |
+| `paid_by_avatar` | `payer.avatar_url` | — |
 | `paid_by_is_user` | `payer.user_id = p_user_id` | `true` if current user paid |
 | `your_split_cents` | `s.amount_cents` | Full amount — activity.tsx will NOT use the "you lent/you owe" label logic for `category = 'settlement'`; see client rendering below |
+| `payee_name` *(new column)* | `payee.display_name` (via JOIN on `s.payee_member_id`) | The recipient's name — needed for "You paid [payee_name]" label. `NULL` for expense rows. |
+
+**Important:** `paid_by_name` is the payer's own name. Using it in a "You paid [X]" label would render "You paid [yourself]". The `payee_name` column is added specifically to resolve this. Both UNION branches must include this column: `NULL::TEXT AS payee_name` for expenses, `payee.display_name AS payee_name` for settlements.
+
+The `ActivityRow` TypeScript interface gains an optional `payee_name?: string | null` field.
 
 The `membership` lateral join uses `LIMIT 1` to prevent duplicate rows for edge-case users with multiple `group_members` rows in the same group.
 
@@ -329,11 +335,12 @@ RETURNS TABLE (
   paid_by_name        TEXT,
   paid_by_avatar      TEXT,
   paid_by_is_user     BOOLEAN,
-  your_split_cents    INTEGER
+  your_split_cents    INTEGER,
+  payee_name          TEXT   -- NULL for expenses; payee's display_name for settlements
 )
 LANGUAGE SQL SECURITY DEFINER SET search_path = public STABLE AS $$
   SELECT * FROM (
-    -- Expenses (unchanged)
+    -- Expenses (unchanged logic, payee_name is NULL)
     SELECT
       e.id,
       e.group_id,
@@ -345,7 +352,8 @@ LANGUAGE SQL SECURITY DEFINER SET search_path = public STABLE AS $$
       COALESCE(payer.display_name, 'Someone') AS paid_by_name,
       payer.avatar_url                          AS paid_by_avatar,
       (payer.user_id = p_user_id)              AS paid_by_is_user,
-      COALESCE(my_split.amount_cents, 0)       AS your_split_cents
+      COALESCE(my_split.amount_cents, 0)       AS your_split_cents,
+      NULL::TEXT                               AS payee_name
     FROM public.expenses e
     JOIN public.groups g ON g.id = e.group_id
     JOIN public.group_members membership
@@ -361,14 +369,15 @@ LANGUAGE SQL SECURITY DEFINER SET search_path = public STABLE AS $$
       s.id,
       s.group_id,
       g.name,
-      'Settlement'                  AS description,
+      'Settlement'                       AS description,
       s.amount_cents,
-      'settlement'                  AS category,
+      'settlement'                       AS category,
       s.created_at,
-      payer.display_name            AS paid_by_name,
-      payer.avatar_url              AS paid_by_avatar,
-      (payer.user_id = p_user_id)  AS paid_by_is_user,
-      s.amount_cents                AS your_split_cents
+      payer.display_name                 AS paid_by_name,
+      payer.avatar_url                   AS paid_by_avatar,
+      (payer.user_id = p_user_id)       AS paid_by_is_user,
+      s.amount_cents                     AS your_split_cents,
+      payee.display_name                 AS payee_name
     FROM public.settlements s
     JOIN public.groups g ON g.id = s.group_id
     JOIN LATERAL (
@@ -377,6 +386,7 @@ LANGUAGE SQL SECURITY DEFINER SET search_path = public STABLE AS $$
       LIMIT 1
     ) membership ON true
     JOIN public.group_members payer ON payer.id = s.payer_member_id
+    JOIN public.group_members payee ON payee.id = s.payee_member_id
     WHERE s.payer_member_id = membership.id OR s.payee_member_id = membership.id
   ) combined
   ORDER BY created_at DESC
@@ -548,8 +558,8 @@ For settlements `total_amount_cents === your_split_cents`, so `yourAmount = 0` w
 ```ts
 if (item.category === 'settlement') {
   const label = item.paid_by_is_user
-    ? `You paid ${item.paid_by_name ?? 'someone'}`
-    : `${item.paid_by_name ?? 'Someone'} paid you`;
+    ? `You paid ${item.payee_name ?? 'someone'}`   // payee_name = who received the payment
+    : `${item.paid_by_name ?? 'Someone'} paid you`; // paid_by_name = who sent the payment
   return (
     // Render settlement row:
     // - Icon: MaterialIcons 'payments', color C.primary
