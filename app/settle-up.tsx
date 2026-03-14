@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { useCurrency } from '@/context/currency';
+import { useSettlement } from '@/hooks/use-settlement';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const C = {
   primary: '#17e86b',
+  amber: '#f59e0b',
+  danger: '#ff5252',
   bg: '#112117',
   surface: '#1a3324',
   surfaceHL: '#244732',
@@ -28,23 +31,46 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const insets = useSafeAreaInsets();
-  const { groupName, friendName, amountCents } =
-    useLocalSearchParams<{ groupId?: string; groupName?: string; friendName?: string; amountCents?: string }>();
+  const { groupId, groupName, friendName, amountCents, friendMemberId } =
+    useLocalSearchParams<{
+      groupId?: string;
+      groupName?: string;
+      friendName?: string;
+      amountCents?: string;
+      friendMemberId?: string;
+    }>();
+
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
-  const [saving] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [amountInput, setAmountInput] = useState<string>(
+    amountCents ? (Number(amountCents) / 100).toFixed(2) : ''
+  );
 
+  const { settle, error } = useSettlement();
+  const { format } = useCurrency();
+
+  const parsedCents = Math.round(parseFloat(amountInput) * 100);
+  const isValidAmount = !isNaN(parsedCents) && parsedCents > 0;
+  const isOverpayment = amountCents ? parsedCents > Number(amountCents) : false;
+  const canSave = isValidAmount && !!friendMemberId && !!groupId && !saving;
+
+  const payeeName = friendName ?? groupName ?? 'your group';
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   const handleSave = async () => {
-    // Settlement recording is not yet implemented — navigate back for now.
-    router.back();
+    if (!canSave) return;
+    setSaving(true);
+    const ok = await settle({
+      groupId: groupId!,
+      payeeMemberId: friendMemberId!,
+      amountCents: parsedCents,
+      paymentMethod,
+      note: note.trim() || undefined,
+    });
+    setSaving(false);
+    if (ok) router.back();
   };
-
-  const { format } = useCurrency();
-  const payeeName = friendName ?? groupName ?? 'your group';
-  const displayCents = amountCents ? Math.abs(Number(amountCents)) : 0;
-  const amount = displayCents > 0 ? format(displayCents) : '—';
 
   return (
     <KeyboardAvoidingView
@@ -60,6 +86,22 @@ export default function SettleUpScreen() {
         <View style={{ width: 44 }} />
       </View>
 
+      {/* Error banner */}
+      {error ? (
+        <View style={s.errorBanner}>
+          <MaterialIcons name="error-outline" size={16} color={C.white} />
+          <Text style={s.errorBannerText}>{error}</Text>
+        </View>
+      ) : null}
+
+      {/* Missing friendMemberId guard */}
+      {!friendMemberId ? (
+        <View style={s.errorBanner}>
+          <MaterialIcons name="error-outline" size={16} color={C.white} />
+          <Text style={s.errorBannerText}>No payee selected. Go back and tap Settle up on a specific member.</Text>
+        </View>
+      ) : null}
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Amount card */}
         <View style={s.amountCard}>
@@ -67,7 +109,18 @@ export default function SettleUpScreen() {
             <MaterialIcons name="check-circle" size={52} color={C.primary} />
           </View>
           <Text style={s.amountLabel}>You paid {payeeName}</Text>
-          <Text style={s.amountValue}>{amount}</Text>
+          <TextInput
+            style={s.amountValue}
+            value={amountInput}
+            onChangeText={setAmountInput}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={C.slate400}
+            selectTextOnFocus
+          />
+          {isOverpayment && (
+            <Text style={s.overpaymentWarning}>This exceeds the outstanding balance</Text>
+          )}
           {groupName && (
             <View style={s.groupBadge}>
               <MaterialIcons name="group" size={14} color={C.primary} />
@@ -134,9 +187,12 @@ export default function SettleUpScreen() {
       {/* Save */}
       <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.saveBtn, pressed && { opacity: 0.85 }]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.saveBtn,
+            (!canSave || pressed) && { opacity: 0.5 },
+          ]}
           onPress={handleSave}
-          disabled={saving}
+          disabled={!canSave}
         >
           <MaterialIcons name="check" size={20} color={C.bg} />
           <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save Payment'}</Text>
@@ -151,11 +207,14 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 8 },
   backBtn: { padding: 10 },
   headerTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#7f1d1d', marginHorizontal: 16, marginBottom: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  errorBannerText: { color: C.white, fontSize: 13, flex: 1 },
   scrollContent: { paddingBottom: 100 },
   amountCard: { alignItems: 'center', margin: 16, backgroundColor: C.surface, borderRadius: 20, padding: 28, gap: 8, borderWidth: 1, borderColor: C.surfaceHL },
   checkCircle: { marginBottom: 4 },
   amountLabel: { color: C.slate400, fontSize: 15 },
-  amountValue: { color: C.white, fontSize: 36, fontWeight: '700' },
+  amountValue: { color: C.white, fontSize: 36, fontWeight: '700', textAlign: 'center', minWidth: 120 },
+  overpaymentWarning: { color: C.amber, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   groupBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(23,232,107,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginTop: 4 },
   groupBadgeText: { color: C.primary, fontWeight: '600', fontSize: 13 },
   sectionTitle: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 16, marginTop: 20, marginBottom: 10 },
