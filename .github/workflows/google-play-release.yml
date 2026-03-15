@@ -125,10 +125,9 @@ jobs:
 
       - name: Write .env.production
         run: |
-          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\nEXPO_PUBLIC_EAS_PROJECT_ID=%s\nGOOGLE_SERVICES_JSON=%s\n' \
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\nGOOGLE_SERVICES_JSON=%s\n' \
             "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" \
             "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" \
-            "${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}" \
             "${{ secrets.GOOGLE_SERVICES_JSON }}" \
             > .env.production
 
