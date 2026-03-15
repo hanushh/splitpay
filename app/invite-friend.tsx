@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
-import { APP_DISPLAY_NAME, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
@@ -67,6 +67,7 @@ export default function InviteFriendScreen() {
   const [sentEmail, setSentEmail] = useState('');
   const [addedUsersCount, setAddedUsersCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [emailExpanded, setEmailExpanded] = useState(false);
 
   const loadGroups = useCallback(async () => {
     if (!user) return;
@@ -230,9 +231,16 @@ export default function InviteFriendScreen() {
   const handleShare = async () => {
     if (!inviteLink) return;
     try {
+      // When INVITE_WEB_LINK_BASE is not set the link is a custom scheme (paysplit://)
+      // which isn't clickable in messaging apps. Include the Play Store URL so the
+      // recipient can tap it to download the app, then the deep link opens on install.
+      const isHttps = inviteLink.startsWith('https://');
+      const shareText = isHttps
+        ? `Join me on ${APP_DISPLAY_NAME} to split expenses! ${inviteLink}`
+        : `Join me on ${APP_DISPLAY_NAME} to split expenses!\n\nDownload the app: ${APP_STORE_URL}\n\nThen use this invite link: ${inviteLink}`;
       await Share.share({
-        message: `Join me on ${APP_DISPLAY_NAME} to split expenses! ${inviteLink}`,
-        url: inviteLink,
+        message: shareText,
+        url: isHttps ? inviteLink : APP_STORE_URL,
         title: `${APP_DISPLAY_NAME} invite`,
       });
     } catch {}
@@ -298,19 +306,7 @@ export default function InviteFriendScreen() {
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.label}>FRIEND&apos;S EMAIL</Text>
-        <TextInput
-          style={s.input}
-          placeholder="email@example.com"
-          placeholderTextColor={C.slate500}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <Text style={[s.label, { marginTop: 20 }]}>ADD TO GROUP (OPTIONAL)</Text>
+        <Text style={s.label}>ADD TO GROUP (OPTIONAL)</Text>
         <View style={s.groupPicker}>
           <Pressable
             style={s.groupOption}
@@ -385,6 +381,50 @@ export default function InviteFriendScreen() {
             ) : null}
           </View>
         ) : null}
+
+        {/* Email invite — collapsible when existing users are selectable */}
+        {knownUsers.length > 0 ? (
+          <>
+            <Pressable
+              style={s.emailToggle}
+              onPress={() => setEmailExpanded((v) => !v)}
+            >
+              <MaterialIcons name="email" size={18} color={emailExpanded ? C.primary : C.slate400} />
+              <Text style={[s.emailToggleText, emailExpanded && { color: C.white }]}>Invite by email</Text>
+              <MaterialIcons
+                name={emailExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={20}
+                color={C.slate400}
+              />
+            </Pressable>
+            {emailExpanded && (
+              <TextInput
+                style={[s.input, { marginTop: 8 }]}
+                placeholder="email@example.com"
+                placeholderTextColor={C.slate500}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <Text style={[s.label, { marginTop: 20 }]}>FRIEND&apos;S EMAIL</Text>
+            <TextInput
+              style={s.input}
+              placeholder="email@example.com"
+              placeholderTextColor={C.slate500}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </>
+        )}
 
         {error && (
           <View style={s.errorRow}>
@@ -477,6 +517,19 @@ const s = StyleSheet.create({
   userInitials: { color: C.primary, fontWeight: '700', fontSize: 12 },
   userName: { flex: 1, color: C.white, fontSize: 14, fontWeight: '600' },
   hint: { color: C.slate500, fontSize: 12, marginTop: 8 },
+  emailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
+  emailToggleText: { flex: 1, color: C.slate400, fontSize: 15 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
   errorText: { color: C.orange, fontSize: 13 },
   sendBtn: {

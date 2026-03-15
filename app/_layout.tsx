@@ -61,6 +61,7 @@ function RootNavigator() {
         <Stack.Screen name="create-group" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="invite-friend" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="settle-up" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="invite" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       {!session && <Redirect href="/auth/sign-in" />}

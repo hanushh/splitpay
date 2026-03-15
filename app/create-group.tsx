@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { useExistingFriends } from '@/hooks/use-existing-friends';
+import { useFriends } from '@/hooks/use-friends';
+import { APP_DISPLAY_NAME, APP_STORE_URL } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -65,12 +68,39 @@ export default function CreateGroupScreen() {
   const { user } = useAuth();
 
   const { friends } = useExistingFriends();
+  const { matched: contactFriends } = useFriends();
+
+  // Merge existing group members + contact-matched friends, deduplicated by userId
+  const allFriends = (() => {
+    const seen = new Map(friends.map((f) => [f.userId, f]));
+    for (const cf of contactFriends) {
+      if (!seen.has(cf.userId)) {
+        seen.set(cf.userId, { userId: cf.userId, displayName: cf.name, avatarUrl: cf.avatarUrl });
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  })();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [memberEmails, setMemberEmails] = useState<string[]>([]);
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
+  // Collapsed only when the user has friends to pick from; expand by default otherwise
   const [showEmailInvite, setShowEmailInvite] = useState(false);
+  const [friendSearch, setFriendSearch] = useState('');
+
+  // Email section is open when: no friends loaded yet (nothing else to tap), or user explicitly opened it
+  const isEmailExpanded = allFriends.length === 0 || showEmailInvite;
+
+  const handleShareInvite = async () => {
+    try {
+      await Share.share({
+        message: `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends. Download the app: ${APP_STORE_URL}`,
+        url: APP_STORE_URL,
+        title: `Join me on ${APP_DISPLAY_NAME}`,
+      });
+    } catch {}
+  };
 
   const selectedIcon: IconName = inferIcon(name);
   const [emailInput, setEmailInput] = useState('');
@@ -150,10 +180,10 @@ export default function CreateGroupScreen() {
         .from('group_balances')
         .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
 
-      // Add selected existing friends directly as members
+      // Add selected friends directly as members
       if (selectedFriendIds.size > 0) {
         const friendRows = Array.from(selectedFriendIds).map((userId) => {
-          const friend = friends.find((f) => f.userId === userId);
+          const friend = allFriends.find((f) => f.userId === userId);
           return {
             group_id: groupId,
             user_id: userId,
@@ -265,54 +295,81 @@ export default function CreateGroupScreen() {
         <View style={s.fieldBlock}>
           <Text style={s.fieldLabel}>ADD MEMBERS (OPTIONAL)</Text>
 
-          {/* Existing friends picker */}
-          {friends.length > 0 && (
+          {/* Friends on app picker */}
+          {allFriends.length > 0 && (
             <View style={s.friendPickerWrap}>
-              <Text style={s.friendPickerLabel}>From your groups</Text>
+              <Text style={s.friendPickerLabel}>Friends on PaySplit</Text>
+              {allFriends.length > 6 && (
+                <View style={s.friendSearchWrap}>
+                  <MaterialIcons name="search" size={16} color={C.slate400} />
+                  <TextInput
+                    style={s.friendSearchInput}
+                    placeholder="Search friends…"
+                    placeholderTextColor={C.slate500}
+                    value={friendSearch}
+                    onChangeText={setFriendSearch}
+                    autoCorrect={false}
+                    returnKeyType="search"
+                  />
+                </View>
+              )}
               <View style={s.friendChipWrap}>
-                {friends.map((friend) => {
-                  const selected = selectedFriendIds.has(friend.userId);
-                  return (
-                    <Pressable
-                      key={friend.userId}
-                      style={[s.friendChip, selected && s.friendChipSelected]}
-                      onPress={() => toggleFriend(friend.userId)}
-                    >
-                      {friend.avatarUrl ? (
-                        <Image source={{ uri: friend.avatarUrl }} style={s.friendAvatar} />
-                      ) : (
-                        <View style={[s.friendAvatarPlaceholder, selected && s.friendAvatarPlaceholderSelected]}>
-                          <Text style={[s.friendAvatarInitial, selected && s.friendAvatarInitialSelected]}>
-                            {friend.displayName.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={[s.friendChipName, selected && s.friendChipNameSelected]} numberOfLines={1}>
-                        {friend.displayName}
-                      </Text>
-                      {selected && (
-                        <MaterialIcons name="check-circle" size={16} color={C.bg} style={s.friendChipCheck} />
-                      )}
-                    </Pressable>
-                  );
-                })}
+                {allFriends
+                  .filter((f) => !friendSearch.trim() || f.displayName.toLowerCase().includes(friendSearch.trim().toLowerCase()))
+                  .map((friend) => {
+                    const selected = selectedFriendIds.has(friend.userId);
+                    return (
+                      <Pressable
+                        key={friend.userId}
+                        style={[s.friendChip, selected && s.friendChipSelected]}
+                        onPress={() => toggleFriend(friend.userId)}
+                      >
+                        {friend.avatarUrl ? (
+                          <Image source={{ uri: friend.avatarUrl }} style={s.friendAvatar} />
+                        ) : (
+                          <View style={[s.friendAvatarPlaceholder, selected && s.friendAvatarPlaceholderSelected]}>
+                            <Text style={[s.friendAvatarInitial, selected && s.friendAvatarInitialSelected]}>
+                              {friend.displayName.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={[s.friendChipName, selected && s.friendChipNameSelected]} numberOfLines={1}>
+                          {friend.displayName}
+                        </Text>
+                        {selected && (
+                          <MaterialIcons name="check-circle" size={16} color={C.bg} style={s.friendChipCheck} />
+                        )}
+                      </Pressable>
+                    );
+                  })}
               </View>
             </View>
           )}
 
-          <Pressable
-            style={s.emailToggle}
-            onPress={() => setShowEmailInvite((v) => !v)}
-          >
-            <MaterialIcons
-              name={showEmailInvite ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-              size={18}
-              color={C.slate400}
-            />
-            <Text style={s.emailToggleText}>Invite by email</Text>
-          </Pressable>
+          {/* Email invite — toggle only shown when friends exist, otherwise always expanded */}
+          <View style={s.emailHeaderRow}>
+            {allFriends.length > 0 ? (
+              <Pressable
+                style={s.emailToggle}
+                onPress={() => setShowEmailInvite((v) => !v)}
+              >
+                <MaterialIcons
+                  name={showEmailInvite ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                  size={18}
+                  color={C.slate400}
+                />
+                <Text style={s.emailToggleText}>Invite by email</Text>
+              </Pressable>
+            ) : (
+              <Text style={s.emailToggleText}>Invite by email</Text>
+            )}
+            <Pressable style={s.shareInviteBtn} onPress={handleShareInvite}>
+              <MaterialIcons name="share" size={15} color={C.primary} />
+              <Text style={s.shareInviteBtnText}>Share invite</Text>
+            </Pressable>
+          </View>
 
-          {showEmailInvite && (
+          {isEmailExpanded && (
             <View style={s.emailInviteWrap}>
               <Text style={s.fieldHint}>They’ll join this group when they sign up.</Text>
               <View style={s.emailRow}>
@@ -461,19 +518,37 @@ const s = StyleSheet.create({
   // Error
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   errorText: { color: C.orange, fontSize: 13 },
-  // Email invite toggle
+  // Email invite section
+  emailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   emailToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
-    alignSelf: 'flex-start',
   },
-  emailToggleText: { color: C.slate400, fontSize: 13, fontWeight: '600' },
-  emailInviteWrap: { marginTop: 8 },
+  emailToggleText: { color: C.slate400, fontSize: 13, fontWeight: '600', paddingVertical: 8 },
+  shareInviteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.primary,
+  },
+  shareInviteBtnText: { color: C.primary, fontSize: 12, fontWeight: '600' },
+  emailInviteWrap: { marginTop: 4 },
   // Friend picker
   friendPickerWrap: { marginBottom: 16 },
   friendPickerLabel: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
+  friendSearchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceHL, paddingHorizontal: 10, height: 36, marginBottom: 10 },
+  friendSearchInput: { flex: 1, color: C.white, fontSize: 14 },
   friendChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   friendChip: {
     flexDirection: 'row',

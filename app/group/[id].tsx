@@ -269,6 +269,7 @@ export default function GroupDetailScreen() {
         <View style={s.expensesHeader}>
           <Text style={s.expensesTitle}>Expenses</Text>
           <Pressable
+            testID="spending-link"
             onPress={() => router.push({ pathname: '/group/spending', params: { groupId: id, groupName: group.name } })}
           >
             <Text style={s.viewAll}>Spending →</Text>

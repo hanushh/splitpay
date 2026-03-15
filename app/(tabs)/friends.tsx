@@ -12,6 +12,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { useFriends, type MatchedFriend, type UnmatchedContact } from '@/hooks/use-friends';
-import { APP_DISPLAY_NAME, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { findTopSharedGroup } from '@/lib/friend-utils';
 
 const C = {
@@ -120,6 +121,7 @@ export default function FriendsScreen() {
   const { matched, unmatched, loading, error, permissionDenied, refetch } = useFriends();
   const [selectedFriend, setSelectedFriend] = useState<MatchedFriend | null>(null);
   const [unmatchedShowAll, setUnmatchedShowAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -141,7 +143,10 @@ export default function FriendsScreen() {
     });
   }, []);
 
-  const visibleUnmatched = unmatchedShowAll ? unmatched : unmatched.slice(0, UNMATCHED_PAGE_SIZE);
+  const q = searchQuery.trim().toLowerCase();
+  const filteredMatched = q ? matched.filter((f) => f.name.toLowerCase().includes(q)) : matched;
+  const filteredUnmatched = q ? unmatched.filter((f) => f.name.toLowerCase().includes(q)) : unmatched;
+  const visibleUnmatched = unmatchedShowAll ? filteredUnmatched : filteredUnmatched.slice(0, UNMATCHED_PAGE_SIZE);
 
   if (permissionDenied) {
     return (
@@ -179,7 +184,7 @@ export default function FriendsScreen() {
   }
 
   const sections: FriendSection[] = [
-    { title: 'On PaySplit', data: matched, key: 'matched' },
+    { title: 'On PaySplit', data: filteredMatched, key: 'matched' },
     { title: 'Invite to PaySplit', data: visibleUnmatched, key: 'unmatched' },
   ];
 
@@ -210,9 +215,8 @@ export default function FriendsScreen() {
 
   const renderUnmatchedItem = ({ item }: { item: UnmatchedContact }) => {
     const ini = initials(item.name);
-    const shareMessage = INVITE_WEB_LINK_BASE
-      ? `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends. Join me: ${INVITE_WEB_LINK_BASE}`
-      : `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends.`;
+    const inviteLink = INVITE_WEB_LINK_BASE || APP_STORE_URL;
+    const shareMessage = `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends. Download it here: ${inviteLink}`;
     return (
       <View style={s.row}>
         <View style={s.avatarCircle}>
@@ -229,6 +233,19 @@ export default function FriendsScreen() {
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <Text style={s.screenTitle}>Friends</Text>
+      <View style={s.searchWrap}>
+        <MaterialIcons name="search" size={20} color={C.slate400} style={s.searchIcon} />
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search contacts…"
+          placeholderTextColor={C.slate500}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          autoCorrect={false}
+        />
+      </View>
       <SectionList<MatchedFriend | UnmatchedContact, FriendSection>
         sections={sections}
         keyExtractor={(item: MatchedFriend | UnmatchedContact, index: number) => 'userId' in item ? item.userId : `unmatched-${index}`}
@@ -241,15 +258,15 @@ export default function FriendsScreen() {
           <Text style={s.sectionHeader}>{section.title.toUpperCase()}</Text>
         )}
         renderSectionFooter={({ section }: { section: FriendSection }) => {
-          if (section.key === 'matched' && matched.length === 0) {
-            return <Text style={s.emptyText}>None of your contacts are on PaySplit yet.</Text>;
+          if (section.key === 'matched' && filteredMatched.length === 0) {
+            return <Text style={s.emptyText}>{q ? 'No matches found.' : 'None of your contacts are on PaySplit yet.'}</Text>;
           }
           if (section.key === 'unmatched') {
-            if (unmatched.length === 0) return <Text style={s.emptyText}>All your contacts are already on PaySplit.</Text>;
-            if (!unmatchedShowAll && unmatched.length > UNMATCHED_PAGE_SIZE) {
+            if (filteredUnmatched.length === 0) return <Text style={s.emptyText}>{q ? 'No matches found.' : 'All your contacts are already on PaySplit.'}</Text>;
+            if (!unmatchedShowAll && filteredUnmatched.length > UNMATCHED_PAGE_SIZE) {
               return (
                 <Pressable style={s.showMoreBtn} onPress={() => setUnmatchedShowAll(true)}>
-                  <Text style={s.showMoreText}>Show {unmatched.length - UNMATCHED_PAGE_SIZE} more</Text>
+                  <Text style={s.showMoreText}>Show {filteredUnmatched.length - UNMATCHED_PAGE_SIZE} more</Text>
                 </Pressable>
               );
             }
@@ -275,6 +292,9 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   centered: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 32 },
   screenTitle: { color: C.white, fontSize: 24, fontWeight: '700', paddingHorizontal: 16, paddingBottom: 8 },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.surfaceHL, paddingHorizontal: 12, height: 44 },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: C.white, fontSize: 15, height: 44 },
   sectionHeader: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   listContent: { paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, marginHorizontal: 16, marginBottom: 6, borderRadius: 14, borderWidth: 1, borderColor: C.surfaceHL },
