@@ -76,7 +76,7 @@ describe('useAuth', () => {
   it('signUp calls supabase.auth.signUp', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signUp('new@example.com', 'password123');
+      await result.current.signUp('new@example.com', 'password123', '+15550001234');
     });
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: 'new@example.com',
@@ -92,7 +92,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: null };
     await act(async () => {
-      response = await result.current.signUp('existing@example.com', 'pass');
+      response = await result.current.signUp('existing@example.com', 'pass', '+15550001234');
     });
     expect(response.error).toBe('Email already in use');
   });
@@ -115,7 +115,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: 'not set' };
     await act(async () => {
-      response = await result.current.signUp('new@example.com', 'password123');
+      response = await result.current.signUp('new@example.com', 'password123', '+15550001234');
     });
     expect(response.error).toBeNull();
   });

@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AUTH_CALLBACK_PATH, AUTH_CALLBACK_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { normalizePhone } from '@/lib/phone';
 import {
   registerPushTokenForCurrentUser,
   removePushToken,
@@ -20,8 +21,8 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (emailOrPhone: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, phone: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   getPendingInviteToken: () => Promise<string | null>;
@@ -180,14 +181,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [session?.user?.id, session?.user?.email]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (emailOrPhone: string, password: string) => {
+    let email = emailOrPhone.trim();
+    // If input doesn't look like an email, treat it as a phone number
+    if (!email.includes('@')) {
+      const normalized = normalizePhone(email);
+      if (!normalized) return { error: 'Enter a valid email or phone number.' };
+      const { data: lookedUpEmail, error: lookupErr } = await supabase.rpc('get_email_by_phone', { p_phone: normalized });
+      if (lookupErr) return { error: lookupErr.message };
+      if (!lookedUpEmail) return { error: 'No account found with that phone number.' };
+      email = lookedUpEmail as string;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+  const signUp = async (email: string, password: string, phone: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: error.message };
+    // Save phone to profile immediately (profile row is created by DB trigger on auth.users insert)
+    if (data.user?.id && phone) {
+      await supabase.from('profiles').update({ phone }).eq('id', data.user.id);
+    }
+    return { error: null };
   };
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {

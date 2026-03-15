@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -16,10 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MemberSearchPicker, type MemberSelection } from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
-import { useExistingFriends } from '@/hooks/use-existing-friends';
-import { useFriends } from '@/hooks/use-friends';
-import { APP_DISPLAY_NAME, APP_STORE_URL } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -32,7 +30,6 @@ const C = {
   white: '#ffffff',
   orange: '#f97316',
 };
-
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -57,8 +54,6 @@ function inferIcon(name: string): IconName {
   return 'group';
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function generateInviteToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
@@ -67,75 +62,14 @@ export default function CreateGroupScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const { friends } = useExistingFriends();
-  const { matched: contactFriends } = useFriends();
-
-  // Merge existing group members + contact-matched friends, deduplicated by userId
-  const allFriends = (() => {
-    const seen = new Map(friends.map((f) => [f.userId, f]));
-    for (const cf of contactFriends) {
-      if (!seen.has(cf.userId)) {
-        seen.set(cf.userId, { userId: cf.userId, displayName: cf.name, avatarUrl: cf.avatarUrl });
-      }
-    }
-    return Array.from(seen.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
-  })();
-
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [memberEmails, setMemberEmails] = useState<string[]>([]);
-  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
-  // Collapsed only when the user has friends to pick from; expand by default otherwise
-  const [showEmailInvite, setShowEmailInvite] = useState(false);
-  const [friendSearch, setFriendSearch] = useState('');
-
-  // Email section is open when: no friends loaded yet (nothing else to tap), or user explicitly opened it
-  const isEmailExpanded = allFriends.length === 0 || showEmailInvite;
-
-  const handleShareInvite = async () => {
-    try {
-      await Share.share({
-        message: `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends. Download the app: ${APP_STORE_URL}`,
-        url: APP_STORE_URL,
-        title: `Join me on ${APP_DISPLAY_NAME}`,
-      });
-    } catch {}
-  };
-
-  const selectedIcon: IconName = inferIcon(name);
-  const [emailInput, setEmailInput] = useState('');
+  const [memberSelection, setMemberSelection] = useState<MemberSelection>({ appUsers: [], contacts: [] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedIcon: IconName = inferIcon(name);
   const canSave = name.trim().length > 0;
-
-  const addEmail = () => {
-    const email = emailInput.trim().toLowerCase();
-    if (!email) return;
-    if (!EMAIL_REGEX.test(email)) {
-      setError('Enter a valid email address.');
-      return;
-    }
-    if (memberEmails.includes(email)) {
-      setError('This email is already added.');
-      return;
-    }
-    setError(null);
-    setMemberEmails((prev) => [...prev, email]);
-    setEmailInput('');
-  };
-
-  const removeEmail = (email: string) => {
-    setMemberEmails((prev) => prev.filter((e) => e !== email));
-  };
-
-  const toggleFriend = (userId: string) => {
-    setSelectedFriendIds((prev) => {
-      const next = new Set(prev);
-      next.has(userId) ? next.delete(userId) : next.add(userId);
-      return next;
-    });
-  };
 
   const handleSave = async () => {
     if (!canSave || !user) return;
@@ -143,15 +77,15 @@ export default function CreateGroupScreen() {
     setSaving(true);
 
     try {
-      // Pre-generate the group ID so we never need to read the row back after insert
       const groupId = crypto.randomUUID();
+      const groupName = name.trim();
 
       // Insert group
       const { error: groupErr } = await supabase
         .from('groups')
         .insert({
           id: groupId,
-          name: name.trim(),
+          name: groupName,
           description: description.trim() || null,
           icon_name: selectedIcon,
           created_by: user.id,
@@ -175,52 +109,66 @@ export default function CreateGroupScreen() {
         return;
       }
 
-      // Insert balance row for creator (ignore error — view may auto-populate)
+      // Insert balance row for creator
       await supabase
         .from('group_balances')
         .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
 
-      // Add selected friends directly as members
-      if (selectedFriendIds.size > 0) {
-        const friendRows = Array.from(selectedFriendIds).map((userId) => {
-          const friend = allFriends.find((f) => f.userId === userId);
-          return {
-            group_id: groupId,
-            user_id: userId,
-            display_name: friend?.displayName ?? null,
-            avatar_url: friend?.avatarUrl ?? null,
-          };
-        });
-        const { error: friendErr } = await supabase.from('group_members').insert(friendRows);
-        if (friendErr) console.warn('Failed to add selected friends:', friendErr.message);
+      // Add app users directly as members
+      if (memberSelection.appUsers.length > 0) {
+        const rows = memberSelection.appUsers.map((u) => ({
+          group_id: groupId,
+          user_id: u.userId,
+          display_name: u.name,
+          avatar_url: u.avatarUrl,
+        }));
+        const { error: friendErr } = await supabase.from('group_members').insert(rows);
+        if (friendErr) console.warn('Failed to add app users:', friendErr.message);
       }
 
-      // Create invitations for each added email and send notification emails
-      if (memberEmails.length > 0) {
-        const inviteTokens: string[] = [];
-        const rows = memberEmails.map((invitee_email) => {
-          const token = generateInviteToken();
-          inviteTokens.push(token);
-          return { inviter_id: user.id, invitee_email, group_id: groupId, token, status: 'pending' };
+      // Add contacts as pending members + create invitation tokens
+      const pendingInvites: { contactName: string; shareUrl: string }[] = [];
+      for (const contact of memberSelection.contacts) {
+        const token = generateInviteToken();
+        const inviteeEmail = contact.emails[0] ?? null;
+
+        await supabase.from('group_members').insert({
+          group_id: groupId,
+          user_id: null,
+          display_name: contact.name,
         });
-        const { error: inviteErr } = await supabase.from('invitations').insert(rows);
-        if (inviteErr) {
-          // Non-fatal: group is created, just warn
-          console.warn('Failed to create invitations:', inviteErr.message);
-        } else {
-          // Trigger email notifications for invited members (non-fatal)
-          supabase.functions.invoke('send-invitation-email', {
-            body: { tokens: inviteTokens },
-          }).catch((err: unknown) => console.warn('[Email] Failed to dispatch invitation emails:', err));
+
+        const { error: inviteErr } = await supabase.from('invitations').insert({
+          inviter_id: user.id,
+          invitee_email: inviteeEmail,
+          group_id: groupId,
+          token,
+          status: 'pending',
+        });
+
+        if (!inviteErr) {
+          const shareUrl = INVITE_WEB_LINK_BASE
+            ? `${INVITE_WEB_LINK_BASE}?token=${token}`
+            : `paysplit://invite?token=${token}`;
+          pendingInvites.push({ contactName: contact.name, shareUrl });
         }
       }
 
       setSaving(false);
-      // Dismiss the modal first, then navigate to the new group.
-      // router.replace() from inside a modal does not reliably navigate to a
-      // non-modal screen in Expo Router — dismissAll + push is the documented pattern.
       router.dismissAll();
       router.push({ pathname: '/group/[id]', params: { id: groupId } });
+
+      // Open share sheet after navigation (native overlay, works on top of any screen)
+      if (pendingInvites.length === 1) {
+        await Share.share({
+          message: `Hey ${pendingInvites[0].contactName}! Join ${groupName} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
+        });
+      } else if (pendingInvites.length > 1) {
+        const links = pendingInvites.map((p) => `${p.contactName}: ${p.shareUrl}`).join('\n');
+        await Share.share({
+          message: `Join ${groupName} on ${APP_DISPLAY_NAME}!\n${links}`,
+        });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
@@ -294,121 +242,7 @@ export default function CreateGroupScreen() {
         {/* Add members */}
         <View style={s.fieldBlock}>
           <Text style={s.fieldLabel}>ADD MEMBERS (OPTIONAL)</Text>
-
-          {/* Friends on app picker */}
-          {allFriends.length > 0 && (
-            <View style={s.friendPickerWrap}>
-              <Text style={s.friendPickerLabel}>Friends on PaySplit</Text>
-              {allFriends.length > 6 && (
-                <View style={s.friendSearchWrap}>
-                  <MaterialIcons name="search" size={16} color={C.slate400} />
-                  <TextInput
-                    style={s.friendSearchInput}
-                    placeholder="Search friends…"
-                    placeholderTextColor={C.slate500}
-                    value={friendSearch}
-                    onChangeText={setFriendSearch}
-                    autoCorrect={false}
-                    returnKeyType="search"
-                  />
-                </View>
-              )}
-              <View style={s.friendChipWrap}>
-                {allFriends
-                  .filter((f) => !friendSearch.trim() || f.displayName.toLowerCase().includes(friendSearch.trim().toLowerCase()))
-                  .map((friend) => {
-                    const selected = selectedFriendIds.has(friend.userId);
-                    return (
-                      <Pressable
-                        key={friend.userId}
-                        style={[s.friendChip, selected && s.friendChipSelected]}
-                        onPress={() => toggleFriend(friend.userId)}
-                      >
-                        {friend.avatarUrl ? (
-                          <Image source={{ uri: friend.avatarUrl }} style={s.friendAvatar} />
-                        ) : (
-                          <View style={[s.friendAvatarPlaceholder, selected && s.friendAvatarPlaceholderSelected]}>
-                            <Text style={[s.friendAvatarInitial, selected && s.friendAvatarInitialSelected]}>
-                              {friend.displayName.charAt(0).toUpperCase()}
-                            </Text>
-                          </View>
-                        )}
-                        <Text style={[s.friendChipName, selected && s.friendChipNameSelected]} numberOfLines={1}>
-                          {friend.displayName}
-                        </Text>
-                        {selected && (
-                          <MaterialIcons name="check-circle" size={16} color={C.bg} style={s.friendChipCheck} />
-                        )}
-                      </Pressable>
-                    );
-                  })}
-              </View>
-            </View>
-          )}
-
-          {/* Email invite — toggle only shown when friends exist, otherwise always expanded */}
-          <View style={s.emailHeaderRow}>
-            {allFriends.length > 0 ? (
-              <Pressable
-                style={s.emailToggle}
-                onPress={() => setShowEmailInvite((v) => !v)}
-              >
-                <MaterialIcons
-                  name={showEmailInvite ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-                  size={18}
-                  color={C.slate400}
-                />
-                <Text style={s.emailToggleText}>Invite by email</Text>
-              </Pressable>
-            ) : (
-              <Text style={s.emailToggleText}>Invite by email</Text>
-            )}
-            <Pressable style={s.shareInviteBtn} onPress={handleShareInvite}>
-              <MaterialIcons name="share" size={15} color={C.primary} />
-              <Text style={s.shareInviteBtnText}>Share invite</Text>
-            </Pressable>
-          </View>
-
-          {isEmailExpanded && (
-            <View style={s.emailInviteWrap}>
-              <Text style={s.fieldHint}>They’ll join this group when they sign up.</Text>
-              <View style={s.emailRow}>
-                <TextInput
-                  style={s.emailInput}
-                  placeholder="email@example.com"
-                  placeholderTextColor={C.slate500}
-                  value={emailInput}
-                  onChangeText={(t: string) => { setEmailInput(t); setError(null); }}
-                  onSubmitEditing={addEmail}
-                  returnKeyType="done"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  testID="member-email-input"
-                />
-                <Pressable
-                  style={({ pressed }: { pressed: boolean }) => [s.addEmailBtn, pressed && { opacity: 0.8 }]}
-                  onPress={addEmail}
-                  testID="add-member-button"
-                >
-                  <MaterialIcons name="person-add" size={20} color={C.bg} />
-                  <Text style={s.addEmailBtnText}>Add</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-          {memberEmails.length > 0 && (
-            <View style={s.chipWrap}>
-              {memberEmails.map((email) => (
-                <View key={email} style={s.chip}>
-                  <Text style={s.chipText} numberOfLines={1}>{email}</Text>
-                  <Pressable hitSlop={8} onPress={() => removeEmail(email)} style={s.chipRemove}>
-                    <MaterialIcons name="close" size={16} color={C.slate400} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
+          <MemberSearchPicker onSelectionChange={setMemberSelection} />
         </View>
 
         {error && (
@@ -455,7 +289,6 @@ const s = StyleSheet.create({
   cancelText: { color: C.slate400, fontSize: 16 },
   createText: { color: C.primary, fontSize: 16, fontWeight: '700', textAlign: 'right' },
   scroll: { paddingHorizontal: 20 },
-  // Preview
   previewWrap: { alignItems: 'center', paddingVertical: 28, gap: 10 },
   preview: {
     width: 100, height: 100, borderRadius: 28,
@@ -463,10 +296,8 @@ const s = StyleSheet.create({
     backgroundColor: C.surfaceHL,
   },
   previewHint: { color: C.slate400, fontSize: 13 },
-  // Fields
   fieldBlock: { marginBottom: 24 },
   fieldLabel: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
-  fieldHint: { color: C.slate400, fontSize: 12, marginBottom: 10 },
   fieldInput: {
     backgroundColor: C.surface,
     borderRadius: 12,
@@ -478,110 +309,8 @@ const s = StyleSheet.create({
     borderColor: C.surfaceHL,
   },
   fieldTextarea: { minHeight: 80, textAlignVertical: 'top' },
-  // Add members
-  emailRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  emailInput: {
-    flex: 1,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: C.white,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-  },
-  addEmailBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  addEmailBtnText: { color: C.bg, fontWeight: '700', fontSize: 14 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.surfaceHL,
-    paddingVertical: 8,
-    paddingLeft: 12,
-    paddingRight: 6,
-    borderRadius: 999,
-    maxWidth: '100%',
-  },
-  chipText: { color: C.white, fontSize: 13, maxWidth: 180 },
-  chipRemove: { padding: 4 },
-  // Error
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   errorText: { color: C.orange, fontSize: 13 },
-  // Email invite section
-  emailHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  emailToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-  emailToggleText: { color: C.slate400, fontSize: 13, fontWeight: '600', paddingVertical: 8 },
-  shareInviteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: C.primary,
-  },
-  shareInviteBtnText: { color: C.primary, fontSize: 12, fontWeight: '600' },
-  emailInviteWrap: { marginTop: 4 },
-  // Friend picker
-  friendPickerWrap: { marginBottom: 16 },
-  friendPickerLabel: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
-  friendSearchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceHL, paddingHorizontal: 10, height: 36, marginBottom: 10 },
-  friendSearchInput: { flex: 1, color: C.white, fontSize: 14 },
-  friendChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  friendChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.surface,
-    borderWidth: 1.5,
-    borderColor: C.surfaceHL,
-    paddingVertical: 7,
-    paddingLeft: 6,
-    paddingRight: 10,
-    borderRadius: 999,
-  },
-  friendChipSelected: {
-    backgroundColor: C.primary,
-    borderColor: C.primary,
-  },
-  friendAvatar: { width: 24, height: 24, borderRadius: 12 },
-  friendAvatarPlaceholder: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: C.surfaceHL,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  friendAvatarPlaceholderSelected: { backgroundColor: 'rgba(0,0,0,0.2)' },
-  friendAvatarInitial: { color: C.slate400, fontSize: 11, fontWeight: '700' },
-  friendAvatarInitialSelected: { color: C.bg },
-  friendChipName: { color: C.white, fontSize: 13, fontWeight: '500', maxWidth: 100 },
-  friendChipNameSelected: { color: C.bg, fontWeight: '700' },
-  friendChipCheck: { marginLeft: 2 },
-  // Create button
   createBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 16,

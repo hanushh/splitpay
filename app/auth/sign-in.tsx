@@ -31,20 +31,20 @@ const C = {
 export default function SignInScreen() {
   const { signIn, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!email || !password) {
+    if (!emailOrPhone || !password) {
       setError('Please fill in all fields.');
       return;
     }
     setError(null);
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(emailOrPhone, password);
     setLoading(false);
     if (error) {
       setError(error);
@@ -101,12 +101,12 @@ export default function SignInScreen() {
 
         <TextInput
           style={s.input}
-          placeholder="Email"
+          placeholder="Email or phone number"
           placeholderTextColor={C.slate500}
           autoCapitalize="none"
           keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
+          value={emailOrPhone}
+          onChangeText={setEmailOrPhone}
           testID="email-input"
         />
         <TextInput

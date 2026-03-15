@@ -10,13 +10,13 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MemberSearchPicker, type MemberSelection } from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
-import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
@@ -35,141 +35,49 @@ function generateToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-interface GroupOption {
-  id: string;
-  name: string;
-}
-
-interface KnownUser {
-  user_id: string;
-  display_name: string;
-  avatar_url: string | null;
-}
-
 export default function InviteFriendScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { groupId: paramGroupId, groupName: paramGroupName } = useLocalSearchParams<{
-    groupId?: string;
-    groupName?: string;
-  }>();
+  const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName: string }>();
 
-  const [email, setEmail] = useState('');
-  const [groupId, setGroupId] = useState<string>(paramGroupId ?? '');
-  const [groupName, setGroupName] = useState<string>(paramGroupName ?? '');
-  const [groups, setGroups] = useState<GroupOption[]>([]);
-  const [knownUsers, setKnownUsers] = useState<KnownUser[]>([]);
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [loadingKnownUsers, setLoadingKnownUsers] = useState(false);
+  const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
+  const [memberSelection, setMemberSelection] = useState<MemberSelection>({ appUsers: [], contacts: [] });
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [inviteLink, setInviteLink] = useState('');
-  const [sentEmail, setSentEmail] = useState('');
-  const [addedUsersCount, setAddedUsersCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [emailExpanded, setEmailExpanded] = useState(false);
 
-  const loadGroups = useCallback(async () => {
-    if (!user) return;
+  // Success state
+  const [sent, setSent] = useState(false);
+  const [addedUsersCount, setAddedUsersCount] = useState(0);
+  const [pendingInvites, setPendingInvites] = useState<{ contactName: string; shareUrl: string }[]>([]);
+
+  const loadExistingMembers = useCallback(async () => {
+    if (!groupId) return;
     const { data } = await supabase
       .from('group_members')
-      .select('groups!inner(id, name)')
-      .eq('user_id', user.id);
-    const seen = new Set<string>();
-    const list: GroupOption[] = ((data ?? []) as unknown as { groups: GroupOption }[])
-      .map((row) => row.groups)
-      .filter((g) => g && !seen.has(g.id) && seen.add(g.id))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    setGroups(list);
-    if (paramGroupId && paramGroupName) {
-      setGroupId(paramGroupId);
-      setGroupName(paramGroupName);
-    }
-  }, [user, paramGroupId, paramGroupName]);
-
-  useEffect(() => { loadGroups(); }, [loadGroups]);
-
-  const loadKnownUsers = useCallback(async () => {
-    if (!user || !groupId) {
-      setKnownUsers([]);
-      setSelectedUserIds([]);
-      return;
-    }
-
-    setLoadingKnownUsers(true);
-    const [{ data: contactRows, error: contactsErr }, { data: inGroupRows, error: inGroupErr }] = await Promise.all([
-      supabase
-        .from('group_members')
-        .select('user_id, display_name, avatar_url')
-        .not('user_id', 'is', null)
-        .neq('user_id', user.id),
-      supabase
-        .from('group_members')
-        .select('user_id')
-        .eq('group_id', groupId)
-        .not('user_id', 'is', null),
-    ]);
-
-    if (contactsErr || inGroupErr) {
-      setKnownUsers([]);
-      setSelectedUserIds([]);
-      setLoadingKnownUsers(false);
-      return;
-    }
-
-    const inGroup = new Set(
-      ((inGroupRows as { user_id: string }[] | null) ?? [])
-        .map((row) => row.user_id)
-        .filter(Boolean),
+      .select('user_id')
+      .eq('group_id', groupId)
+      .not('user_id', 'is', null);
+    setExistingMemberIds(
+      ((data ?? []) as { user_id: string }[]).map((r) => r.user_id).filter(Boolean)
     );
+  }, [groupId]);
 
-    const deduped = new Map<string, KnownUser>();
-    for (const row of ((contactRows as { user_id: string; display_name: string | null; avatar_url: string | null }[] | null) ?? [])) {
-      if (!row.user_id || inGroup.has(row.user_id)) continue;
-      if (!deduped.has(row.user_id)) {
-        deduped.set(row.user_id, {
-          user_id: row.user_id,
-          display_name: row.display_name?.trim() || 'Unnamed user',
-          avatar_url: row.avatar_url,
-        });
-      }
-    }
+  useEffect(() => { loadExistingMembers(); }, [loadExistingMembers]);
 
-    const list = Array.from(deduped.values()).sort((a, b) => a.display_name.localeCompare(b.display_name));
-    setKnownUsers(list);
-    setSelectedUserIds((prev) => prev.filter((id) => list.some((u) => u.user_id === id)));
-    setLoadingKnownUsers(false);
-  }, [groupId, user]);
+  const canSend = memberSelection.appUsers.length > 0 || memberSelection.contacts.length > 0;
 
-  useEffect(() => { loadKnownUsers(); }, [loadKnownUsers]);
-
-  const validEmail = email.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const canSend = validEmail || (Boolean(groupId) && selectedUserIds.length > 0);
-  const actionText = selectedUserIds.length > 0 && validEmail
-    ? 'Add members & send invite'
-    : selectedUserIds.length > 0
-      ? 'Add selected members'
-      : 'Send invite';
-
-  const toggleSelectedUser = (userId: string) => {
-    setSelectedUserIds((prev) => (
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    ));
-  };
-
-  const handleSendInvite = async () => {
-    if (!canSend || !user) return;
+  const handleSend = async () => {
+    if (!canSend || !user || !groupId) return;
     setError(null);
     setSending(true);
 
-    const normalizedEmail = email.trim().toLowerCase();
     let addedCount = 0;
-    let link = '';
 
-    if (groupId && selectedUserIds.length > 0) {
+    // Add app users directly
+    if (memberSelection.appUsers.length > 0) {
       const { data: addData, error: addErr } = await supabase.rpc('add_group_members_by_ids', {
         p_group_id: groupId,
-        p_user_ids: selectedUserIds,
+        p_user_ids: memberSelection.appUsers.map((u) => u.userId),
       });
       if (addErr) {
         setError(addErr.message ?? 'Failed to add selected users.');
@@ -182,81 +90,70 @@ export default function InviteFriendScreen() {
       }
     }
 
-    if (validEmail) {
+    // Add contacts as pending members + create invitation tokens
+    const invites: { contactName: string; shareUrl: string }[] = [];
+    for (const contact of memberSelection.contacts) {
       const token = generateToken();
-      const { error: insertErr } = await supabase.from('invitations').insert({
+      const inviteeEmail = contact.emails[0] ?? null;
+
+      await supabase.from('group_members').insert({
+        group_id: groupId,
+        user_id: null,
+        display_name: contact.name,
+      });
+
+      const { error: inviteErr } = await supabase.from('invitations').insert({
         inviter_id: user.id,
-        invitee_email: normalizedEmail,
-        group_id: groupId || null,
+        invitee_email: inviteeEmail,
+        group_id: groupId,
         token,
         status: 'pending',
       });
 
-      if (insertErr) {
-        if (addedCount > 0) {
-          setError(`Added ${addedCount} member(s), but invite failed: ${insertErr.message}`);
-        } else {
-          setError(insertErr.message);
-        }
-        setSending(false);
-        return;
+      if (!inviteErr) {
+        const linkBase = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
+        invites.push({
+          contactName: contact.name,
+          shareUrl: `${linkBase}?token=${encodeURIComponent(token)}`,
+        });
       }
-
-      // Use an HTTPS web link when configured so the URL is clickable in
-      // messaging apps (e.g. WhatsApp). Falls back to the custom deep-link scheme.
-      const linkBase = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
-      link = `${linkBase}?token=${encodeURIComponent(token)}`;
-      setSentEmail(normalizedEmail);
-
-      // Trigger email notification to the invited address (non-fatal)
-      supabase.functions.invoke('send-invitation-email', {
-        body: { tokens: [token] },
-      }).catch((err: unknown) => console.warn('[Email] Failed to send invitation email:', err));
-    } else {
-      setSentEmail('');
     }
 
-    if (addedCount === 0 && !validEmail) {
-      setError('Select at least one user or enter an email.');
-      setSending(false);
-      return;
-    }
-
-    setInviteLink(link);
     setAddedUsersCount(addedCount);
+    setPendingInvites(invites);
     setSent(true);
     setSending(false);
   };
 
   const handleShare = async () => {
-    if (!inviteLink) return;
+    if (pendingInvites.length === 0) return;
     try {
-      // When INVITE_WEB_LINK_BASE is not set the link is a custom scheme (paysplit://)
-      // which isn't clickable in messaging apps. Include the Play Store URL so the
-      // recipient can tap it to download the app, then the deep link opens on install.
-      const isHttps = inviteLink.startsWith('https://');
-      const shareText = isHttps
-        ? `Join me on ${APP_DISPLAY_NAME} to split expenses! ${inviteLink}`
-        : `Join me on ${APP_DISPLAY_NAME} to split expenses!\n\nDownload the app: ${APP_STORE_URL}\n\nThen use this invite link: ${inviteLink}`;
-      await Share.share({
-        message: shareText,
-        url: isHttps ? inviteLink : APP_STORE_URL,
-        title: `${APP_DISPLAY_NAME} invite`,
-      });
+      if (pendingInvites.length === 1) {
+        await Share.share({
+          message: `Hey ${pendingInvites[0].contactName}! Join ${groupName ?? 'our group'} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
+        });
+      } else {
+        const links = pendingInvites.map((p) => `${p.contactName}: ${p.shareUrl}`).join('\n');
+        await Share.share({
+          message: `Join ${groupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n${links}`,
+        });
+      }
     } catch {}
   };
 
-  const sentTitleText = addedUsersCount > 0 && sentEmail
-    ? `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} and invited ${sentEmail}`
-    : addedUsersCount > 0
-      ? `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'}`
-      : `Invitation sent to ${sentEmail || email}`;
+  const sentTitle = (() => {
+    if (addedUsersCount > 0 && pendingInvites.length > 0) {
+      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} & created ${pendingInvites.length} invite${pendingInvites.length === 1 ? '' : 's'}`;
+    }
+    if (addedUsersCount > 0) {
+      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} to "${groupName}"`;
+    }
+    return `Invite link${pendingInvites.length === 1 ? '' : 's'} created for ${pendingInvites.map((p) => p.contactName).join(', ')}`;
+  })();
 
-  const sentSubText = groupName
-    ? sentEmail
-      ? `Selected users were added to “${groupName}”. ${sentEmail} can join via invite link.`
-      : `Selected users were added to “${groupName}”.`
-    : 'They can sign up and connect with you on the app.';
+  const sentSub = pendingInvites.length > 0
+    ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${groupName}".`
+    : `They've been added to "${groupName}".`;
 
   if (sent) {
     return (
@@ -268,21 +165,24 @@ export default function InviteFriendScreen() {
           <Pressable onPress={() => router.back()} style={s.headerBtn}>
             <Text style={s.cancelText}>Done</Text>
           </Pressable>
-          <Text style={s.headerTitle}>Invite sent</Text>
+          <Text style={s.headerTitle}>Members added</Text>
           <View style={s.headerBtn} />
         </View>
         <View style={s.sentBody}>
           <View style={s.sentIcon}>
             <MaterialIcons name="check-circle" size={64} color={C.primary} />
           </View>
-          <Text style={s.sentTitle}>{sentTitleText}</Text>
-          <Text style={s.sentSub}>{sentSubText}</Text>
-          {inviteLink ? (
-            <Pressable style={({ pressed }: { pressed: boolean }) => [s.shareBtn, pressed && { opacity: 0.85 }]} onPress={handleShare}>
+          <Text style={s.sentTitle}>{sentTitle}</Text>
+          <Text style={s.sentSub}>{sentSub}</Text>
+          {pendingInvites.length > 0 && (
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.shareBtn, pressed && { opacity: 0.85 }]}
+              onPress={handleShare}
+            >
               <MaterialIcons name="share" size={20} color={C.bg} />
-              <Text style={s.shareBtnText}>Share invite link</Text>
+              <Text style={s.shareBtnText}>Share invite link{pendingInvites.length === 1 ? '' : 's'}</Text>
             </Pressable>
-          ) : null}
+          )}
         </View>
       </KeyboardAvoidingView>
     );
@@ -297,134 +197,36 @@ export default function InviteFriendScreen() {
         <Pressable onPress={() => router.back()} style={s.headerBtn}>
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
-        <Text style={s.headerTitle}>Invite friend</Text>
-        <View style={s.headerBtn} />
+        <Text style={s.headerTitle}>Add members</Text>
+        <Pressable
+          style={s.headerBtn}
+          onPress={handleSend}
+          disabled={!canSend || sending}
+        >
+          {sending ? (
+            <ActivityIndicator color={C.primary} size="small" />
+          ) : (
+            <Text style={[s.sendText, !canSend && { opacity: 0.35 }]}>Add</Text>
+          )}
+        </Pressable>
       </View>
+
+      {groupName ? (
+        <View style={s.groupBadge}>
+          <MaterialIcons name="group" size={14} color={C.primary} />
+          <Text style={s.groupBadgeText}>{groupName}</Text>
+        </View>
+      ) : null}
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.label}>ADD TO GROUP (OPTIONAL)</Text>
-        <View style={s.groupPicker}>
-          <Pressable
-            style={s.groupOption}
-            onPress={() => {
-              setGroupId('');
-              setGroupName('');
-              setSelectedUserIds([]);
-            }}
-          >
-            <MaterialIcons name="group" size={20} color={!groupId ? C.primary : C.slate400} />
-            <Text style={[s.groupOptionText, !groupId && { color: C.primary }]}>
-              No group – invite to app only
-            </Text>
-            {!groupId && <MaterialIcons name="check" size={20} color={C.primary} />}
-          </Pressable>
-          {(groups as GroupOption[]).map((g) => (
-            <Pressable
-              key={g.id}
-              style={s.groupOption}
-              onPress={() => {
-                setGroupId(g.id);
-                setGroupName(g.name);
-                setSelectedUserIds([]);
-              }}
-            >
-              <MaterialIcons name="group" size={20} color={groupId === g.id ? C.primary : C.slate400} />
-              <Text style={[s.groupOptionText, groupId === g.id && { color: C.primary }]}>{g.name}</Text>
-              {groupId === g.id && <MaterialIcons name="check" size={20} color={C.primary} />}
-            </Pressable>
-          ))}
-        </View>
-
-        {groupId ? (
-          <View style={s.userPicker}>
-            <Text style={s.label}>SELECT EXISTING USERS</Text>
-            {loadingKnownUsers ? (
-              <ActivityIndicator color={C.primary} style={{ marginTop: 8 }} />
-            ) : knownUsers.length === 0 ? (
-              <Text style={s.hint}>No selectable users found outside this group yet.</Text>
-            ) : (
-              knownUsers.map((knownUser) => {
-                const selected = selectedUserIds.includes(knownUser.user_id);
-                const initials = knownUser.display_name
-                  .split(' ')
-                  .map((w) => w[0] ?? '')
-                  .join('')
-                  .slice(0, 2)
-                  .toUpperCase();
-                return (
-                  <Pressable
-                    key={knownUser.user_id}
-                    style={({ pressed }: { pressed: boolean }) => [s.userOption, selected && s.userOptionActive, pressed && { opacity: 0.85 }]}
-                    onPress={() => toggleSelectedUser(knownUser.user_id)}
-                  >
-                    <View style={s.userAvatar}>
-                      <Text style={s.userInitials}>{initials}</Text>
-                    </View>
-                    <Text style={s.userName}>{knownUser.display_name}</Text>
-                    {selected ? (
-                      <MaterialIcons name="check-circle" size={20} color={C.primary} />
-                    ) : (
-                      <MaterialIcons name="radio-button-unchecked" size={20} color={C.slate500} />
-                    )}
-                  </Pressable>
-                );
-              })
-            )}
-            {selectedUserIds.length > 0 ? (
-              <Text style={s.hint}>
-                {selectedUserIds.length} selected member{selectedUserIds.length === 1 ? '' : 's'}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* Email invite — collapsible when existing users are selectable */}
-        {knownUsers.length > 0 ? (
-          <>
-            <Pressable
-              style={s.emailToggle}
-              onPress={() => setEmailExpanded((v) => !v)}
-            >
-              <MaterialIcons name="email" size={18} color={emailExpanded ? C.primary : C.slate400} />
-              <Text style={[s.emailToggleText, emailExpanded && { color: C.white }]}>Invite by email</Text>
-              <MaterialIcons
-                name={emailExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-                size={20}
-                color={C.slate400}
-              />
-            </Pressable>
-            {emailExpanded && (
-              <TextInput
-                style={[s.input, { marginTop: 8 }]}
-                placeholder="email@example.com"
-                placeholderTextColor={C.slate500}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={[s.label, { marginTop: 20 }]}>FRIEND&apos;S EMAIL</Text>
-            <TextInput
-              style={s.input}
-              placeholder="email@example.com"
-              placeholderTextColor={C.slate500}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </>
-        )}
+        <MemberSearchPicker
+          excludeUserIds={existingMemberIds}
+          onSelectionChange={setMemberSelection}
+        />
 
         {error && (
           <View style={s.errorRow}>
@@ -434,16 +236,24 @@ export default function InviteFriendScreen() {
         )}
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.sendBtn, !canSend && s.sendBtnDisabled, pressed && canSend && { opacity: 0.85 }]}
-          onPress={handleSendInvite}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.sendBtn,
+            !canSend && s.sendBtnDisabled,
+            pressed && canSend && { opacity: 0.85 },
+          ]}
+          onPress={handleSend}
           disabled={!canSend || sending}
         >
           {sending ? (
             <ActivityIndicator color={C.bg} />
           ) : (
             <>
-              <MaterialIcons name="send" size={20} color={canSend ? C.bg : C.slate500} />
-              <Text style={[s.sendBtnText, !canSend && { color: C.slate500 }]}>{actionText}</Text>
+              <MaterialIcons name="person-add" size={20} color={canSend ? C.bg : C.slate500} />
+              <Text style={[s.sendBtnText, !canSend && { color: C.slate500 }]}>
+                {canSend
+                  ? `Add ${memberSelection.appUsers.length + memberSelection.contacts.length} member${memberSelection.appUsers.length + memberSelection.contacts.length === 1 ? '' : 's'}`
+                  : 'Select members above'}
+              </Text>
             </>
           )}
         </Pressable>
@@ -466,70 +276,18 @@ const s = StyleSheet.create({
   headerBtn: { padding: 4, minWidth: 56 },
   headerTitle: { color: C.white, fontWeight: '700', fontSize: 17 },
   cancelText: { color: C.slate400, fontSize: 16 },
-  scroll: { paddingHorizontal: 20, paddingTop: 24 },
-  label: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
-  input: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: C.white,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-  },
-  groupPicker: { gap: 4 },
-  groupOption: {
+  sendText: { color: C.primary, fontSize: 16, fontWeight: '700', textAlign: 'right' },
+  groupBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
   },
-  groupOptionText: { flex: 1, color: C.white, fontSize: 15 },
-  userPicker: { marginTop: 20 },
-  userOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-  },
-  userOptionActive: { borderColor: C.primary },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: C.surfaceHL,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userInitials: { color: C.primary, fontWeight: '700', fontSize: 12 },
-  userName: { flex: 1, color: C.white, fontSize: 14, fontWeight: '600' },
-  hint: { color: C.slate500, fontSize: 12, marginTop: 8 },
-  emailToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-  },
-  emailToggleText: { flex: 1, color: C.slate400, fontSize: 15 },
+  groupBadgeText: { color: C.primary, fontSize: 13, fontWeight: '600' },
+  scroll: { paddingHorizontal: 20, paddingTop: 16 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
   errorText: { color: C.orange, fontSize: 13 },
   sendBtn: {
@@ -540,7 +298,7 @@ const s = StyleSheet.create({
     backgroundColor: C.primary,
     borderRadius: 16,
     paddingVertical: 16,
-    marginTop: 32,
+    marginTop: 24,
   },
   sendBtnDisabled: { backgroundColor: C.surfaceHL },
   sendBtnText: { color: C.bg, fontWeight: '700', fontSize: 16 },

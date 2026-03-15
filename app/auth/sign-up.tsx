@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
+import { normalizePhone } from '@/hooks/use-friends';
 
 const C = {
   bg: '#112117',
@@ -30,6 +31,7 @@ export default function SignUpScreen() {
   const { signUp, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +40,13 @@ export default function SignUpScreen() {
   const [success, setSuccess] = useState(false);
 
   const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!email || !phone || !password || !confirmPassword) {
       setError('Please fill in all fields.');
+      return;
+    }
+    const normalizedPhone = normalizePhone(phone.trim());
+    if (!normalizedPhone) {
+      setError('Enter a valid phone number with country code (e.g. +1 555 000 1234).');
       return;
     }
     if (password !== confirmPassword) {
@@ -52,7 +59,7 @@ export default function SignUpScreen() {
     }
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, normalizedPhone);
     setLoading(false);
     if (error) {
       setError(error);
@@ -137,6 +144,15 @@ export default function SignUpScreen() {
           value={email}
           onChangeText={setEmail}
           testID="email-input"
+        />
+        <TextInput
+          style={s.input}
+          placeholder="Phone number (e.g. +1 555 000 1234)"
+          placeholderTextColor={C.slate500}
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
+          testID="phone-input"
         />
         <TextInput
           style={s.input}

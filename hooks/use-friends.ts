@@ -2,8 +2,10 @@ import * as Contacts from 'expo-contacts';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth';
-import { DEFAULT_COUNTRY_CODE } from '@/lib/app-config';
+import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
+
+export { normalizePhone };
 
 export interface MatchedFriend {
   userId: string;
@@ -28,14 +30,6 @@ export interface UseFriendsResult {
   refetch: () => Promise<void>;
 }
 
-export function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/\D/g, '');
-  const cc = DEFAULT_COUNTRY_CODE.replace('+', ''); // e.g. '1'
-  if (digits.length === 10) return `${DEFAULT_COUNTRY_CODE}${digits}`;
-  if (digits.length === 11 && digits[0] === cc) return `+${digits}`;
-  if (digits.length > 6) return `+${digits}`;
-  return null;
-}
 
 async function hashValue(value: string): Promise<string> {
   return Crypto.digestStringAsync(
@@ -71,20 +65,16 @@ export function useFriends(): UseFriendsResult {
       });
 
       const emailSet = new Set<string>();
-      const phoneSet = new Set<string>();
+      const phoneSet = new Set<string>(); // normalized plain phones
 
       for (const contact of contacts) {
         for (const e of contact.emails ?? []) {
           const norm = e.email?.toLowerCase().trim();
-          if (norm) {
-            emailSet.add(norm);
-          }
+          if (norm) emailSet.add(norm);
         }
         for (const p of contact.phoneNumbers ?? []) {
           const norm = normalizePhone(p.number ?? '');
-          if (norm) {
-            phoneSet.add(norm);
-          }
+          if (norm) phoneSet.add(norm);
         }
       }
 
@@ -103,32 +93,46 @@ export function useFriends(): UseFriendsResult {
         return;
       }
 
-      const [emailHashes, phoneHashes] = await Promise.all([
-        Promise.all(Array.from(emailSet).map(hashValue)),
-        Promise.all(Array.from(phoneSet).map(hashValue)),
-      ]);
+      // Hash emails for backwards-compat matching; phones sent as plain text.
+      const emailHashes = await Promise.all(Array.from(emailSet).map(hashValue));
+      const plainPhones = Array.from(phoneSet);
 
       const { data: matchedProfiles, error: matchErr } = await supabase.rpc('match_contacts', {
         p_email_hashes: emailHashes,
-        p_phone_hashes: phoneHashes,
+        p_phone_hashes: [],   // phone_hash column no longer used
+        p_phones: plainPhones,
       });
 
       if (matchErr) throw new Error(matchErr.message);
 
-      const { data: balanceRows, error: balanceErr } = await supabase.rpc('get_friend_balances', {
-        p_user_id: user.id,
-      });
+      const [
+        { data: balanceRows, error: balanceErr },
+        { data: groupFriendRows, error: groupFriendErr },
+      ] = await Promise.all([
+        supabase.rpc('get_friend_balances', { p_user_id: user.id }),
+        supabase.rpc('get_group_friends', { p_user_id: user.id }),
+      ]);
 
       if (balanceErr) throw new Error(balanceErr.message);
+      if (groupFriendErr) throw new Error(groupFriendErr.message);
 
       const balanceByUserId = new Map<string, { balance_cents: number }>();
       for (const row of (balanceRows as { user_id: string; balance_cents: number }[] ?? [])) {
         if (row.user_id) balanceByUserId.set(row.user_id, { balance_cents: Number(row.balance_cents) });
       }
 
-      const matchedFriends: MatchedFriend[] = (
-        (matchedProfiles as { id: string; name: string; avatar_url: string | null }[] ?? [])
-      ).map((profile) => {
+      // Start with contact-matched profiles, then merge in group co-members not already present
+      const profileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>();
+      for (const p of (matchedProfiles as { id: string; name: string; avatar_url: string | null }[] ?? [])) {
+        profileMap.set(p.id, p);
+      }
+      for (const gf of (groupFriendRows as { user_id: string; name: string; avatar_url: string | null }[] ?? [])) {
+        if (gf.user_id && !profileMap.has(gf.user_id)) {
+          profileMap.set(gf.user_id, { id: gf.user_id, name: gf.name, avatar_url: gf.avatar_url });
+        }
+      }
+
+      const matchedFriends: MatchedFriend[] = Array.from(profileMap.values()).map((profile) => {
         const balanceRow = balanceByUserId.get(profile.id);
         const balanceCents = balanceRow?.balance_cents ?? 0;
         let balanceStatus: MatchedFriend['balanceStatus'];
@@ -144,8 +148,6 @@ export function useFriends(): UseFriendsResult {
         return { userId: profile.id, name: profile.name, avatarUrl: profile.avatar_url, balanceCents, balanceStatus };
       }).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 
-      // Build unmatched: contacts whose name doesn't match any matched profile name.
-      // Since hashes cannot be reversed, we use profile.name as the best proxy.
       const matchedProfileNames = new Set(
         matchedFriends.map((f) => f.name.toLowerCase().trim())
       );

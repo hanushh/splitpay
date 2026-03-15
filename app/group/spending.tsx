@@ -73,7 +73,7 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
       ``,
       `By category:`,
     ];
-    for (const { category, total, count } of totals) {
+    for (const { category, total } of totals) {
       const cat = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.receipt;
       const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
       const cap = category.charAt(0).toUpperCase() + category.slice(1);
