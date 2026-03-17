@@ -175,14 +175,27 @@ export default function GroupDetailScreen() {
               Alert.alert('Error', error.message);
               return;
             }
-            setSelectedExpense(null);
             setDeletingExpense(false);
+            setSelectedExpense(null);
             fetchGroup();
           },
         },
       ],
     );
   }, [selectedExpense, fetchGroup]);
+
+  const handleEditExpense = useCallback(() => {
+    if (!selectedExpense) return;
+    setSelectedExpense(null);
+    router.push({
+      pathname: '/add-expense',
+      params: {
+        expenseId: selectedExpense.expense_id,
+        groupId: id,
+        groupName: group?.name ?? '',
+      },
+    });
+  }, [selectedExpense, id, group]);
 
   const handleArchive = useCallback(async () => {
     if (!group) return;
@@ -424,17 +437,7 @@ export default function GroupDetailScreen() {
             <View style={s.sheetActions}>
               <Pressable
                 style={({ pressed }: { pressed: boolean }) => [s.sheetEditBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => {
-                  setSelectedExpense(null);
-                  router.push({
-                    pathname: '/add-expense',
-                    params: {
-                      expenseId: selectedExpense.expense_id,
-                      groupId: id,
-                      groupName: group?.name ?? '',
-                    },
-                  });
-                }}
+                onPress={handleEditExpense}
               >
                 <MaterialIcons name="edit" size={18} color={C.primary} />
                 <Text style={s.sheetEditBtnText}>Edit</Text>
