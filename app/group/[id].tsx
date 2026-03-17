@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -87,6 +88,8 @@ export default function GroupDetailScreen() {
   const [deleteInput, setDeleteInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState(false);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
@@ -149,6 +152,37 @@ export default function GroupDetailScreen() {
     setShowDeleteModal(false);
     router.replace('/');
   }, [group, deleteInput, user, leaveGroup]);
+
+  const handleDeleteExpense = useCallback(() => {
+    if (!selectedExpense) return;
+    const name = selectedExpense.description;
+    Alert.alert(
+      'Delete expense?',
+      `"${name}" will be permanently deleted and balances will be recalculated.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingExpense(true);
+            const { error } = await supabase
+              .from('expenses')
+              .delete()
+              .eq('id', selectedExpense.expense_id);
+            if (error) {
+              setDeletingExpense(false);
+              Alert.alert('Error', error.message);
+              return;
+            }
+            setSelectedExpense(null);
+            setDeletingExpense(false);
+            fetchGroup();
+          },
+        },
+      ],
+    );
+  }, [selectedExpense, fetchGroup]);
 
   const handleArchive = useCallback(async () => {
     if (!group) return;
@@ -294,7 +328,11 @@ export default function GroupDetailScreen() {
                 : expense.your_split_cents;
               const paidLabel = expense.paid_by_is_user ? 'You' : expense.paid_by_name;
               return (
-                <Pressable key={expense.expense_id} style={({ pressed }: { pressed: boolean }) => [s.expenseCard, pressed && { opacity: 0.8 }]}>
+                <Pressable
+                  key={expense.expense_id}
+                  style={({ pressed }: { pressed: boolean }) => [s.expenseCard, pressed && { opacity: 0.8 }]}
+                  onPress={() => setSelectedExpense(expense)}
+                >
                   <View style={[s.expenseIcon, { backgroundColor: cat.bg }]}>
                     <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={cat.color} />
                     <View style={[s.expenseDot, { backgroundColor: youPositive ? C.primary : C.orange }]} />
@@ -334,6 +372,91 @@ export default function GroupDetailScreen() {
       >
         <MaterialIcons name="add" size={28} color={C.bg} />
       </Pressable>
+
+      {/* ── Expense detail sheet ─────────────────────────── */}
+      <Modal
+        visible={!!selectedExpense}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedExpense(null)}
+      >
+        <Pressable
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+          onPress={() => setSelectedExpense(null)}
+        />
+        {selectedExpense && (
+          <View style={s.expenseDetailSheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle} numberOfLines={2}>{selectedExpense.description}</Text>
+            <Text style={s.sheetSubtitle}>
+              {new Date(selectedExpense.created_at).toLocaleDateString('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric',
+              })}
+            </Text>
+
+            <View style={s.sheetDetailRow}>
+              <MaterialIcons name="payments" size={18} color={C.slate400} />
+              <Text style={s.sheetDetailLabel}>Total amount</Text>
+              <Text style={s.sheetDetailValue}>{format(selectedExpense.total_amount_cents)}</Text>
+            </View>
+            <View style={s.sheetDetailRow}>
+              <MaterialIcons name="person" size={18} color={C.slate400} />
+              <Text style={s.sheetDetailLabel}>Paid by</Text>
+              <Text style={s.sheetDetailValue}>
+                {selectedExpense.paid_by_is_user ? 'You' : selectedExpense.paid_by_name}
+              </Text>
+            </View>
+            <View style={s.sheetDetailRow}>
+              <MaterialIcons name="call-split" size={18} color={C.slate400} />
+              <Text style={s.sheetDetailLabel}>Your share</Text>
+              <Text style={[s.sheetDetailValue, { color: selectedExpense.paid_by_is_user ? C.primary : C.orange }]}>
+                {format(selectedExpense.paid_by_is_user
+                  ? selectedExpense.total_amount_cents - selectedExpense.your_split_cents
+                  : selectedExpense.your_split_cents)}
+              </Text>
+            </View>
+            <View style={s.sheetDetailRow}>
+              <MaterialIcons name="category" size={18} color={C.slate400} />
+              <Text style={s.sheetDetailLabel}>Category</Text>
+              <Text style={s.sheetDetailValue}>{selectedExpense.category}</Text>
+            </View>
+
+            <View style={s.sheetActions}>
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [s.sheetEditBtn, pressed && { opacity: 0.8 }]}
+                onPress={() => {
+                  setSelectedExpense(null);
+                  router.push({
+                    pathname: '/add-expense',
+                    params: {
+                      expenseId: selectedExpense.expense_id,
+                      groupId: id,
+                      groupName: group?.name ?? '',
+                    },
+                  });
+                }}
+              >
+                <MaterialIcons name="edit" size={18} color={C.primary} />
+                <Text style={s.sheetEditBtnText}>Edit</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [s.sheetDeleteBtn, pressed && { opacity: 0.8 }]}
+                onPress={handleDeleteExpense}
+                disabled={deletingExpense}
+              >
+                {deletingExpense ? (
+                  <ActivityIndicator size="small" color="#ff5252" />
+                ) : (
+                  <>
+                    <MaterialIcons name="delete-outline" size={18} color="#ff5252" />
+                    <Text style={s.sheetDeleteBtnText}>Delete</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </Modal>
 
       {/* Settings bottom sheet */}
       <Modal
@@ -561,4 +684,54 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteCancelBtnText: { color: C.slate400, fontWeight: '600', fontSize: 15 },
+  expenseDetailSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  sheetSubtitle: { color: C.slate400, fontSize: 13, marginBottom: 20 },
+  sheetDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
+  sheetDetailLabel: { flex: 1, color: C.slate400, fontSize: 14 },
+  sheetDetailValue: { color: C.white, fontSize: 14, fontWeight: '600' },
+  sheetActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  sheetEditBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(23,232,107,0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(23,232,107,0.3)',
+  },
+  sheetEditBtnText: { color: C.primary, fontSize: 15, fontWeight: '700' },
+  sheetDeleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(255,82,82,0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,82,82,0.3)',
+  },
+  sheetDeleteBtnText: { color: '#ff5252', fontSize: 15, fontWeight: '700' },
 });
