@@ -10,6 +10,10 @@ export const Fields = {
   Name: 'name',
 } as const;
 
+export const getPermissionsAsync = jest.fn().mockResolvedValue({
+  status: PermissionStatus.GRANTED,
+});
+
 export const requestPermissionsAsync = jest.fn().mockResolvedValue({
   status: PermissionStatus.GRANTED,
 });

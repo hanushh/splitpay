@@ -1,4 +1,5 @@
 import { Session, User } from '@supabase/supabase-js';
+import * as Contacts from 'expo-contacts';
 import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -21,10 +22,14 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  phoneComplete: boolean;
+  contactsPermissionGranted: boolean;
   signIn: (emailOrPhone: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, phone: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  refreshPhoneComplete: () => Promise<void>;
+  refreshContactsPermission: () => Promise<void>;
   getPendingInviteToken: () => Promise<string | null>;
   clearPendingInviteToken: () => Promise<void>;
 };
@@ -33,17 +38,28 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  phoneComplete: true,
+  contactsPermissionGranted: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signInWithGoogle: async () => ({ error: null }),
   signOut: async () => {},
+  refreshPhoneComplete: async () => {},
+  refreshContactsPermission: async () => {},
   getPendingInviteToken: async () => null,
   clearPendingInviteToken: async () => {},
 });
 
+async function fetchPhoneComplete(userId: string): Promise<boolean> {
+  const { data } = await supabase.from('profiles').select('phone').eq('id', userId).single();
+  return !!(data?.phone as string | null)?.trim();
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [phoneComplete, setPhoneComplete] = useState(true);
+  const [contactsPermissionGranted, setContactsPermissionGranted] = useState(false);
   const activePushToken = useRef<string | null>(null);
   const handlingOAuthCallback = useRef(false);
 
@@ -54,10 +70,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }, 12000); // If getSession doesn't resolve in 12s (e.g. no network), show sign-in
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
       setSession(session);
-      setLoading(false);
+      if (session?.user?.id) {
+        const [complete, { status }] = await Promise.all([
+          fetchPhoneComplete(session.user.id),
+          Contacts.getPermissionsAsync(),
+        ]);
+        if (!cancelled) {
+          setPhoneComplete(complete);
+          setContactsPermissionGranted(status === Contacts.PermissionStatus.GRANTED);
+        }
+      }
+      if (!cancelled) setLoading(false);
     }).catch(() => {
       if (!cancelled) setLoading(false);
     });
@@ -108,8 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // PKCE flow: exchange code for session
         const code = parsed.searchParams.get('code');
         if (code) {
-          await supabase.auth.exchangeCodeForSession(code);
-          router.replace('/(tabs)');
+          const { data: codeData } = await supabase.auth.exchangeCodeForSession(code);
+          if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
           return;
         }
 
@@ -119,8 +145,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
         if (accessToken && refreshToken) {
-          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          router.replace('/(tabs)');
+          const { data: sessionData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (sessionData.user?.id) await navigatePostAuth(sessionData.user.id);
         }
       } catch (err) {
         console.error('[Auth] Deep link handling error:', err);
@@ -181,6 +207,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [session?.user?.id, session?.user?.email]);
 
+  const navigatePostAuth = async (userId: string) => {
+    const [complete, { status }] = await Promise.all([
+      fetchPhoneComplete(userId),
+      Contacts.getPermissionsAsync(),
+    ]);
+    setPhoneComplete(complete);
+    const contactsGranted = status === Contacts.PermissionStatus.GRANTED;
+    setContactsPermissionGranted(contactsGranted);
+    if (!complete) {
+      router.replace('/auth/setup-phone');
+    } else if (!contactsGranted) {
+      router.replace('/auth/setup-contacts');
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
+  const refreshPhoneComplete = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const complete = await fetchPhoneComplete(userId);
+    setPhoneComplete(complete);
+  };
+
+  const refreshContactsPermission = async () => {
+    const { status } = await Contacts.getPermissionsAsync();
+    setContactsPermissionGranted(status === Contacts.PermissionStatus.GRANTED);
+  };
+
   const signIn = async (emailOrPhone: string, password: string) => {
     let email = emailOrPhone.trim();
     // If input doesn't look like an email, treat it as a phone number
@@ -192,8 +247,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!lookedUpEmail) return { error: 'No account found with that phone number.' };
       email = lookedUpEmail as string;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    if (data.user?.id) await navigatePostAuth(data.user.id);
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, phone: string) => {
@@ -238,13 +295,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parsed = new URL(result.url);
       const code = parsed.searchParams.get('code');
       if (code) {
-        const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+        const { data: codeData, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeErr) {
           console.error('[Auth] exchangeCodeForSession error:', exchangeErr.message);
           return { error: exchangeErr.message };
         }
         handlingOAuthCallback.current = false;
-        router.replace('/(tabs)');
+        if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
         return { error: null };
       }
 
@@ -253,13 +310,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
       if (accessToken && refreshToken) {
-        const { error: sessionErr } = await supabase.auth.setSession({
+        const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
         if (sessionErr) return { error: sessionErr.message };
         handlingOAuthCallback.current = false;
-        router.replace('/(tabs)');
+        if (sessionData.user?.id) await navigatePostAuth(sessionData.user.id);
         return { error: null };
       }
     } catch (err) {
@@ -283,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearPendingInviteToken = async () => SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signIn, signUp, signInWithGoogle, signOut, getPendingInviteToken, clearPendingInviteToken }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, phoneComplete, contactsPermissionGranted, signIn, signUp, signInWithGoogle, signOut, refreshPhoneComplete, refreshContactsPermission, getPendingInviteToken, clearPendingInviteToken }}>
       {children}
     </AuthContext.Provider>
   );

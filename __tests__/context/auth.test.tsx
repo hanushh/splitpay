@@ -183,8 +183,13 @@ describe('useAuth — deep link handling', () => {
     const callbackUrl = `${AUTH_CALLBACK_URL}?code=deeplink-code-123`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'tok' } },
+      data: { session: { access_token: 'tok' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
@@ -209,8 +214,13 @@ describe('useAuth — deep link handling', () => {
     const callbackUrl = `${AUTH_CALLBACK_URL}#access_token=myat&refresh_token=myrt`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'myat' } },
+      data: { session: { access_token: 'myat' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
