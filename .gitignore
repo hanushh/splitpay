@@ -1,5 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Secrets injected at CI time
+google-services.json
+
 # dependencies
 node_modules/
 package-lock.json

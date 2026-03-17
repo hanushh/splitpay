@@ -83,9 +83,8 @@ jobs:
 
       - name: Inject google-services.json
         run: |
-          mkdir -p android/app
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
-          test -s android/app/google-services.json
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > google-services.json
+          test -s google-services.json
 
       - name: Generate native Android project
         run: pnpm exec expo prebuild --platform android --no-install
