@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -64,8 +64,9 @@ export default function AddExpenseScreen() {
   const { user } = useAuth();
   const { currency: appCurrency } = useCurrency();
 
-  const { groupId: urlGroupId, groupName: urlGroupName } =
-    useLocalSearchParams<{ groupId?: string; groupName?: string }>();
+  const { groupId: urlGroupId, groupName: urlGroupName, expenseId } =
+    useLocalSearchParams<{ groupId?: string; groupName?: string; expenseId?: string }>();
+  const isEditing = !!expenseId;
 
   // ── Group selection ────────────────────────────────────────
   const [groupId, setGroupId] = useState<string>(urlGroupId ?? '');
@@ -94,6 +95,10 @@ export default function AddExpenseScreen() {
   const [error, setError] = useState<string | null>(null);
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
+  const editPaidByRef = useRef<string | null>(null);
+  const preserveCategoryRef = useRef(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Load only groups the current user is a member of
   useEffect(() => {
@@ -175,19 +180,82 @@ export default function AddExpenseScreen() {
 
     setMembers(list);
     const me = list.find((m) => m.is_me);
-    if (me) {
+    if (isEditing && editPaidByRef.current) {
+      // Edit mode: use the stored paid_by_member_id, don't reset to current user
+      setPaidBy(editPaidByRef.current);
+    } else if (me) {
+      // Create mode: default to current user as payer; select all members
       setPaidBy(me.id);
       setSelectedMembers(new Set(list.map((m) => m.id)));
     }
     setMembersLoading(false);
-  }, [user]);
+  }, [user, isEditing]);
 
   useEffect(() => {
     if (groupId) loadMembers(groupId);
   }, [groupId, loadMembers]);
 
+  // In edit mode: fetch raw expense + splits and pre-populate form
+  useEffect(() => {
+    if (!isEditing || !expenseId) return;
+    setEditLoading(true);
+    setEditError(null);
+
+    (async () => {
+      const [{ data: expenseRow, error: expErr }, { data: splitRows, error: splitErr }] =
+        await Promise.all([
+          supabase
+            .from('expenses')
+            .select('id, description, amount_cents, paid_by_member_id, category, receipt_url')
+            .eq('id', expenseId)
+            .single(),
+          supabase
+            .from('expense_splits')
+            .select('member_id')
+            .eq('expense_id', expenseId),
+        ]);
+
+      if (expErr || !expenseRow) {
+        setEditError(expErr?.message ?? 'Could not load expense.');
+        setEditLoading(false);
+        return;
+      }
+      if (splitErr) {
+        setEditError(splitErr.message);
+        setEditLoading(false);
+        return;
+      }
+
+      // Pre-populate form fields
+      // Guard against category auto-detect overwriting the pre-populated category
+      preserveCategoryRef.current = true;
+      setDescription(expenseRow.description);
+      setAmount((expenseRow.amount_cents / 100).toFixed(2));
+      setReceiptUri(expenseRow.receipt_url ?? null);
+      setSelectedMembers(new Set((splitRows ?? []).map((r: { member_id: string }) => r.member_id)));
+
+      // Category: known keys stay as-is; unknown keys go to 'other' + customCategory
+      const knownCategories = ['restaurant', 'train', 'hotel', 'movie', 'store', 'other'];
+      if (knownCategories.includes(expenseRow.category)) {
+        setDetectedCategory(expenseRow.category);
+      } else {
+        setDetectedCategory('other');
+        setCustomCategory(expenseRow.category ?? '');
+      }
+
+      // Store paid_by_member_id for use after loadMembers finishes (race-condition safe)
+      editPaidByRef.current = expenseRow.paid_by_member_id;
+
+      setEditLoading(false);
+    })();
+  }, [isEditing, expenseId]);
+
   // Auto-detect category from description with 300ms debounce
   useEffect(() => {
+    if (preserveCategoryRef.current) {
+      preserveCategoryRef.current = false;
+      return;
+    }
     if (!description.trim()) {
       setDetectedCategory('other');
       return;
@@ -286,6 +354,48 @@ export default function AddExpenseScreen() {
       ? customCategory.trim().toLowerCase()
       : detectedCategory;
 
+    if (isEditing && expenseId) {
+      // ── Edit mode: UPDATE expense, DELETE old splits, INSERT new splits ──
+      const { error: updateErr } = await supabase
+        .from('expenses')
+        .update({
+          description: description.trim(),
+          amount_cents: amtCents,
+          paid_by_member_id: paidBy,
+          category: finalCategory,
+          receipt_url: receiptUri,
+        })
+        .eq('id', expenseId);
+
+      if (updateErr) { setError(updateErr.message); setSaving(false); return; }
+
+      const { error: deleteErr } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expenseId);
+
+      if (deleteErr) { setError(deleteErr.message); setSaving(false); return; }
+
+      const splitIds = [...selectedMembers];
+      const perPerson = Math.round(amtCents / splitIds.length);
+      const splits = splitIds.map((memberId, i) => ({
+        expense_id: expenseId,
+        member_id: memberId,
+        amount_cents:
+          i === splitIds.length - 1
+            ? amtCents - perPerson * (splitIds.length - 1)
+            : perPerson,
+      }));
+
+      const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
+      if (splitErr) { setError(splitErr.message); setSaving(false); return; }
+
+      setSaving(false);
+      router.back();
+      return;
+    }
+
+    // ── Create mode: INSERT expense + splits ──
     // Insert expense
     const { data: expense, error: expErr } = await supabase
       .from('expenses')
@@ -325,8 +435,7 @@ export default function AddExpenseScreen() {
     }
 
     setSaving(false);
-    // Fire-and-forget: reinforcement runs in background, does not block navigation.
-    // The hook updates in-memory cache synchronously before the RPC completes.
+    // Fire-and-forget category reinforcement (create mode only)
     if (detectedCategory !== 'other') {
       reinforceMapping(description, detectedCategory);
     } else if (customCategory.trim()) {
@@ -355,7 +464,7 @@ export default function AddExpenseScreen() {
         <Pressable onPress={() => router.back()} style={s.headerBtn} testID="cancel-button">
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
-        <Text style={s.headerTitle}>Add expense</Text>
+        <Text style={s.headerTitle}>{isEditing ? 'Edit expense' : 'Add expense'}</Text>
         <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving} testID="header-save-button">
           <Text style={[s.saveText, !canSave && { opacity: 0.35 }]}>Save</Text>
         </Pressable>
@@ -367,19 +476,32 @@ export default function AddExpenseScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Group selector — always visible, required */}
-        <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.groupRow, pressed && { opacity: 0.75 }]}
-          onPress={() => setGroupPickerOpen(true)}
-          testID="group-picker-button"
-        >
-          <View style={s.inputIcon}>
-            <MaterialIcons name="group" size={22} color={groupId ? C.primary : C.slate400} />
+        {isEditing ? (
+          <View
+            style={s.groupRow}
+            testID="group-locked-row"
+          >
+            <View style={s.inputIcon}>
+              <MaterialIcons name="group" size={22} color={C.primary} />
+            </View>
+            <Text style={s.groupRowText}>{groupName}</Text>
+            <MaterialIcons name="lock-outline" size={18} color={C.slate500} />
           </View>
-          <Text style={[s.groupRowText, !groupId && s.groupRowPlaceholder]}>
-            {groupId ? groupName : 'Select a group (required)'}
-          </Text>
-          <MaterialIcons name="arrow-drop-down" size={22} color={C.slate400} />
-        </Pressable>
+        ) : (
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [s.groupRow, pressed && { opacity: 0.75 }]}
+            onPress={() => setGroupPickerOpen(true)}
+            testID="group-picker-button"
+          >
+            <View style={s.inputIcon}>
+              <MaterialIcons name="group" size={22} color={groupId ? C.primary : C.slate400} />
+            </View>
+            <Text style={[s.groupRowText, !groupId && s.groupRowPlaceholder]}>
+              {groupId ? groupName : 'Select a group (required)'}
+            </Text>
+            <MaterialIcons name="arrow-drop-down" size={22} color={C.slate400} />
+          </Pressable>
+        )}
 
         {/* Description */}
         <View style={s.inputRow}>
@@ -423,6 +545,15 @@ export default function AddExpenseScreen() {
         </View>
 
         {/* Error */}
+        {editLoading && (
+          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
+        )}
+        {editError && (
+          <View style={s.errorRow}>
+            <MaterialIcons name="error-outline" size={16} color={C.orange} />
+            <Text style={s.errorText}>{editError}</Text>
+          </View>
+        )}
         {error && (
           <View style={s.errorRow}>
             <MaterialIcons name="error-outline" size={16} color={C.orange} />
@@ -557,7 +688,7 @@ export default function AddExpenseScreen() {
                 testID="custom-category-input"
               />
             )}
-            {detectedCategory === 'other' && customCategory.trim().length > 0 && (
+            {detectedCategory === 'other' && customCategory.trim().length > 0 && !isEditing && (
               <Text style={s.categorySaveHint}>Will be saved on expense creation</Text>
             )}
           </View>
@@ -613,7 +744,7 @@ export default function AddExpenseScreen() {
           ) : (
             <>
               <MaterialIcons name="check" size={20} color={C.bg} />
-              <Text style={s.saveBtnText}>Save Expense</Text>
+              <Text style={s.saveBtnText}>{isEditing ? 'Save Changes' : 'Save Expense'}</Text>
             </>
           )}
         </Pressable>
