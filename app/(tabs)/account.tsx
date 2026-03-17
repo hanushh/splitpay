@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
-import { normalizePhone } from '@/hooks/use-friends';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -200,17 +200,11 @@ export default function AccountScreen() {
           <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Phone Number</Text>
-            <Text style={s.phoneHint}>
-              Used to match you with contacts. Include country code (e.g. +1 555 000 1234).
-            </Text>
-            <TextInput
-              style={s.phoneInput}
+            <PhoneInput
               value={phoneInput}
-              onChangeText={setPhoneInput}
-              placeholder="+1 555 000 1234"
-              placeholderTextColor={C.slate600}
-              keyboardType="phone-pad"
+              onChange={setPhoneInput}
               autoFocus
+              editable={!phoneSaving}
             />
             {phoneError ? <Text style={s.phoneErrorText}>{phoneError}</Text> : null}
             <TouchableOpacity
@@ -447,21 +441,6 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: '#244732',
     marginHorizontal: 4,
-  },
-  phoneHint: {
-    color: C.slate400,
-    fontSize: 13,
-    marginBottom: 16,
-    lineHeight: 19,
-  },
-  phoneInput: {
-    backgroundColor: '#244732',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: C.white,
-    fontSize: 16,
-    marginBottom: 8,
   },
   phoneErrorText: {
     color: '#ff5252',

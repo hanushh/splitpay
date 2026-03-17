@@ -8,11 +8,11 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
 
@@ -78,15 +78,12 @@ export default function SetupPhoneScreen() {
 
         {error && <Text style={s.errorText}>{error}</Text>}
 
-        <TextInput
-          style={s.input}
-          placeholder="+91 98765 43210"
-          placeholderTextColor={C.slate500}
-          keyboardType="phone-pad"
+        <PhoneInput
           value={phone}
-          onChangeText={setPhone}
+          onChange={setPhone}
           autoFocus
           testID="phone-input"
+          editable={!saving}
         />
 
         <Pressable
@@ -149,17 +146,6 @@ const s = StyleSheet.create({
     fontSize: 14,
     marginBottom: 14,
     textAlign: 'center',
-  },
-  input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: C.surfaceHL,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: C.white,
-    backgroundColor: C.surface,
-    marginBottom: 16,
   },
   saveBtn: {
     height: 52,
