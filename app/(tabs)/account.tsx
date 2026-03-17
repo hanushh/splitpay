@@ -1,12 +1,14 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { normalizePhone } from '@/hooks/use-friends';
+import { supabase } from '@/lib/supabase';
 
 const C = {
   primary: '#17e86b',
@@ -73,10 +77,61 @@ export default function AccountScreen() {
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [phoneModalVisible, setPhoneModalVisible] = useState(false);
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User';
   const email = user?.email ?? '';
   const avatarLetter = displayName[0]?.toUpperCase() ?? 'U';
+
+  const loadPhone = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('phone')
+      .eq('id', user.id)
+      .single();
+    setSavedPhone(data?.phone ?? null);
+  }, [user]);
+
+  useEffect(() => {
+    loadPhone();
+  }, [loadPhone]);
+
+  const openPhoneModal = () => {
+    setPhoneInput(savedPhone ?? '');
+    setPhoneError(null);
+    setPhoneModalVisible(true);
+  };
+
+  const handleSavePhone = async () => {
+    if (!user) return;
+    const trimmed = phoneInput.trim();
+    let normalized: string | null = null;
+    if (trimmed) {
+      normalized = normalizePhone(trimmed);
+      if (!normalized) {
+        setPhoneError('Enter a valid phone number (e.g. +1 555 000 1234)');
+        return;
+      }
+    }
+    setPhoneSaving(true);
+    setPhoneError(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: normalized })
+      .eq('id', user.id);
+    setPhoneSaving(false);
+    if (error) {
+      setPhoneError(error.message);
+    } else {
+      setSavedPhone(normalized);
+      setPhoneModalVisible(false);
+    }
+  };
 
   const handleSelectCurrency = (c: Currency) => {
     setCurrency(c);
@@ -98,6 +153,17 @@ export default function AccountScreen() {
             <Text style={s.displayName}>{displayName}</Text>
             <Text style={s.emailText}>{email}</Text>
           </View>
+        </View>
+
+        {/* Profile */}
+        <SectionHeader title="PROFILE" />
+        <View style={s.section}>
+          <SettingRow
+            icon="phone"
+            label="Phone Number"
+            value={savedPhone ?? 'Add phone number'}
+            onPress={openPhoneModal}
+          />
         </View>
 
         {/* Preferences */}
@@ -122,6 +188,46 @@ export default function AccountScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Phone Number Modal */}
+      <Modal
+        visible={phoneModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhoneModalVisible(false)}
+      >
+        <Pressable style={s.modalOverlay} onPress={() => setPhoneModalVisible(false)}>
+          <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>Phone Number</Text>
+            <Text style={s.phoneHint}>
+              Used to match you with contacts. Include country code (e.g. +1 555 000 1234).
+            </Text>
+            <TextInput
+              style={s.phoneInput}
+              value={phoneInput}
+              onChangeText={setPhoneInput}
+              placeholder="+1 555 000 1234"
+              placeholderTextColor={C.slate600}
+              keyboardType="phone-pad"
+              autoFocus
+            />
+            {phoneError ? <Text style={s.phoneErrorText}>{phoneError}</Text> : null}
+            <TouchableOpacity
+              style={[s.saveButton, phoneSaving && { opacity: 0.6 }]}
+              onPress={handleSavePhone}
+              disabled={phoneSaving}
+              activeOpacity={0.8}
+            >
+              {phoneSaving ? (
+                <ActivityIndicator color={C.bg} size="small" />
+              ) : (
+                <Text style={s.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Currency Picker Modal */}
       <Modal
@@ -341,5 +447,37 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: '#244732',
     marginHorizontal: 4,
+  },
+  phoneHint: {
+    color: C.slate400,
+    fontSize: 13,
+    marginBottom: 16,
+    lineHeight: 19,
+  },
+  phoneInput: {
+    backgroundColor: '#244732',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: C.white,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  phoneErrorText: {
+    color: '#ff5252',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  saveButton: {
+    backgroundColor: C.primary,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveButtonText: {
+    color: C.bg,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

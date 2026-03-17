@@ -58,3 +58,5 @@ coverage/
 .mcp.json
 
 .playwright-mcp
+
+/supabase/.temp

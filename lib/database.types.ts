@@ -225,7 +225,7 @@ export type Database = {
           expires_at: string
           group_id: string | null
           id: string
-          invitee_email: string
+          invitee_email: string | null
           inviter_id: string
           status: string
           token: string
@@ -235,7 +235,7 @@ export type Database = {
           expires_at?: string
           group_id?: string | null
           id?: string
-          invitee_email: string
+          invitee_email?: string | null
           inviter_id: string
           status?: string
           token: string
@@ -266,6 +266,7 @@ export type Database = {
           email_hash: string | null
           id: string
           name: string | null
+          phone: string | null
           phone_hash: string | null
           updated_at: string | null
         }
@@ -274,6 +275,7 @@ export type Database = {
           email_hash?: string | null
           id: string
           name?: string | null
+          phone?: string | null
           phone_hash?: string | null
           updated_at?: string | null
         }
@@ -282,6 +284,7 @@ export type Database = {
           email_hash?: string | null
           id?: string
           name?: string | null
+          phone?: string | null
           phone_hash?: string | null
           updated_at?: string | null
         }
@@ -445,7 +448,11 @@ export type Database = {
         Returns: boolean
       }
       match_contacts: {
-        Args: { p_email_hashes: string[]; p_phone_hashes: string[] }
+        Args: {
+          p_email_hashes: string[]
+          p_phone_hashes: string[]
+          p_phones?: string[]
+        }
         Returns: {
           avatar_url: string
           id: string

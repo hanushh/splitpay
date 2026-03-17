@@ -1,9 +1,23 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+
+// Lazy-load expo-notifications to prevent module-level crashes when the ExpoGo
+// native module is unexpectedly present (e.g. emulator with Expo Go installed).
+type NotificationsModule = typeof import('expo-notifications');
+let _Notifications: NotificationsModule | null = null;
+function getNotifications(): NotificationsModule | null {
+  if (_Notifications) return _Notifications;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _Notifications = require('expo-notifications') as NotificationsModule;
+    return _Notifications;
+  } catch {
+    return null;
+  }
+}
 
 let handlerConfigured = false;
 
@@ -24,10 +38,11 @@ function getProjectId(): string | undefined {
 }
 
 export function ensurePushNotificationHandler() {
-  if (handlerConfigured) return;
+  const N = getNotifications();
+  if (handlerConfigured || !N) return;
   handlerConfigured = true;
 
-  Notifications.setNotificationHandler({
+  N.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldShowBanner: true,
@@ -43,22 +58,25 @@ export async function registerPushTokenForCurrentUser(): Promise<string | null> 
     return null;
   }
 
+  const N = getNotifications();
+  if (!N) return null;
+
   ensurePushNotificationHandler();
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    await N.setNotificationChannelAsync('default', {
       name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: N.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#17e86b',
     });
   }
 
-  const existingPerms = await Notifications.getPermissionsAsync();
+  const existingPerms = await N.getPermissionsAsync();
   let finalStatus = existingPerms.status;
 
   if (finalStatus !== 'granted') {
-    const requested = await Notifications.requestPermissionsAsync();
+    const requested = await N.requestPermissionsAsync();
     finalStatus = requested.status;
   }
 
@@ -68,8 +86,8 @@ export async function registerPushTokenForCurrentUser(): Promise<string | null> 
 
   const projectId = getProjectId();
   const tokenResult = projectId
-    ? await Notifications.getExpoPushTokenAsync({ projectId })
-    : await Notifications.getExpoPushTokenAsync();
+    ? await N.getExpoPushTokenAsync({ projectId })
+    : await N.getExpoPushTokenAsync();
 
   const token = tokenResult.data;
   if (!token) return null;

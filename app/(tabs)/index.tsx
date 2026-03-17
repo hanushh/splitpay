@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -126,16 +127,48 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
   );
 }
 
+type StatusFilter = 'all' | 'owed' | 'owes' | 'settled';
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'owed', label: 'Owed to me' },
+  { key: 'owes', label: 'I owe' },
+  { key: 'settled', label: 'Settled' },
+];
+
 export default function GroupsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch]),
   );
+
+  const visibleGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return groups.filter((g) => {
+      const matchesQuery = q === '' || g.name.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || g.status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [groups, searchQuery, statusFilter]);
+
+  const handleSearchToggle = useCallback(() => {
+    if (showSearch) {
+      setShowSearch(false);
+      setSearchQuery('');
+    } else {
+      setShowSearch(true);
+      setTimeout(() => (searchInputRef.current as { focus?: () => void } | null)?.focus?.(), 50);
+    }
+  }, [showSearch]);
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
 
@@ -145,29 +178,50 @@ export default function GroupsScreen() {
 
       {/* Header */}
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <View style={s.headerLeft}>
-            <View style={s.avatar}>
-              <Text style={s.avatarLetter}>{avatarLetter}</Text>
+        {showSearch ? (
+          <View style={s.searchRow}>
+            <MaterialIcons name="search" size={20} color={C.slate400} style={{ marginLeft: 4 }} />
+            <TextInput
+              ref={searchInputRef}
+              style={s.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search groups…"
+              placeholderTextColor={C.slate500}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="never"
+            />
+            <Pressable onPress={handleSearchToggle} hitSlop={8} style={s.iconBtn}>
+              <MaterialIcons name="close" size={22} color={C.slate400} />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={s.headerTop}>
+            <View style={s.headerLeft}>
+              <View style={s.avatar}>
+                <Text style={s.avatarLetter}>{avatarLetter}</Text>
+              </View>
+              <Text style={s.appTitle}>{APP_DISPLAY_NAME}</Text>
             </View>
-            <Text style={s.appTitle}>{APP_DISPLAY_NAME}</Text>
+            <View style={s.headerIcons}>
+              <Pressable style={s.iconBtn} hitSlop={8} onPress={handleSearchToggle}>
+                <MaterialIcons name="search" size={24} color={C.slate400} />
+              </Pressable>
+              <Pressable
+                style={s.iconBtn}
+                hitSlop={8}
+                onPress={() => router.push('/create-group')}
+                testID="create-group-header-btn"
+              >
+                <MaterialIcons name="group-add" size={24} color={C.primary} />
+              </Pressable>
+            </View>
           </View>
-          <View style={s.headerIcons}>
-            <Pressable style={s.iconBtn} hitSlop={8}>
-              <MaterialIcons name="search" size={24} color={C.slate400} />
-            </Pressable>
-            <Pressable
-              style={s.iconBtn}
-              hitSlop={8}
-              onPress={() => router.push('/create-group')}
-              testID="create-group-header-btn"
-            >
-              <MaterialIcons name="group-add" size={24} color={C.primary} />
-            </Pressable>
-          </View>
-        </View>
+        )}
 
-        <TotalBalanceDisplay cents={totalBalanceCents} />
+        {!showSearch && <TotalBalanceDisplay cents={totalBalanceCents} />}
       </View>
 
       {/* Main Content */}
@@ -186,10 +240,19 @@ export default function GroupsScreen() {
       >
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>Your Groups</Text>
-          <Pressable style={s.filterBtn} hitSlop={8}>
-            <MaterialIcons name="filter-list" size={16} color={C.primary} />
-            <Text style={s.filterText}>Filter</Text>
-          </Pressable>
+        </View>
+
+        {/* Status filter pills */}
+        <View style={s.filterPillRow}>
+          {STATUS_FILTERS.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              style={[s.filterPill, statusFilter === key && s.filterPillActive]}
+              onPress={() => setStatusFilter(key)}
+            >
+              <Text style={[s.filterPillText, statusFilter === key && s.filterPillTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
         </View>
 
         {error ? (
@@ -206,7 +269,13 @@ export default function GroupsScreen() {
           </View>
         ) : (
           <>
-            {groups.map((group) => (
+            {visibleGroups.length === 0 && groups.length > 0 && (
+              <View style={s.centered}>
+                <MaterialIcons name="search-off" size={40} color={C.surfaceHL} />
+                <Text style={s.errorText}>No groups match your search</Text>
+              </View>
+            )}
+            {visibleGroups.map((group) => (
               <GroupCard key={group.id} group={group} />
             ))}
 
@@ -286,8 +355,21 @@ const s = StyleSheet.create({
     fontSize: 12, fontWeight: '600', color: C.slate400,
     textTransform: 'uppercase', letterSpacing: 1,
   },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  filterText: { color: C.primary, fontSize: 13, fontWeight: '500' },
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 12, marginBottom: 16,
+    backgroundColor: C.surfaceHL, borderRadius: 12,
+    paddingHorizontal: 10, height: 44,
+  },
+  searchInput: { flex: 1, color: C.white, fontSize: 15 },
+  filterPillRow: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'nowrap' },
+  filterPill: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceHL,
+  },
+  filterPillActive: { backgroundColor: C.surfaceHL, borderColor: C.primary },
+  filterPillText: { color: C.slate400, fontSize: 12, fontWeight: '600' },
+  filterPillTextActive: { color: C.white },
   groupCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: C.surface, padding: 16,

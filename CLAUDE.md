@@ -105,7 +105,6 @@ Create `.env.local` (or `.env.production` for release builds):
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-EXPO_PUBLIC_EAS_PROJECT_ID=<eas-project-id>   # push notifications
 ```
 
 ---

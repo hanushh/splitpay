@@ -256,20 +256,23 @@ export default function GroupDetailScreen() {
         </View>
         <View style={s.actionsBottom}>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.inviteBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, { flex: 1 }, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
             testID="invite-member-button"
           >
-            <MaterialIcons name="person-add" size={20} color={C.primary} />
-            <Text style={s.inviteBtnText}>Add member</Text>
+            <MaterialIcons name="person-add" size={20} color={C.white} />
+            <Text style={s.actionSecondaryText}>Add member</Text>
           </Pressable>
         </View>
 
         {/* Expenses section */}
         <View style={s.expensesHeader}>
           <Text style={s.expensesTitle}>Expenses</Text>
-          <Pressable>
-            <Text style={s.viewAll}>View all</Text>
+          <Pressable
+            testID="spending-link"
+            onPress={() => router.push({ pathname: '/group/spending', params: { groupId: id, groupName: group.name } })}
+          >
+            <Text style={s.viewAll}>Spending →</Text>
           </Pressable>
         </View>
 
@@ -471,18 +474,6 @@ const s = StyleSheet.create({
   actionPrimaryText: { color: C.bg, fontWeight: '700', fontSize: 15 },
   actionSecondary: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceHL },
   actionSecondaryText: { color: C.white, fontWeight: '600', fontSize: 15 },
-  inviteBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  inviteBtnText: { color: C.white, fontWeight: '600', fontSize: 15 },
   expensesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 },
   expensesTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
   viewAll: { color: C.primary, fontSize: 13, fontWeight: '600' },

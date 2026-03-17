@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -56,6 +56,15 @@ interface Section {
   title: string;
   data: ActivityRow[];
 }
+
+type FilterKey = 'all' | 'expenses' | 'settlements' | 'mine';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'settlements', label: 'Settlements' },
+  { key: 'mine', label: 'My activity' },
+];
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -146,6 +155,7 @@ export default function ActivityScreen() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
 
   const fetchActivity = useCallback(async () => {
     if (!user) return;
@@ -172,6 +182,21 @@ export default function ActivityScreen() {
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
   const onRefresh = () => { setRefreshing(true); fetchActivity(); };
 
+  const filteredSections = useMemo(() => {
+    if (activeFilter === 'all') return sections;
+    return sections
+      .map((sec) => ({
+        ...sec,
+        data: sec.data.filter((item) => {
+          if (activeFilter === 'expenses') return item.category !== 'settlement';
+          if (activeFilter === 'settlements') return item.category === 'settlement';
+          if (activeFilter === 'mine') return item.paid_by_is_user;
+          return true;
+        }),
+      }))
+      .filter((sec) => sec.data.length > 0);
+  }, [sections, activeFilter]);
+
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -185,9 +210,13 @@ export default function ActivityScreen() {
 
       {/* Filter pills */}
       <View style={s.pillRow}>
-        {['All', 'Expenses', 'Settlements', 'My activity'].map((label, i) => (
-          <Pressable key={label} style={[s.pill, i === 0 && s.pillActive]}>
-            <Text style={[s.pillText, i === 0 && s.pillTextActive]}>{label}</Text>
+        {FILTERS.map(({ key, label }) => (
+          <Pressable
+            key={key}
+            style={[s.pill, activeFilter === key && s.pillActive]}
+            onPress={() => setActiveFilter(key)}
+          >
+            <Text style={[s.pillText, activeFilter === key && s.pillTextActive]}>{label}</Text>
           </Pressable>
         ))}
       </View>
@@ -196,7 +225,7 @@ export default function ActivityScreen() {
         <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
       ) : (
         <SectionList
-          sections={sections}
+          sections={filteredSections}
           keyExtractor={(item: ActivityRow) => item.expense_id}
           renderItem={({ item }: { item: ActivityRow }) =>
             item.category === 'settlement'

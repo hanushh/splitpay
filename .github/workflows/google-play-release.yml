@@ -81,6 +81,12 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy --project-ref yapfqffhgcncqxovjcsr
 
+      - name: Inject google-services.json
+        run: |
+          mkdir -p android/app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
+          test -s android/app/google-services.json
+
       - name: Generate native Android project
         run: pnpm exec expo prebuild --platform android --no-install
 
@@ -119,9 +125,10 @@ jobs:
 
       - name: Write .env.production
         run: |
-          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\nGOOGLE_SERVICES_JSON=%s\n' \
             "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" \
             "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" \
+            "${{ secrets.GOOGLE_SERVICES_JSON }}" \
             > .env.production
 
       - name: Build Android Release App Bundle (AAB)
