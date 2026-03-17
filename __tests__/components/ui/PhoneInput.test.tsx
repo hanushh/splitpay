@@ -75,34 +75,33 @@ describe('PhoneInput', () => {
   });
 
   it('opens and closes country picker', () => {
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId } = render(
       <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />
     );
-    // Modal starts hidden — not present in tree
-    expect(queryByTestId('country-picker-modal')).toBeNull();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(false);
     fireEvent.press(getByTestId('phone-pill'));
-    expect(getByTestId('country-picker-modal')).toBeTruthy();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(true);
     fireEvent.press(getByTestId('country-India'));
-    expect(queryByTestId('country-picker-modal')).toBeNull();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(false);
   });
 
   it('does not open picker when editable=false', () => {
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId } = render(
       <PhoneInput value="" onChange={jest.fn()} editable={false} testID="phone-input" />
     );
     fireEvent.press(getByTestId('phone-pill'));
-    expect(queryByTestId('country-picker-modal')).toBeNull();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(false);
   });
 
   it('overlay dismiss closes picker without changing country', () => {
     const onChange = jest.fn();
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId } = render(
       <PhoneInput value="+919876543210" onChange={onChange} testID="phone-input" />
     );
     fireEvent.press(getByTestId('phone-pill'));
-    expect(getByTestId('country-picker-modal')).toBeTruthy();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(true);
     fireEvent.press(getByTestId('picker-overlay'));
-    expect(queryByTestId('country-picker-modal')).toBeNull();
+    expect(getByTestId('country-picker-modal').props.visible).toBe(false);
     expect(onChange).not.toHaveBeenCalledWith('');
   });
 
