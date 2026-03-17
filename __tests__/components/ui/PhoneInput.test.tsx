@@ -68,13 +68,17 @@ describe('PhoneInput', () => {
     const { getByTestId } = render(
       <PhoneInput value="+14155551234" onChange={jest.fn()} testID="phone-input" />
     );
-    expect(getByTestId('phone-pill-text').props.children).toContain('+1');
+    const pillText = getByTestId('phone-pill-text').props.children;
+    // +1 collision always shows US flag and dial code
+    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain('🇺🇸');
+    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain('+1');
   });
 
   it('opens and closes country picker', () => {
     const { getByTestId, queryByTestId } = render(
       <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />
     );
+    // Modal starts hidden — not present in tree
     expect(queryByTestId('country-picker-modal')).toBeNull();
     fireEvent.press(getByTestId('phone-pill'));
     expect(getByTestId('country-picker-modal')).toBeTruthy();

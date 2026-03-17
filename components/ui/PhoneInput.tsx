@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -111,6 +111,7 @@ export default function PhoneInput({
   const [digits, setDigits] = useState<string>(parsed.localDigits);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
+  const inputRef = useRef<{ focus(): void } | null>(null);
 
   if (value !== prevValue) {
     const p = parseE164(value);
@@ -130,6 +131,7 @@ export default function PhoneInput({
     setDigits('');
     onChange('');
     setPickerVisible(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
   }, [onChange]);
 
   const displayValue = formatDigits(digits, country.dial);
@@ -149,6 +151,7 @@ export default function PhoneInput({
       <View style={s.divider} />
 
       <TextInput
+        ref={inputRef}
         style={s.input}
         value={displayValue}
         onChangeText={handleDigitChange}
