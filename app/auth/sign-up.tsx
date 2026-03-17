@@ -14,7 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
-import { normalizePhone } from '@/hooks/use-friends';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { normalizePhone } from '@/lib/phone';
 
 const C = {
   bg: '#112117',
@@ -145,14 +146,12 @@ export default function SignUpScreen() {
           onChangeText={setEmail}
           testID="email-input"
         />
-        <TextInput
-          style={s.input}
-          placeholder="Phone number (e.g. +1 555 000 1234)"
-          placeholderTextColor={C.slate500}
-          keyboardType="phone-pad"
+        <PhoneInput
           value={phone}
-          onChangeText={setPhone}
+          onChange={setPhone}
+          autoFocus
           testID="phone-input"
+          editable={!loading}
         />
         <TextInput
           style={s.input}
