@@ -68,8 +68,13 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}?code=oauth-code-123`,
     });
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
-      data: { session: { access_token: 'token' } },
+      data: { session: { access_token: 'token' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -144,8 +149,13 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}#access_token=my-access&refresh_token=my-refresh`,
     });
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'my-access' } },
+      data: { session: { access_token: 'my-access' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
