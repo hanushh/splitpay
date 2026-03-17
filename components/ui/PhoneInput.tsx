@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   Modal,
-  PressableStateCallbackType,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -138,7 +137,7 @@ export default function PhoneInput({
   return (
     <View style={s.row}>
       <Pressable
-        style={({ pressed }: PressableStateCallbackType) => [s.pill, pressed && editable && s.pillPressed]}
+        style={({ pressed }: { pressed: boolean }) => [s.pill, pressed && editable && s.pillPressed]}
         onPress={() => { if (editable) setPickerVisible(true); }}
         testID="phone-pill"
       >
@@ -171,7 +170,7 @@ export default function PhoneInput({
         <Pressable style={s.overlay} onPress={() => setPickerVisible(false)} testID="picker-overlay">
           <Pressable style={s.sheet} onPress={() => {}}>
             <Pressable
-              style={({ pressed }: PressableStateCallbackType) => [s.countryRow, pressed && s.rowPressed]}
+              style={({ pressed }: { pressed: boolean }) => [s.countryRow, pressed && s.rowPressed]}
               onPress={() => handleSelectCountry(PINNED)}
               testID={`country-${PINNED.name.replace(/\s/g, '')}`}
             >
@@ -184,7 +183,7 @@ export default function PhoneInput({
               {COUNTRIES.map(item => (
                 <Pressable
                   key={item.code}
-                  style={({ pressed }: PressableStateCallbackType) => [s.countryRow, pressed && s.rowPressed]}
+                  style={({ pressed }: { pressed: boolean }) => [s.countryRow, pressed && s.rowPressed]}
                   onPress={() => handleSelectCountry(item)}
                   testID={`country-${item.name.replace(/\s/g, '')}`}
                 >
