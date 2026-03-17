@@ -96,6 +96,7 @@ export default function AddExpenseScreen() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const editPaidByRef = useRef<string | null>(null);
+  const skipNextCategoryDetectRef = useRef(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -188,7 +189,7 @@ export default function AddExpenseScreen() {
       setSelectedMembers(new Set(list.map((m) => m.id)));
     }
     setMembersLoading(false);
-  }, [user]);
+  }, [user, isEditing]);
 
   useEffect(() => {
     if (groupId) loadMembers(groupId);
@@ -231,6 +232,8 @@ export default function AddExpenseScreen() {
       setReceiptUri(expenseRow.receipt_url ?? null);
       setSelectedMembers(new Set((splitRows ?? []).map((r: { member_id: string }) => r.member_id)));
 
+      // Prevent debounce from overwriting the DB-loaded category
+      skipNextCategoryDetectRef.current = true;
       // Category: known keys stay as-is; unknown keys go to 'other' + customCategory
       const knownCategories = ['restaurant', 'train', 'hotel', 'movie', 'store', 'other'];
       if (knownCategories.includes(expenseRow.category)) {
@@ -242,6 +245,8 @@ export default function AddExpenseScreen() {
 
       // Store paid_by_member_id for use after loadMembers finishes (race-condition safe)
       editPaidByRef.current = expenseRow.paid_by_member_id;
+      // Also set directly — covers the case where loadMembers already ran
+      setPaidBy(expenseRow.paid_by_member_id);
 
       setEditLoading(false);
     })();
@@ -254,6 +259,10 @@ export default function AddExpenseScreen() {
       return;
     }
     const timer = setTimeout(() => {
+      if (skipNextCategoryDetectRef.current) {
+        skipNextCategoryDetectRef.current = false;
+        return;
+      }
       setDetectedCategory(detect(description));
     }, 300);
     return () => clearTimeout(timer);
@@ -540,7 +549,7 @@ export default function AddExpenseScreen() {
 
         {/* Error */}
         {editLoading && (
-          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={C.primary} style={s.loadingIndicator} />
         )}
         {editError && (
           <View style={s.errorRow}>
@@ -896,6 +905,7 @@ const s = StyleSheet.create({
   currencyBadgeFlag: { fontSize: 16 },
   currencyBadgeCode: { color: C.primary, fontWeight: '700', fontSize: 13 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 10 },
+  loadingIndicator: { marginTop: 32 },
   errorText: { color: C.orange, fontSize: 13 },
   // Sections
   section: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
