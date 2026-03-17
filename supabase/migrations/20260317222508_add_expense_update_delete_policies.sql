@@ -2,46 +2,50 @@
 
 -- Allow any group member to UPDATE an expense in their group
 CREATE POLICY "Group members can update expenses"
-  ON expenses FOR UPDATE
+  ON public.expenses FOR UPDATE
+  TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM group_members
-      WHERE group_members.group_id = expenses.group_id
-        AND group_members.user_id = auth.uid()
+      SELECT 1 FROM public.group_members
+      WHERE public.group_members.group_id = public.expenses.group_id
+        AND public.group_members.user_id = auth.uid()
     )
   );
 
 -- Allow any group member to DELETE an expense in their group
 CREATE POLICY "Group members can delete expenses"
-  ON expenses FOR DELETE
+  ON public.expenses FOR DELETE
+  TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM group_members
-      WHERE group_members.group_id = expenses.group_id
-        AND group_members.user_id = auth.uid()
+      SELECT 1 FROM public.group_members
+      WHERE public.group_members.group_id = public.expenses.group_id
+        AND public.group_members.user_id = auth.uid()
     )
   );
 
 -- Allow any group member to UPDATE expense_splits (future-proofing)
 CREATE POLICY "Group members can update expense_splits"
-  ON expense_splits FOR UPDATE
+  ON public.expense_splits FOR UPDATE
+  TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM expenses e
-      JOIN group_members gm ON gm.group_id = e.group_id
-      WHERE e.id = expense_splits.expense_id
+      SELECT 1 FROM public.expenses e
+      JOIN public.group_members gm ON gm.group_id = e.group_id
+      WHERE e.id = public.expense_splits.expense_id
         AND gm.user_id = auth.uid()
     )
   );
 
 -- Allow any group member to DELETE expense_splits (needed for edit: replace splits)
 CREATE POLICY "Group members can delete expense_splits"
-  ON expense_splits FOR DELETE
+  ON public.expense_splits FOR DELETE
+  TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM expenses e
-      JOIN group_members gm ON gm.group_id = e.group_id
-      WHERE e.id = expense_splits.expense_id
+      SELECT 1 FROM public.expenses e
+      JOIN public.group_members gm ON gm.group_id = e.group_id
+      WHERE e.id = public.expense_splits.expense_id
         AND gm.user_id = auth.uid()
     )
   );
