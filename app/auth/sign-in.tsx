@@ -46,11 +46,7 @@ export default function SignInScreen() {
     setLoading(true);
     const { error } = await signIn(emailOrPhone, password);
     setLoading(false);
-    if (error) {
-      setError(error);
-    } else {
-      router.replace('/(tabs)');
-    }
+    if (error) setError(error);
   };
 
   const handleGoogleSignIn = async () => {

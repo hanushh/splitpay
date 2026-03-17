@@ -36,7 +36,7 @@ function InviteRedeemRedirect() {
 }
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session, loading, phoneComplete, contactsPermissionGranted } = useAuth();
   const colorScheme = useColorScheme();
 
   if (loading) {
@@ -50,6 +50,8 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      {session && !phoneComplete && <Redirect href="/auth/setup-phone" />}
+      {session && phoneComplete && !contactsPermissionGranted && <Redirect href="/auth/setup-contacts" />}
       {session && <InviteRedeemRedirect />}
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

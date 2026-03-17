@@ -4,7 +4,6 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -118,7 +117,7 @@ export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const { format } = useCurrency();
   const { user } = useAuth();
-  const { matched, unmatched, loading, error, permissionDenied, refetch } = useFriends();
+  const { matched, unmatched, loading, error, refetch } = useFriends();
   const [selectedFriend, setSelectedFriend] = useState<MatchedFriend | null>(null);
   const [unmatchedShowAll, setUnmatchedShowAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,21 +146,6 @@ export default function FriendsScreen() {
   const filteredMatched = q ? matched.filter((f) => f.name.toLowerCase().includes(q)) : matched;
   const filteredUnmatched = q ? unmatched.filter((f) => f.name.toLowerCase().includes(q)) : unmatched;
   const visibleUnmatched = unmatchedShowAll ? filteredUnmatched : filteredUnmatched.slice(0, UNMATCHED_PAGE_SIZE);
-
-  if (permissionDenied) {
-    return (
-      <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
-        <MaterialIcons name="lock" size={48} color={C.slate400} />
-        <Text style={s.permTitle}>Contacts Access Required</Text>
-        <Text style={s.permBody}>
-          PaySplit needs access to your contacts to show which friends are already on the app.
-        </Text>
-        <Pressable style={s.allowBtn} onPress={() => Linking.openSettings()}>
-          <Text style={s.allowBtnText}>Allow Access</Text>
-        </Pressable>
-      </View>
-    );
-  }
 
   if (loading) {
     return (
@@ -307,10 +291,6 @@ const s = StyleSheet.create({
   emptyText: { color: C.slate400, fontSize: 14, paddingHorizontal: 16, paddingTop: 8 },
   showMoreBtn: { paddingHorizontal: 16, paddingTop: 12 },
   showMoreText: { color: C.primary, fontWeight: '600', fontSize: 14 },
-  permTitle: { color: C.white, fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  permBody: { color: C.slate400, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  allowBtn: { backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
-  allowBtnText: { color: C.bg, fontWeight: '700', fontSize: 15 },
   errorText: { color: C.white, fontSize: 15, textAlign: 'center' },
   retryBtn: { backgroundColor: C.surfaceHL, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   retryBtnText: { color: C.primary, fontWeight: '600', fontSize: 14 },
