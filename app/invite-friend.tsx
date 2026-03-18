@@ -96,11 +96,17 @@ export default function InviteFriendScreen() {
       const token = generateToken();
       const inviteeEmail = contact.emails[0] ?? null;
 
-      await supabase.from('group_members').insert({
+      const { error: memberErr } = await supabase.from('group_members').insert({
         group_id: groupId,
         user_id: null,
         display_name: contact.name,
       });
+
+      if (memberErr) {
+        setError(memberErr.message ?? 'Failed to add contact to group.');
+        setSending(false);
+        return;
+      }
 
       const { error: inviteErr } = await supabase.from('invitations').insert({
         inviter_id: user.id,
