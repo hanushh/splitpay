@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import GroupDetailScreen from '@/app/group/[id]';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams } from 'expo-router';
@@ -88,7 +88,7 @@ test('confirming delete calls supabase delete and then re-fetches group', async 
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
   const deleteButton = buttons.find((b) => b.text === 'Delete');
-  await deleteButton!.onPress!();
+  await act(async () => { await deleteButton!.onPress!(); });
 
   await waitFor(() => {
     expect(deleteMock).toHaveBeenCalledTimes(1);
@@ -108,7 +108,7 @@ test('delete error shows Alert and does not close the sheet', async () => {
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
   const deleteButton = buttons.find((b) => b.text === 'Delete');
-  await deleteButton!.onPress!();
+  await act(async () => { await deleteButton!.onPress!(); });
 
   await waitFor(() => {
     // A second Alert should have been shown with the error message
