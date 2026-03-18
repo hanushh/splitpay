@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -35,13 +36,39 @@ function generateToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
 export default function InviteFriendScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName: string }>();
+  const {
+    groupId: paramGroupId,
+    groupName: paramGroupName,
+    userId: paramUserId,
+    name: paramName,
+  } = useLocalSearchParams<{ groupId?: string; groupName?: string; userId?: string; name?: string }>();
+
+  // Active group (from params or user-selected)
+  const [activeGroupId, setActiveGroupId] = useState<string>(paramGroupId ?? '');
+  const [activeGroupName, setActiveGroupName] = useState<string>(paramGroupName ?? '');
+
+  // Group picker (shown when no groupId is provided via params)
+  const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
 
   const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
-  const [memberSelection, setMemberSelection] = useState<MemberSelection>({ appUsers: [], contacts: [] });
+
+  // When coming from Friends tab with a pre-selected user, seed memberSelection
+  const [memberSelection, setMemberSelection] = useState<MemberSelection>(() => {
+    if (paramUserId && paramName) {
+      return { appUsers: [{ userId: paramUserId, name: paramName, avatarUrl: null }], contacts: [] };
+    }
+    return { appUsers: [], contacts: [] };
+  });
+
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,24 +77,51 @@ export default function InviteFriendScreen() {
   const [addedUsersCount, setAddedUsersCount] = useState(0);
   const [pendingInvites, setPendingInvites] = useState<{ contactName: string; shareUrl: string }[]>([]);
 
-  const loadExistingMembers = useCallback(async () => {
-    if (!groupId) return;
+  // Fetch user's groups when no groupId param (for the picker)
+  useEffect(() => {
+    if (paramGroupId || !user) return;
+    supabase
+      .from('group_members')
+      .select('groups!inner(id, name)')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        const seen = new Set<string>();
+        const list = (data ?? [])
+          .map((row: any) => row.groups as GroupOption)
+          .filter(Boolean)
+          .filter((g: GroupOption) => {
+            if (seen.has(g.id)) return false;
+            seen.add(g.id);
+            return true;
+          });
+        setUserGroups(list);
+      });
+  }, [paramGroupId, user]);
+
+  const loadExistingMembers = useCallback(async (gid: string) => {
+    if (!gid) return;
     const { data } = await supabase
       .from('group_members')
       .select('user_id')
-      .eq('group_id', groupId)
+      .eq('group_id', gid)
       .not('user_id', 'is', null);
     setExistingMemberIds(
       ((data ?? []) as { user_id: string }[]).map((r) => r.user_id).filter(Boolean)
     );
-  }, [groupId]);
+  }, []);
 
-  useEffect(() => { loadExistingMembers(); }, [loadExistingMembers]);
+  useEffect(() => { loadExistingMembers(activeGroupId); }, [activeGroupId, loadExistingMembers]);
 
-  const canSend = memberSelection.appUsers.length > 0 || memberSelection.contacts.length > 0;
+  const handleSelectGroup = useCallback((group: GroupOption) => {
+    setActiveGroupId(group.id);
+    setActiveGroupName(group.name);
+    setGroupPickerOpen(false);
+  }, []);
+
+  const canSend = (memberSelection.appUsers.length > 0 || memberSelection.contacts.length > 0) && !!activeGroupId;
 
   const handleSend = async () => {
-    if (!canSend || !user || !groupId) return;
+    if (!canSend || !user || !activeGroupId) return;
     setError(null);
     setSending(true);
 
@@ -76,7 +130,7 @@ export default function InviteFriendScreen() {
     // Add app users directly
     if (memberSelection.appUsers.length > 0) {
       const { data: addData, error: addErr } = await supabase.rpc('add_group_members_by_ids', {
-        p_group_id: groupId,
+        p_group_id: activeGroupId,
         p_user_ids: memberSelection.appUsers.map((u) => u.userId),
       });
       if (addErr) {
@@ -97,7 +151,7 @@ export default function InviteFriendScreen() {
       const inviteeEmail = contact.emails[0] ?? null;
 
       const { error: memberErr } = await supabase.from('group_members').insert({
-        group_id: groupId,
+        group_id: activeGroupId,
         user_id: null,
         display_name: contact.name,
       });
@@ -111,7 +165,7 @@ export default function InviteFriendScreen() {
       const { error: inviteErr } = await supabase.from('invitations').insert({
         inviter_id: user.id,
         invitee_email: inviteeEmail,
-        group_id: groupId,
+        group_id: activeGroupId,
         token,
         status: 'pending',
       });
@@ -136,12 +190,12 @@ export default function InviteFriendScreen() {
     try {
       if (pendingInvites.length === 1) {
         await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${groupName ?? 'our group'} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
+          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
         });
       } else {
         const links = pendingInvites.map((p) => `${p.contactName}: ${p.shareUrl}`).join('\n');
         await Share.share({
-          message: `Join ${groupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n${links}`,
+          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n${links}`,
         });
       }
     } catch {}
@@ -152,14 +206,14 @@ export default function InviteFriendScreen() {
       return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} & created ${pendingInvites.length} invite${pendingInvites.length === 1 ? '' : 's'}`;
     }
     if (addedUsersCount > 0) {
-      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} to "${groupName}"`;
+      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} to "${activeGroupName}"`;
     }
     return `Invite link${pendingInvites.length === 1 ? '' : 's'} created for ${pendingInvites.map((p) => p.contactName).join(', ')}`;
   })();
 
   const sentSub = pendingInvites.length > 0
-    ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${groupName}".`
-    : `They've been added to "${groupName}".`;
+    ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${activeGroupName}".`
+    : `They've been added to "${activeGroupName}".`;
 
   if (sent) {
     return (
@@ -217,10 +271,31 @@ export default function InviteFriendScreen() {
         </Pressable>
       </View>
 
-      {groupName ? (
-        <View style={s.groupBadge}>
-          <MaterialIcons name="group" size={14} color={C.primary} />
-          <Text style={s.groupBadgeText}>{groupName}</Text>
+      {/* Group picker row — shown always, tappable when no param groupId */}
+      <Pressable
+        style={s.groupBadge}
+        onPress={!paramGroupId ? () => setGroupPickerOpen(true) : undefined}
+        disabled={!!paramGroupId}
+      >
+        <MaterialIcons name="group" size={14} color={C.primary} />
+        {activeGroupName ? (
+          <Text style={s.groupBadgeText}>{activeGroupName}</Text>
+        ) : (
+          <Text style={s.groupBadgePlaceholder}>Select a group…</Text>
+        )}
+        {!paramGroupId && (
+          <MaterialIcons name="arrow-drop-down" size={18} color={C.slate400} style={s.groupDropdownIcon} />
+        )}
+      </Pressable>
+
+      {/* Pre-selected friend chip (when navigating from Friends tab) */}
+      {paramUserId && paramName ? (
+        <View style={s.preselectedRow}>
+          <MaterialIcons name="person" size={16} color={C.primary} />
+          <Text style={s.preselectedName}>{paramName}</Text>
+          <View style={s.preselectedChip}>
+            <Text style={s.preselectedChipText}>Selected</Text>
+          </View>
         </View>
       ) : null}
 
@@ -229,10 +304,20 @@ export default function InviteFriendScreen() {
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <MemberSearchPicker
-          excludeUserIds={existingMemberIds}
-          onSelectionChange={setMemberSelection}
-        />
+        {/* Only show member search picker when no pre-selected friend */}
+        {!paramUserId && (
+          <MemberSearchPicker
+            excludeUserIds={existingMemberIds}
+            onSelectionChange={setMemberSelection}
+          />
+        )}
+
+        {!activeGroupId && (
+          <View style={s.errorRow}>
+            <MaterialIcons name="error-outline" size={16} color={C.orange} />
+            <Text style={s.errorText}>Please select a group first.</Text>
+          </View>
+        )}
 
         {error && (
           <View style={s.errorRow}>
@@ -256,14 +341,58 @@ export default function InviteFriendScreen() {
             <>
               <MaterialIcons name="person-add" size={20} color={canSend ? C.bg : C.slate500} />
               <Text style={[s.sendBtnText, !canSend && { color: C.slate500 }]}>
-                {canSend
-                  ? `Add ${memberSelection.appUsers.length + memberSelection.contacts.length} member${memberSelection.appUsers.length + memberSelection.contacts.length === 1 ? '' : 's'}`
-                  : 'Select members above'}
+                {!activeGroupId
+                  ? 'Select a group above'
+                  : canSend
+                    ? `Add ${memberSelection.appUsers.length + memberSelection.contacts.length} member${memberSelection.appUsers.length + memberSelection.contacts.length === 1 ? '' : 's'}`
+                    : 'Select members above'}
               </Text>
             </>
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Group picker modal */}
+      <Modal
+        visible={groupPickerOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setGroupPickerOpen(false)}
+      >
+        <Pressable style={s.modalOverlay} onPress={() => setGroupPickerOpen(false)} />
+        <View style={[s.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={s.modalHandle} />
+          <Text style={s.modalTitle}>Select Group</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {userGroups.map((g) => (
+              <Pressable
+                key={g.id}
+                style={({ pressed }: { pressed: boolean }) => [
+                  s.groupRow,
+                  g.id === activeGroupId && s.groupRowSelected,
+                  pressed && { opacity: 0.75 },
+                ]}
+                onPress={() => handleSelectGroup(g)}
+              >
+                <MaterialIcons
+                  name="group"
+                  size={20}
+                  color={g.id === activeGroupId ? C.primary : C.slate400}
+                />
+                <Text style={[s.groupRowText, g.id === activeGroupId && { color: C.primary }]}>
+                  {g.name}
+                </Text>
+                {g.id === activeGroupId && (
+                  <MaterialIcons name="check" size={18} color={C.primary} />
+                )}
+              </Pressable>
+            ))}
+            {userGroups.length === 0 && (
+              <Text style={s.noGroupsText}>{"You haven't joined any groups yet."}</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -292,7 +421,27 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.surfaceHL,
   },
-  groupBadgeText: { color: C.primary, fontSize: 13, fontWeight: '600' },
+  groupBadgeText: { color: C.primary, fontSize: 13, fontWeight: '600', flex: 1 },
+  groupBadgePlaceholder: { color: C.slate400, fontSize: 13, flex: 1 },
+  groupDropdownIcon: { marginLeft: 'auto' },
+  preselectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+    backgroundColor: C.surface,
+  },
+  preselectedName: { color: C.white, fontWeight: '600', fontSize: 14, flex: 1 },
+  preselectedChip: {
+    backgroundColor: C.surfaceHL,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  preselectedChipText: { color: C.primary, fontSize: 11, fontWeight: '700' },
   scroll: { paddingHorizontal: 20, paddingTop: 16 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
   errorText: { color: C.orange, fontSize: 13 },
@@ -323,4 +472,33 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   shareBtnText: { color: C.bg, fontWeight: '700', fontSize: 15 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    maxHeight: '60%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { color: C.white, fontWeight: '700', fontSize: 16, marginBottom: 12 },
+  groupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
+  groupRowSelected: { backgroundColor: 'transparent' },
+  groupRowText: { flex: 1, color: C.white, fontSize: 15, fontWeight: '500' },
+  noGroupsText: { color: C.slate400, fontSize: 14, paddingVertical: 20, textAlign: 'center' },
 });
