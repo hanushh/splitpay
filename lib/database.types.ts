@@ -456,6 +456,7 @@ export type Database = {
         Returns: {
           avatar_url: string
           id: string
+          matched_identifier: string | null
           name: string
         }[]
       }

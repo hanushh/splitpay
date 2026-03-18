@@ -117,7 +117,7 @@ export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const { format } = useCurrency();
   const { user } = useAuth();
-  const { matched, unmatched, loading, error, refetch } = useFriends();
+  const { matched, unmatched, loading, error, permissionDenied, refetch } = useFriends();
   const [selectedFriend, setSelectedFriend] = useState<MatchedFriend | null>(null);
   const [unmatchedShowAll, setUnmatchedShowAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,6 +162,18 @@ export default function FriendsScreen() {
         <Text style={s.errorText}>{error}</Text>
         <Pressable style={s.retryBtn} onPress={refetch}>
           <Text style={s.retryBtnText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (permissionDenied) {
+    return (
+      <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
+        <MaterialIcons name="contacts" size={40} color={C.slate400} />
+        <Text style={s.errorText}>Contacts access is required to find friends.</Text>
+        <Pressable style={s.retryBtn} onPress={refetch}>
+          <Text style={s.retryBtnText}>Grant Access</Text>
         </Pressable>
       </View>
     );

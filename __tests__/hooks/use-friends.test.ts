@@ -17,9 +17,9 @@ jest.mock('@/context/auth', () => {
 });
 
 const mockContacts = [
-  { name: 'Alice Smith', emails: [{ email: 'alice@example.com' }], phoneNumbers: [] },
-  { name: 'Bob Jones', emails: [], phoneNumbers: [{ number: '4155559876' }] },
-  { name: 'Charlie Brown', emails: [{ email: 'charlie@example.com' }], phoneNumbers: [] },
+  { id: 'c-alice', name: 'Alice Smith', emails: [{ email: 'alice@example.com' }], phoneNumbers: [] },
+  { id: 'c-bob', name: 'Bob Jones', emails: [], phoneNumbers: [{ number: '4155559876' }] },
+  { id: 'c-charlie', name: 'Charlie Brown', emails: [{ email: 'charlie@example.com' }], phoneNumbers: [] },
 ];
 
 beforeEach(() => {
@@ -27,7 +27,7 @@ beforeEach(() => {
   (Contacts.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: Contacts.PermissionStatus.GRANTED });
   (Contacts.getContactsAsync as jest.Mock).mockResolvedValue({ data: mockContacts });
   (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
-    if (fn === 'match_contacts') return Promise.resolve({ data: [{ id: 'user-alice', name: 'Alice Smith', avatar_url: null }], error: null });
+    if (fn === 'match_contacts') return Promise.resolve({ data: [{ id: 'user-alice', name: 'Alice Smith', avatar_url: null, matched_identifier: 'hash:alice@example.com' }], error: null });
     if (fn === 'get_friend_balances') return Promise.resolve({ data: [{ user_id: 'user-alice', display_name: 'Alice Smith', avatar_url: null, balance_cents: 1500 }], error: null });
     if (fn === 'get_group_friends') return Promise.resolve({ data: [], error: null });
     return Promise.resolve({ data: [], error: null });
@@ -60,7 +60,7 @@ describe('useFriends', () => {
 
   it('sets balanceStatus to no_groups when matched contact has no balance row', async () => {
     (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
-      if (fn === 'match_contacts') return Promise.resolve({ data: [{ id: 'user-alice', name: 'Alice Smith', avatar_url: null }], error: null });
+      if (fn === 'match_contacts') return Promise.resolve({ data: [{ id: 'user-alice', name: 'Alice Smith', avatar_url: null, matched_identifier: 'hash:alice@example.com' }], error: null });
       if (fn === 'get_friend_balances') return Promise.resolve({ data: [], error: null });
       if (fn === 'get_group_friends') return Promise.resolve({ data: [], error: null });
       return Promise.resolve({ data: [], error: null });
@@ -114,5 +114,103 @@ describe('useFriends', () => {
     await act(async () => { await result.current.refetch(); });
     expect(supabase.rpc).not.toHaveBeenCalledWith('match_contacts', expect.anything());
     expect(result.current.unmatched).toHaveLength(1);
+  });
+
+  it('two contacts with the same name: only the matched one is excluded from unmatched', async () => {
+    (Contacts.getContactsAsync as jest.Mock).mockResolvedValue({
+      data: [
+        { id: 'c1', name: 'John Doe', emails: [{ email: 'john1@example.com' }], phoneNumbers: [] },
+        { id: 'c2', name: 'John Doe', emails: [{ email: 'john2@example.com' }], phoneNumbers: [] },
+      ],
+    });
+    (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
+      if (fn === 'match_contacts')
+        return Promise.resolve({
+          data: [{ id: 'user-john1', name: 'John Doe', avatar_url: null, matched_identifier: 'hash:john1@example.com' }],
+          error: null,
+        });
+      if (fn === 'get_friend_balances') return Promise.resolve({ data: [], error: null });
+      if (fn === 'get_group_friends') return Promise.resolve({ data: [], error: null });
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    const { result } = renderHook(() => useFriends());
+    await act(async () => { await result.current.refetch(); });
+
+    expect(result.current.matched).toHaveLength(1);
+    expect(result.current.unmatched).toHaveLength(1);
+    expect(result.current.unmatched[0].contactKey).toBe('c2');
+  });
+
+  it('matched profile name differs from device contact name: contact still excluded from unmatched', async () => {
+    (Contacts.getContactsAsync as jest.Mock).mockResolvedValue({
+      data: [
+        { id: 'c1', name: 'Alice S.', emails: [{ email: 'alice@example.com' }], phoneNumbers: [] },
+      ],
+    });
+    (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
+      if (fn === 'match_contacts')
+        return Promise.resolve({
+          data: [{ id: 'user-alice', name: 'Alice Smith', avatar_url: null, matched_identifier: 'hash:alice@example.com' }],
+          error: null,
+        });
+      if (fn === 'get_friend_balances') return Promise.resolve({ data: [], error: null });
+      if (fn === 'get_group_friends') return Promise.resolve({ data: [], error: null });
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    const { result } = renderHook(() => useFriends());
+    await act(async () => { await result.current.refetch(); });
+
+    expect(result.current.matched).toHaveLength(1);
+    expect(result.current.unmatched).toHaveLength(0);
+  });
+
+  it('contact with multiple emails where only one matches is correctly identified as matched', async () => {
+    (Contacts.getContactsAsync as jest.Mock).mockResolvedValue({
+      data: [
+        { id: 'c1', name: 'Bob', emails: [{ email: 'bob@work.com' }, { email: 'bob@home.com' }], phoneNumbers: [] },
+      ],
+    });
+    (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
+      if (fn === 'match_contacts')
+        return Promise.resolve({
+          data: [{ id: 'user-bob', name: 'Bob', avatar_url: null, matched_identifier: 'hash:bob@home.com' }],
+          error: null,
+        });
+      if (fn === 'get_friend_balances') return Promise.resolve({ data: [], error: null });
+      if (fn === 'get_group_friends') return Promise.resolve({ data: [], error: null });
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    const { result } = renderHook(() => useFriends());
+    await act(async () => { await result.current.refetch(); });
+
+    expect(result.current.matched).toHaveLength(1);
+    expect(result.current.unmatched).toHaveLength(0);
+  });
+
+  it('permission revoked after prior load clears matched and unmatched', async () => {
+    const { result } = renderHook(() => useFriends());
+    await act(async () => { await result.current.refetch(); });
+    expect(result.current.matched).toHaveLength(1);
+
+    (Contacts.requestPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: Contacts.PermissionStatus.DENIED,
+    });
+    await act(async () => { await result.current.refetch(); });
+
+    expect(result.current.permissionDenied).toBe(true);
+    expect(result.current.matched).toHaveLength(0);
+    expect(result.current.unmatched).toHaveLength(0);
+  });
+
+  it('unmatched contacts include contactKey derived from device contact id', async () => {
+    const { result } = renderHook(() => useFriends());
+    await act(async () => { await result.current.refetch(); });
+
+    const bob = result.current.unmatched.find((c) => c.name === 'Bob Jones');
+    expect(bob?.contactKey).toBeDefined();
+    expect(typeof bob?.contactKey).toBe('string');
   });
 });

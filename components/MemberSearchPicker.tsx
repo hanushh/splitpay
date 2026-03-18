@@ -103,8 +103,8 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
     () => new Set(selectedAppUsers.map((u) => u.userId)),
     [selectedAppUsers]
   );
-  const selectedContactNames = useMemo(
-    () => new Set(selectedContacts.map((c) => c.name.toLowerCase().trim())),
+  const selectedContactKeys = useMemo(
+    () => new Set(selectedContacts.map((c) => c.contactKey)),
     [selectedContacts]
   );
 
@@ -122,13 +122,13 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
     () =>
       unmatched.filter(
         (c) =>
-          !selectedContactNames.has(c.name.toLowerCase().trim()) &&
+          !selectedContactKeys.has(c.contactKey) &&
           (!q ||
             c.name.toLowerCase().includes(q) ||
             c.phoneNumbers.some((p) => p.includes(q)) ||
             c.emails.some((e) => e.toLowerCase().includes(q)))
       ),
-    [unmatched, selectedContactNames, q]
+    [unmatched, selectedContactKeys, q]
   );
 
   const addAppUser = useCallback(
@@ -159,8 +159,8 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
   );
 
   const removeContact = useCallback(
-    (name: string) => {
-      const next = selectedContacts.filter((c) => c.name !== name);
+    (contactKey: string) => {
+      const next = selectedContacts.filter((c) => c.contactKey !== contactKey);
       setSelectedContacts(next);
       onSelectionChange({ appUsers: selectedAppUsers, contacts: next });
     },
@@ -183,7 +183,7 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
             </Pressable>
           ))}
           {selectedContacts.map((c) => (
-            <Pressable key={c.name} style={s.chipContact} onPress={() => removeContact(c.name)}>
+            <Pressable key={c.contactKey} style={s.chipContact} onPress={() => removeContact(c.contactKey)}>
               <Text style={s.chipContactText}>{c.name}</Text>
               <Text style={s.chipRemove}>✕</Text>
             </Pressable>
@@ -238,7 +238,7 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
             <>
               <Text style={[s.sectionLabel, filteredAppUsers.length > 0 && s.sectionLabelSpaced]}>Invite</Text>
               {filteredContacts.map((c) => (
-                <Pressable key={c.name} style={s.row} onPress={() => addContact(c)}>
+                <Pressable key={c.contactKey} style={s.row} onPress={() => addContact(c)}>
                   <Initials name={c.name} />
                   <View style={s.rowInfo}>
                     <Text style={s.rowName}>{c.name}</Text>
