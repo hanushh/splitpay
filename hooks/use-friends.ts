@@ -39,7 +39,7 @@ async function hashValue(value: string): Promise<string> {
   );
 }
 
-function deriveContactKey(contact: Contacts.Contact): string {
+function deriveContactKey(contact: Contacts.ExistingContact): string {
   if (contact.id) return contact.id;
   const identifiers: string[] = [];
   for (const e of contact.emails ?? []) {
