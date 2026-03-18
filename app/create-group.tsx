@@ -123,7 +123,11 @@ export default function CreateGroupScreen() {
           avatar_url: u.avatarUrl,
         }));
         const { error: friendErr } = await supabase.from('group_members').insert(rows);
-        if (friendErr) console.warn('Failed to add app users:', friendErr.message);
+        if (friendErr) {
+          setError(friendErr.message ?? 'Group created but failed to add some members.');
+          setSaving(false);
+          return;
+        }
       }
 
       // Add contacts as pending members + create invitation tokens
