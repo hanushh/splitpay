@@ -263,8 +263,8 @@ export default function AddExpenseScreen() {
       return;
     }
     const timer = setTimeout(() => {
-      if (skipNextCategoryDetectRef.current) {
-        skipNextCategoryDetectRef.current = false;
+      if (preserveCategoryRef.current) {
+        preserveCategoryRef.current = false;
         return;
       }
       setDetectedCategory(detect(description));
