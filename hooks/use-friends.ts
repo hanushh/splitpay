@@ -139,9 +139,7 @@ export function useFriends(): UseFriendsResult {
 
       // Build set of contactKeys that are matched via identifier, not name
       const matchedContactKeys = new Set<string>();
-      for (const profile of (matchedProfiles as {
-        id: string; name: string; avatar_url: string | null; matched_identifier: string | null
-      }[] ?? [])) {
+      for (const profile of (matchedProfiles ?? [])) {
         const mid = profile.matched_identifier;
         if (!mid) continue;
         const emailForHash = emailHashToEmail.get(mid);
@@ -169,7 +167,7 @@ export function useFriends(): UseFriendsResult {
 
       // Start with contact-matched profiles, then merge in group co-members not already present
       const profileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>();
-      for (const p of (matchedProfiles as { id: string; name: string; avatar_url: string | null }[] ?? [])) {
+      for (const p of (matchedProfiles ?? [])) {
         profileMap.set(p.id, p);
       }
       for (const gf of (groupFriendRows as { user_id: string; name: string; avatar_url: string | null }[] ?? [])) {
