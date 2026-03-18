@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, waitFor, fireEvent, act } from '@testing-library/react-native';
 import AddExpenseScreen from '@/app/add-expense';
 import { supabase } from '@/lib/supabase';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -150,7 +150,9 @@ test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async
   await waitFor(() => {
     expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
   });
-  fireEvent.press(getByTestId('save-expense-button'));
+  await act(async () => {
+    fireEvent.press(getByTestId('save-expense-button'));
+  });
   await waitFor(() => {
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(splitsDeleteMock).toHaveBeenCalledTimes(1);
