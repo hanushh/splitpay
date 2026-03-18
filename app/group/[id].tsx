@@ -51,6 +51,13 @@ interface GroupDetail {
   created_by: string | null;
 }
 
+interface GroupMember {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  user_id: string | null;
+}
+
 const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
   restaurant: { icon: 'restaurant', bg: 'rgba(249,115,22,0.15)', color: '#f97316' },
   hotel: { icon: 'hotel', bg: 'rgba(99,102,241,0.15)', color: '#818cf8' },
@@ -90,13 +97,15 @@ export default function GroupDetailScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState(false);
+  const [members, setMembers] = useState<GroupMember[]>([]);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
-    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }] = await Promise.all([
+    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }, { data: memberRows }] = await Promise.all([
       supabase.from('groups').select('id, name, description, image_url, created_by').eq('id', id).single(),
       supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
+      supabase.from('group_members').select('id, display_name, avatar_url, user_id').eq('group_id', id),
     ]);
 
     if (groupErr || !data) {
@@ -117,6 +126,7 @@ export default function GroupDetailScreen() {
       return true;
     });
     setExpenses(deduped);
+    setMembers((memberRows as GroupMember[]) ?? []);
     setLoading(false);
   }, [id, user]);
 
@@ -310,6 +320,35 @@ export default function GroupDetailScreen() {
             <MaterialIcons name="person-add" size={20} color={C.white} />
             <Text style={s.actionSecondaryText}>Add member</Text>
           </Pressable>
+        </View>
+
+        {/* Members section */}
+        <View style={s.membersSection}>
+          <View style={s.membersSectionHeader}>
+            <Text style={s.membersSectionTitle}>Members</Text>
+            <Text style={s.membersSectionCount}>{members.length}</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.membersRow}>
+            {members.map((m) => {
+              const isMe = m.user_id === user?.id;
+              const name = m.display_name ?? 'Unknown';
+              const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+              return (
+                <View key={m.id} style={s.memberChip}>
+                  {m.avatar_url ? (
+                    <Image source={{ uri: m.avatar_url }} style={s.memberChipAvatar} />
+                  ) : (
+                    <View style={[s.memberChipAvatar, isMe ? s.memberChipAvatarMe : s.memberChipAvatarDefault]}>
+                      <Text style={[s.memberChipInitials, isMe && { color: C.bg }]}>{initials}</Text>
+                    </View>
+                  )}
+                  <Text style={[s.memberChipName, isMe && { color: C.primary }]} numberOfLines={1}>
+                    {isMe ? 'You' : name.split(' ')[0]}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Expenses section */}
@@ -737,4 +776,15 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255,82,82,0.3)',
   },
   sheetDeleteBtnText: { color: '#ff5252', fontSize: 15, fontWeight: '700' },
+  membersSection: { paddingHorizontal: 16, marginBottom: 24 },
+  membersSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  membersSectionTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
+  membersSectionCount: { color: C.slate400, fontSize: 14, fontWeight: '600' },
+  membersRow: { gap: 16, paddingRight: 4 },
+  memberChip: { alignItems: 'center', gap: 6, width: 56 },
+  memberChipAvatar: { width: 48, height: 48, borderRadius: 24 },
+  memberChipAvatarMe: { backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  memberChipAvatarDefault: { backgroundColor: C.surfaceHL, alignItems: 'center', justifyContent: 'center' },
+  memberChipInitials: { color: C.primary, fontWeight: '700', fontSize: 16 },
+  memberChipName: { color: C.slate400, fontSize: 11, fontWeight: '600', textAlign: 'center' },
 });
