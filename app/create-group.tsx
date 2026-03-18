@@ -110,20 +110,27 @@ export default function CreateGroupScreen() {
       }
 
       // Insert balance row for creator
-      await supabase
+      const { error: balanceErr } = await supabase
         .from('group_balances')
         .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
 
-      // Add app users directly as members
+      if (balanceErr) {
+        setError(balanceErr.message ?? 'Group created but failed to initialise your balance.');
+        setSaving(false);
+        return;
+      }
+
+      // Add app users via RPC — also creates their group_balances rows
       if (memberSelection.appUsers.length > 0) {
-        const rows = memberSelection.appUsers.map((u) => ({
-          group_id: groupId,
-          user_id: u.userId,
-          display_name: u.name,
-          avatar_url: u.avatarUrl,
-        }));
-        const { error: friendErr } = await supabase.from('group_members').insert(rows);
-        if (friendErr) console.warn('Failed to add app users:', friendErr.message);
+        const { error: friendErr } = await supabase.rpc('add_group_members_by_ids', {
+          p_group_id: groupId,
+          p_user_ids: memberSelection.appUsers.map((u) => u.userId),
+        });
+        if (friendErr) {
+          setError(friendErr.message ?? 'Group created but failed to add some members.');
+          setSaving(false);
+          return;
+        }
       }
 
       // Add contacts as pending members + create invitation tokens
