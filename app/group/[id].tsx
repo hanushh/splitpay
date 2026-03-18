@@ -126,7 +126,33 @@ export default function GroupDetailScreen() {
       return true;
     });
     setExpenses(deduped);
-    setMembers((memberRows as GroupMember[]) ?? []);
+
+    const rawMembers = (memberRows as GroupMember[]) ?? [];
+    const userIdsNeedingProfile = rawMembers
+      .filter((m) => m.user_id && !m.display_name)
+      .map((m) => m.user_id!);
+    let profileMap: Record<string, { name: string; avatar_url: string | null }> = {};
+    if (userIdsNeedingProfile.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', userIdsNeedingProfile);
+      profileMap = (profiles ?? []).reduce(
+        (acc, p) => ({ ...acc, [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url } }),
+        {} as Record<string, { name: string; avatar_url: string | null }>,
+      );
+    }
+    const resolvedMembers: GroupMember[] = rawMembers.map((m) => {
+      if (m.user_id && !m.display_name && profileMap[m.user_id]) {
+        return {
+          ...m,
+          display_name: profileMap[m.user_id].name,
+          avatar_url: m.avatar_url ?? profileMap[m.user_id].avatar_url,
+        };
+      }
+      return m;
+    });
+    setMembers(resolvedMembers);
     setLoading(false);
   }, [id, user]);
 
