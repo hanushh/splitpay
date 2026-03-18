@@ -16,6 +16,7 @@ export interface MatchedFriend {
 }
 
 export interface UnmatchedContact {
+  contactKey: string;
   name: string;
   phoneNumbers: string[];
   emails: string[];
@@ -38,6 +39,21 @@ async function hashValue(value: string): Promise<string> {
   );
 }
 
+function deriveContactKey(contact: Contacts.Contact): string {
+  if (contact.id) return contact.id;
+  const identifiers: string[] = [];
+  for (const e of contact.emails ?? []) {
+    const norm = e.email?.toLowerCase().trim();
+    if (norm) identifiers.push(`e:${norm}`);
+  }
+  for (const p of contact.phoneNumbers ?? []) {
+    const norm = normalizePhone(p.number ?? '');
+    if (norm) identifiers.push(`p:${norm}`);
+  }
+  identifiers.sort();
+  return identifiers.join('|') || `name:${contact.name ?? ''}`;
+}
+
 export function useFriends(): UseFriendsResult {
   const { user } = useAuth();
   const [matched, setMatched] = useState<MatchedFriend[]>([]);
@@ -55,6 +71,8 @@ export function useFriends(): UseFriendsResult {
     const { status } = await Contacts.requestPermissionsAsync();
     if (status !== Contacts.PermissionStatus.GRANTED) {
       setPermissionDenied(true);
+      setMatched([]);
+      setUnmatched([]);
       setLoading(false);
       return;
     }
@@ -64,24 +82,32 @@ export function useFriends(): UseFriendsResult {
         fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
       });
 
-      const emailSet = new Set<string>();
-      const phoneSet = new Set<string>(); // normalized plain phones
+      const emailToContactKeys = new Map<string, Set<string>>();
+      const phoneToContactKeys = new Map<string, Set<string>>();
 
       for (const contact of contacts) {
+        const ck = deriveContactKey(contact);
         for (const e of contact.emails ?? []) {
           const norm = e.email?.toLowerCase().trim();
-          if (norm) emailSet.add(norm);
+          if (norm) {
+            if (!emailToContactKeys.has(norm)) emailToContactKeys.set(norm, new Set());
+            emailToContactKeys.get(norm)!.add(ck);
+          }
         }
         for (const p of contact.phoneNumbers ?? []) {
           const norm = normalizePhone(p.number ?? '');
-          if (norm) phoneSet.add(norm);
+          if (norm) {
+            if (!phoneToContactKeys.has(norm)) phoneToContactKeys.set(norm, new Set());
+            phoneToContactKeys.get(norm)!.add(ck);
+          }
         }
       }
 
-      if (emailSet.size === 0 && phoneSet.size === 0) {
+      if (emailToContactKeys.size === 0 && phoneToContactKeys.size === 0) {
         const allUnmatched: UnmatchedContact[] = contacts
           .filter((c) => c.name)
           .map((c) => ({
+            contactKey: deriveContactKey(c),
             name: c.name!,
             phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
             emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
@@ -93,9 +119,15 @@ export function useFriends(): UseFriendsResult {
         return;
       }
 
-      // Hash emails for backwards-compat matching; phones sent as plain text.
-      const emailHashes = await Promise.all(Array.from(emailSet).map(hashValue));
-      const plainPhones = Array.from(phoneSet);
+      // Build hash→email reverse map for matched_identifier lookup after the RPC
+      const emailHashToEmail = new Map<string, string>();
+      const emailHashes: string[] = [];
+      for (const email of emailToContactKeys.keys()) {
+        const hash = await hashValue(email);
+        emailHashes.push(hash);
+        emailHashToEmail.set(hash, email);
+      }
+      const plainPhones = Array.from(phoneToContactKeys.keys());
 
       const { data: matchedProfiles, error: matchErr } = await supabase.rpc('match_contacts', {
         p_email_hashes: emailHashes,
@@ -104,6 +136,20 @@ export function useFriends(): UseFriendsResult {
       });
 
       if (matchErr) throw new Error(matchErr.message);
+
+      // Build set of contactKeys that are matched via identifier, not name
+      const matchedContactKeys = new Set<string>();
+      for (const profile of (matchedProfiles as {
+        id: string; name: string; avatar_url: string | null; matched_identifier: string | null
+      }[] ?? [])) {
+        const mid = profile.matched_identifier;
+        if (!mid) continue;
+        const emailForHash = emailHashToEmail.get(mid);
+        const contactKeysForEmail = emailForHash ? emailToContactKeys.get(emailForHash) : undefined;
+        const contactKeysForPhone = phoneToContactKeys.get(mid);
+        for (const ck of contactKeysForEmail ?? []) matchedContactKeys.add(ck);
+        for (const ck of contactKeysForPhone ?? []) matchedContactKeys.add(ck);
+      }
 
       const [
         { data: balanceRows, error: balanceErr },
@@ -148,13 +194,13 @@ export function useFriends(): UseFriendsResult {
         return { userId: profile.id, name: profile.name, avatarUrl: profile.avatar_url, balanceCents, balanceStatus };
       }).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 
-      const matchedProfileNames = new Set(
-        matchedFriends.map((f) => f.name.toLowerCase().trim())
-      );
-
       const finalUnmatched: UnmatchedContact[] = contacts
-        .filter((c) => c.name && !matchedProfileNames.has(c.name.toLowerCase().trim()))
+        .filter((c) => {
+          const ck = deriveContactKey(c);
+          return c.name && !matchedContactKeys.has(ck);
+        })
         .map((c) => ({
+          contactKey: deriveContactKey(c),
           name: c.name!,
           phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
           emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
