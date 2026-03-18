@@ -245,6 +245,8 @@ export default function AddExpenseScreen() {
 
       // Store paid_by_member_id for use after loadMembers finishes (race-condition safe)
       editPaidByRef.current = expenseRow.paid_by_member_id;
+      // Also set directly — covers the case where loadMembers already ran
+      setPaidBy(expenseRow.paid_by_member_id);
 
       setEditLoading(false);
     })();
@@ -261,6 +263,10 @@ export default function AddExpenseScreen() {
       return;
     }
     const timer = setTimeout(() => {
+      if (skipNextCategoryDetectRef.current) {
+        skipNextCategoryDetectRef.current = false;
+        return;
+      }
       setDetectedCategory(detect(description));
     }, 300);
     return () => clearTimeout(timer);
@@ -902,6 +908,7 @@ const s = StyleSheet.create({
   currencyBadgeFlag: { fontSize: 16 },
   currencyBadgeCode: { color: C.primary, fontWeight: '700', fontSize: 13 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 10 },
+  loadingIndicator: { marginTop: 32 },
   errorText: { color: C.orange, fontSize: 13 },
   // Sections
   section: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },

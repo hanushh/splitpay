@@ -1,23 +1,21 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import GroupDetailScreen from '@/app/group/[id]';
 import { supabase } from '@/lib/supabase';
+import { useLocalSearchParams } from 'expo-router';
 
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
 jest.mock('@/lib/supabase');
+const mockStableUser = { id: 'user-1' };
 jest.mock('@/context/auth', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
+  useAuth: () => ({ user: mockStableUser }),
 }));
 jest.mock('@/context/currency', () => ({
   useCurrency: () => ({ format: (c: number) => `$${(c / 100).toFixed(2)}` }),
 }));
-jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), push: jest.fn(), replace: jest.fn() },
-  useLocalSearchParams: () => ({ id: 'group-1' }),
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const mockGroup = {
@@ -41,6 +39,9 @@ let deleteMock: jest.Mock;
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Alert, 'alert');
+
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'group-1' });
+
   deleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
 
   (supabase.from as jest.Mock).mockImplementation((_table: string) => ({
@@ -87,7 +88,7 @@ test('confirming delete calls supabase delete and then re-fetches group', async 
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
   const deleteButton = buttons.find((b) => b.text === 'Delete');
-  await deleteButton!.onPress!();
+  await act(async () => { await deleteButton!.onPress!(); });
 
   await waitFor(() => {
     expect(deleteMock).toHaveBeenCalledTimes(1);
@@ -107,7 +108,7 @@ test('delete error shows Alert and does not close the sheet', async () => {
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
   const deleteButton = buttons.find((b) => b.text === 'Delete');
-  await deleteButton!.onPress!();
+  await act(async () => { await deleteButton!.onPress!(); });
 
   await waitFor(() => {
     // A second Alert should have been shown with the error message

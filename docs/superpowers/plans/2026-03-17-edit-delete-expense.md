@@ -17,7 +17,7 @@
 **Files:**
 - Create: `supabase/migrations/20260317222508_add_expense_update_delete_policies.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- supabase/migrations/20260317222508_add_expense_update_delete_policies.sql
@@ -69,7 +69,7 @@ CREATE POLICY "Group members can delete expense_splits"
   );
 ```
 
-- [ ] **Step 2: Apply migration to local Supabase**
+- [x] **Step 2: Apply migration to local Supabase**
 
 ```bash
 pnpm supabase migration up
@@ -77,7 +77,7 @@ pnpm supabase migration up
 
 Expected: migration applied with no errors. If this command is unavailable, use `pnpm supabase db reset` (re-runs all migrations from scratch).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/20260317222508_add_expense_update_delete_policies.sql
@@ -91,7 +91,7 @@ git commit -m "feat: add RLS update/delete policies for expenses and expense_spl
 **Files:**
 - Modify: `app/group/[id].tsx`
 
-- [ ] **Step 1: Add state for selected expense and deleting flag**
+- [x] **Step 1: Add state for selected expense and deleting flag**
 
 In `GroupDetailScreen`, after the existing state declarations (around line 89), add:
 
@@ -116,7 +116,7 @@ import {
 ```
 Add `Alert` to this list (keep all existing entries, add `Alert` alphabetically).
 
-- [ ] **Step 2: Wire expense card onPress to open the sheet**
+- [x] **Step 2: Wire expense card onPress to open the sheet**
 
 Find the existing expense card `Pressable` (around line 297):
 ```tsx
@@ -132,7 +132,8 @@ Add `onPress`:
 >
 ```
 
-- [ ] **Step 3: Add delete handler function**
+- [x] **Step 3: Add delete handler function**
+  > Note: implemented with `handleDeleteExpense` + a separate `handleEditExpense` callback (not inline in the sheet). Functionally identical to the plan.
 
 After `handleDelete` (the group-delete handler, around line 132), add:
 
@@ -169,7 +170,7 @@ const handleDeleteExpense = useCallback(() => {
 }, [selectedExpense, fetchGroup]);
 ```
 
-- [ ] **Step 4: Add the detail bottom sheet modal**
+- [x] **Step 4: Add the detail bottom sheet modal**
 
 Just before the closing `</KeyboardAvoidingView>` (or before the existing Settings modal), add:
 
@@ -260,7 +261,7 @@ Just before the closing `</KeyboardAvoidingView>` (or before the existing Settin
 </Modal>
 ```
 
-- [ ] **Step 5: Add styles for the detail sheet**
+- [x] **Step 5: Add styles for the detail sheet**
 
 In the `StyleSheet.create(...)` block at the bottom of the file, add these styles. The file already has `bottomSheet` and `sheetHandle` styles from the Settings modal — add the expense-detail-specific ones:
 
@@ -319,7 +320,7 @@ sheetDeleteBtnText: { color: '#ff5252', fontSize: 15, fontWeight: '700' },
 
 Note: `sheetHandle` and `sheetTitle` already exist in the file — do not duplicate them.
 
-- [ ] **Step 6: Run typecheck and lint**
+- [x] **Step 6: Run typecheck and lint**
 
 ```bash
 pnpm typecheck && pnpm lint
@@ -327,7 +328,7 @@ pnpm typecheck && pnpm lint
 
 Expected: no errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/group/\[id\].tsx

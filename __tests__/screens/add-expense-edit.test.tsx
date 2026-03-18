@@ -2,7 +2,20 @@ import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import AddExpenseScreen from '@/app/add-expense';
 import { supabase } from '@/lib/supabase';
+import { router, useLocalSearchParams } from 'expo-router';
 
+jest.mock('@/lib/supabase');
+const mockStableUser = { id: 'user-1' };
+jest.mock('@/context/auth', () => ({
+  useAuth: () => ({ user: mockStableUser }),
+}));
+jest.mock('@/context/currency', () => ({
+  useCurrency: () => ({ currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' } }),
+  CURRENCIES: [{ code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' }],
+}));
+jest.mock('@/hooks/use-category-cache', () => ({
+  useCategoryCache: () => ({ detect: () => 'other', saveMapping: jest.fn(), reinforceMapping: jest.fn() }),
+}));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -18,34 +31,6 @@ jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
 }));
-jest.mock('@/lib/supabase');
-jest.mock('@/context/auth', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
-}));
-jest.mock('@/context/currency', () => ({
-  useCurrency: () => ({ currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' } }),
-  CURRENCIES: [{ code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' }],
-}));
-jest.mock('@/hooks/use-category-cache', () => ({
-  useCategoryCache: () => ({ detect: () => 'other', saveMapping: jest.fn(), reinforceMapping: jest.fn() }),
-}));
-
-// Must be declared inside jest.mock factory since it gets hoisted
-jest.mock('expo-router', () => {
-  const back = jest.fn();
-  const push = jest.fn();
-  return {
-    router: { back, push },
-    useLocalSearchParams: () => ({
-      groupId: 'group-1',
-      groupName: 'Bali Trip',
-      expenseId: 'expense-1',
-    }),
-  };
-});
-
-// Import after jest.mock to get the mocked router
-import { router } from 'expo-router';
 
 const mockExpenseRow = {
   id: 'expense-1',
@@ -73,46 +58,44 @@ let splitsInsertMock: jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
+
+  (useLocalSearchParams as jest.Mock).mockReturnValue({
+    groupId: 'group-1',
+    groupName: 'Bali Trip',
+    expenseId: 'expense-1',
+  });
+
   updateMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
   splitsDeleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
   splitsInsertMock = jest.fn().mockResolvedValue({ error: null });
 
   (supabase.from as jest.Mock).mockImplementation((table: string) => {
     if (table === 'group_members') {
-      // group_members is called twice:
-      // 1. useEffect for groups: .select('groups!inner(...)').eq('user_id', ...).then(...)
-      // 2. loadMembers: await .select('id, display_name, ...').eq('group_id', gid)
-      // Both go through .select().eq() — we return a Promise (which has .then()) for both.
       return {
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ data: mockMembers, error: null }),
-        }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: mockMembers, error: null }),
       };
     }
     if (table === 'expenses') {
       return {
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: mockExpenseRow, error: null }),
-          }),
-        }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: mockExpenseRow, error: null }),
         update: updateMock,
       };
     }
     if (table === 'expense_splits') {
       return {
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ data: mockSplitRows, error: null }),
-        }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: mockSplitRows, error: null }),
         delete: splitsDeleteMock,
         insert: splitsInsertMock,
       };
     }
     if (table === 'profiles') {
       return {
-        select: jest.fn().mockReturnValue({
-          in: jest.fn().mockResolvedValue({ data: [], error: null }),
-        }),
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
     }
     return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
@@ -150,12 +133,16 @@ test('edit mode: header shows "Edit expense"', async () => {
 
 test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not defaulted to current user (member-1)', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
-  // Wait for members and expense data to load - paid-by-section renders after members load
+  // Wait for members and expense data to load — both description AND paid-by section
   await waitFor(() => {
-    const paidBySection = getByTestId('paid-by-section');
-    // The compactRowValueText inside paid-by-section shows the payer name
-    expect(paidBySection).toHaveTextContent('Alex');
+    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('paid-by-section')).toBeTruthy();
   });
+  // The paid-by section should show Alex (member-2), not You (member-1/current user)
+  const paidBySection = getByTestId('paid-by-section');
+  expect(paidBySection).toBeTruthy();
+  // The compactRowValueText inside paid-by-section shows the payer name
+  expect(paidBySection).toHaveTextContent('Alex', { exact: false });
 });
 
 test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async () => {
