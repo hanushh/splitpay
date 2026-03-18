@@ -96,7 +96,7 @@ export default function AddExpenseScreen() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const editPaidByRef = useRef<string | null>(null);
-  const skipNextCategoryDetectRef = useRef(false);
+  const preserveCategoryRef = useRef(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -227,13 +227,13 @@ export default function AddExpenseScreen() {
       }
 
       // Pre-populate form fields
+      // Guard against category auto-detect overwriting the pre-populated category
+      preserveCategoryRef.current = true;
       setDescription(expenseRow.description);
       setAmount((expenseRow.amount_cents / 100).toFixed(2));
       setReceiptUri(expenseRow.receipt_url ?? null);
       setSelectedMembers(new Set((splitRows ?? []).map((r: { member_id: string }) => r.member_id)));
 
-      // Prevent debounce from overwriting the DB-loaded category
-      skipNextCategoryDetectRef.current = true;
       // Category: known keys stay as-is; unknown keys go to 'other' + customCategory
       const knownCategories = ['restaurant', 'train', 'hotel', 'movie', 'store', 'other'];
       if (knownCategories.includes(expenseRow.category)) {
@@ -254,13 +254,17 @@ export default function AddExpenseScreen() {
 
   // Auto-detect category from description with 300ms debounce
   useEffect(() => {
+    if (preserveCategoryRef.current) {
+      preserveCategoryRef.current = false;
+      return;
+    }
     if (!description.trim()) {
       setDetectedCategory('other');
       return;
     }
     const timer = setTimeout(() => {
-      if (skipNextCategoryDetectRef.current) {
-        skipNextCategoryDetectRef.current = false;
+      if (preserveCategoryRef.current) {
+        preserveCategoryRef.current = false;
         return;
       }
       setDetectedCategory(detect(description));
@@ -437,8 +441,7 @@ export default function AddExpenseScreen() {
     }
 
     setSaving(false);
-    // Fire-and-forget: reinforcement runs in background, does not block navigation.
-    // The hook updates in-memory cache synchronously before the RPC completes.
+    // Fire-and-forget category reinforcement (create mode only)
     if (detectedCategory !== 'other') {
       reinforceMapping(description, detectedCategory);
     } else if (customCategory.trim()) {
@@ -481,7 +484,7 @@ export default function AddExpenseScreen() {
         {/* Group selector — always visible, required */}
         {isEditing ? (
           <View
-            style={[s.groupRow, { opacity: 1 }]}
+            style={s.groupRow}
             testID="group-locked-row"
           >
             <View style={s.inputIcon}>
@@ -549,7 +552,7 @@ export default function AddExpenseScreen() {
 
         {/* Error */}
         {editLoading && (
-          <ActivityIndicator color={C.primary} style={s.loadingIndicator} />
+          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
         )}
         {editError && (
           <View style={s.errorRow}>
@@ -691,7 +694,7 @@ export default function AddExpenseScreen() {
                 testID="custom-category-input"
               />
             )}
-            {detectedCategory === 'other' && customCategory.trim().length > 0 && (
+            {detectedCategory === 'other' && customCategory.trim().length > 0 && !isEditing && (
               <Text style={s.categorySaveHint}>Will be saved on expense creation</Text>
             )}
           </View>
