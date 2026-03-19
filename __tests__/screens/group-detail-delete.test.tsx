@@ -87,8 +87,8 @@ test('tapping Delete shows confirmation Alert with expense name', async () => {
   await openDetailSheet(getByText);
   fireEvent.press(getByText('Delete'));
   expect(Alert.alert).toHaveBeenCalledWith(
-    'Delete expense?',
-    expect.stringContaining('Dinner at Locavore'),
+    'group.deleteExpenseTitle',
+    'group.deleteExpenseMessage',
     expect.any(Array),
   );
 });
@@ -101,7 +101,7 @@ test('confirming delete calls delete_expense rpc and then re-fetches group', asy
   // Simulate the user pressing the destructive "Delete" button in the Alert
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
-  const deleteButton = buttons.find((b) => b.text === 'Delete');
+  const deleteButton = buttons.find((b) => b.text === 'common.delete');
   await act(async () => {
     await deleteButton!.onPress!();
   });
@@ -133,14 +133,14 @@ test('delete error shows Alert and does not close the sheet', async () => {
 
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
-  const deleteButton = buttons.find((b) => b.text === 'Delete');
+  const deleteButton = buttons.find((b) => b.text === 'common.delete');
   await act(async () => {
     await deleteButton!.onPress!();
   });
 
   await waitFor(() => {
     // A second Alert should have been shown with the error message
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Permission denied');
+    expect(Alert.alert).toHaveBeenCalledWith('common.ok', 'Permission denied');
     // The sheet should still be visible (Edit/Delete buttons still rendered)
     expect(getByText('Edit')).toBeTruthy();
   });
@@ -210,7 +210,7 @@ describe('leave-group guard (non-creator)', () => {
     fireEvent.press(getByTestId('leave-group-button'));
 
     await waitFor(() =>
-      getByText("You're owed money in this group. Settle up before leaving."),
+      getByText('group.owedLeaveBlocked'),
     );
     // The type-to-confirm modal must NOT have opened
     expect(queryByTestId('delete-confirm-input')).toBeNull();
@@ -226,9 +226,7 @@ describe('leave-group guard (non-creator)', () => {
     fireEvent.press(getByTestId('leave-group-button'));
 
     await waitFor(() =>
-      getByText(
-        'You have an outstanding balance. Settle up before leaving.',
-      ),
+      getByText('group.owesLeaveBlocked'),
     );
     expect(queryByTestId('delete-confirm-input')).toBeNull();
   });
