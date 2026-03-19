@@ -174,7 +174,7 @@ export default function GroupBalancesScreen() {
                       <Text style={[s.balanceText, { color: isOwed ? C.primary : C.orange }]}>
                         {isOwed ? `owes you ${amtText}` : `you owe ${amtText}`}
                       </Text>
-                      {!m.isCurrentUser && (
+                      {!m.isCurrentUser && (!isOwed || myMemberId) && (
                         <Pressable
                           style={s.settleBtn}
                           onPress={() => router.push({

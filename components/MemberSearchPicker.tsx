@@ -24,6 +24,7 @@ export interface MemberSelection {
 
 export interface MemberSearchPickerProps {
   excludeUserIds?: string[];
+  excludeContactNames?: string[];
   onSelectionChange: (selection: MemberSelection) => void;
 }
 
@@ -58,7 +59,7 @@ function Initials({ name, size = 36, app = false }: { name: string; size?: numbe
   );
 }
 
-export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: MemberSearchPickerProps) {
+export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = [], onSelectionChange }: MemberSearchPickerProps) {
   const { matched, unmatched, loading: friendsLoading, permissionDenied } = useFriends();
   const { friends: existingFriends, loading: existingLoading } = useExistingFriends();
 
@@ -118,17 +119,23 @@ export function MemberSearchPicker({ excludeUserIds = [], onSelectionChange }: M
     [allAppUsers, selectedAppUserIds, q]
   );
 
+  const excludeContactNamesLower = useMemo(
+    () => new Set(excludeContactNames.map((n) => n.toLowerCase())),
+    [excludeContactNames],
+  );
+
   const filteredContacts = useMemo(
     () =>
       unmatched.filter(
         (c) =>
           !selectedContactKeys.has(c.contactKey) &&
+          !excludeContactNamesLower.has(c.name.toLowerCase()) &&
           (!q ||
             c.name.toLowerCase().includes(q) ||
             c.phoneNumbers.some((p) => p.includes(q)) ||
             c.emails.some((e) => e.toLowerCase().includes(q)))
       ),
-    [unmatched, selectedContactKeys, q]
+    [unmatched, selectedContactKeys, excludeContactNamesLower, q]
   );
 
   const addAppUser = useCallback(
