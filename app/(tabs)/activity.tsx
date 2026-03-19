@@ -156,14 +156,21 @@ export default function ActivityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchActivity = useCallback(async () => {
     if (!user) return;
+    setFetchError(null);
     const { data, error } = await supabase.rpc('get_user_activity', {
       p_user_id: user.id,
       p_limit: 50,
     });
-    if (error) { setLoading(false); setRefreshing(false); return; }
+    if (error) {
+      setFetchError(error.message ?? 'Failed to load activity.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     const seen = new Set<string>();
     const grouped: Record<string, ActivityRow[]> = {};
@@ -223,6 +230,12 @@ export default function ActivityScreen() {
 
       {loading ? (
         <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
+      ) : fetchError ? (
+        <View style={s.empty}>
+          <MaterialIcons name="error-outline" size={48} color="#f97316" />
+          <Text style={[s.emptyTitle, { color: '#f97316' }]}>Failed to load activity</Text>
+          <Text style={s.emptyText}>{fetchError}</Text>
+        </View>
       ) : (
         <SectionList
           sections={filteredSections}

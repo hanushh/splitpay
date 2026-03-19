@@ -78,7 +78,8 @@ export default function GroupBalancesScreen() {
     }
 
     setTotalCents(myBalance?.balance_cents ?? 0);
-    setMyMemberId((myMember as { id: string } | null)?.id ?? null);
+    const myMemberRowId = (myMember as { id: string } | null)?.id ?? null;
+    setMyMemberId(myMemberRowId);
 
     const list: MemberBalance[] = ((memberRows as { member_id: string; display_name: string; avatar_url: string | null; balance_cents: number }[]) ?? [])
       .map((row) => ({
@@ -86,7 +87,7 @@ export default function GroupBalancesScreen() {
         display_name: row.display_name ?? 'Unknown',
         avatar_url: row.avatar_url,
         balance_cents: Number(row.balance_cents),
-        isCurrentUser: false,
+        isCurrentUser: row.member_id === myMemberRowId,
       }));
 
     setMembers(list);
