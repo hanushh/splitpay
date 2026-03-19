@@ -2,6 +2,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import ExpenseDetailSheet from '@/components/ExpenseDetailSheet';
+import type { ExpenseDetailSheetProps } from '@/components/ExpenseDetailSheet';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -31,7 +32,7 @@ const mockSplits = [
   { member_id: 'mem-2', amount_cents: 6000 },
 ];
 
-const baseProps: any = {
+const baseProps: ExpenseDetailSheetProps = {
   expense: mockExpense,
   splits: mockSplits,
   splitsLoading: false,
@@ -123,5 +124,14 @@ describe('ExpenseDetailSheet', () => {
       <ExpenseDetailSheet {...baseProps} splits={splitsWithUnknown} />,
     );
     expect(getByText('Unknown')).toBeTruthy();
+  });
+
+  it('calls onClose when backdrop is pressed', () => {
+    const onClose = jest.fn();
+    const { getByTestId } = render(
+      <ExpenseDetailSheet {...baseProps} onClose={onClose} />,
+    );
+    fireEvent.press(getByTestId('backdrop'));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
