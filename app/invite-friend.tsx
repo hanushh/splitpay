@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import {
   MemberSearchPicker,
   type MemberSelection,
@@ -49,6 +50,7 @@ interface GroupOption {
 }
 
 export default function InviteFriendScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const {
@@ -251,12 +253,12 @@ export default function InviteFriendScreen() {
 
   const sentTitle = (() => {
     if (addedUsersCount > 0 && pendingInvites.length > 0) {
-      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} & created ${pendingInvites.length} invite${pendingInvites.length === 1 ? '' : 's'}`;
+      return t('invite.membersAdded');
     }
     if (addedUsersCount > 0) {
-      return `Added ${addedUsersCount} member${addedUsersCount === 1 ? '' : 's'} to "${activeGroupName}"`;
+      return t('invite.membersAdded');
     }
-    return `Invite link${pendingInvites.length === 1 ? '' : 's'} created for ${pendingInvites.map((p) => p.contactName).join(', ')}`;
+    return t('invite.shareInviteLink', { plural: pendingInvites.length === 1 ? '' : 's' });
   })();
 
   const sentSub =
@@ -272,9 +274,9 @@ export default function InviteFriendScreen() {
       >
         <View style={s.header}>
           <Pressable onPress={() => router.back()} style={s.headerBtn}>
-            <Text style={s.cancelText}>Done</Text>
+            <Text style={s.cancelText}>{t('invite.done')}</Text>
           </Pressable>
-          <Text style={s.headerTitle}>Members added</Text>
+          <Text style={s.headerTitle}>{t('invite.membersAdded')}</Text>
           <View style={s.headerBtn} />
         </View>
         <View style={s.sentBody}>
@@ -293,7 +295,7 @@ export default function InviteFriendScreen() {
             >
               <MaterialIcons name="share" size={20} color={C.bg} />
               <Text style={s.shareBtnText}>
-                Share invite link{pendingInvites.length === 1 ? '' : 's'}
+                {t('invite.shareInviteLink', { plural: pendingInvites.length === 1 ? '' : 's' })}
               </Text>
             </Pressable>
           )}
@@ -309,9 +311,9 @@ export default function InviteFriendScreen() {
     >
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.headerBtn}>
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
-        <Text style={s.headerTitle}>Add members</Text>
+        <Text style={s.headerTitle}>{t('invite.title')}</Text>
         <Pressable
           style={s.headerBtn}
           onPress={handleSend}
@@ -320,7 +322,7 @@ export default function InviteFriendScreen() {
           {sending ? (
             <ActivityIndicator color={C.primary} size="small" />
           ) : (
-            <Text style={[s.sendText, !canSend && { opacity: 0.35 }]}>Add</Text>
+            <Text style={[s.sendText, !canSend && { opacity: 0.35 }]}>{t('invite.add')}</Text>
           )}
         </Pressable>
       </View>
@@ -409,10 +411,10 @@ export default function InviteFriendScreen() {
               />
               <Text style={[s.sendBtnText, !canSend && { color: C.slate500 }]}>
                 {!activeGroupId
-                  ? 'Select a group above'
+                  ? t('invite.selectMembers')
                   : canSend
-                    ? `Add ${memberSelection.appUsers.length + memberSelection.contacts.length} member${memberSelection.appUsers.length + memberSelection.contacts.length === 1 ? '' : 's'}`
-                    : 'Select members above'}
+                    ? t('invite.addCount', { count: memberSelection.appUsers.length + memberSelection.contacts.length, plural: memberSelection.appUsers.length + memberSelection.contacts.length === 1 ? '' : 's' })
+                    : t('invite.selectMembers')}
               </Text>
             </>
           )}
@@ -432,7 +434,7 @@ export default function InviteFriendScreen() {
         />
         <View style={[s.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={s.modalHandle} />
-          <Text style={s.modalTitle}>Select Group</Text>
+          <Text style={s.modalTitle}>{t('expense.selectGroupSheet')}</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {userGroups.map((g) => (
               <Pressable

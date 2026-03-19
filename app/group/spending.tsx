@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { supabase } from '@/lib/supabase';
@@ -98,13 +99,14 @@ function ShareCardModal({
   totals,
   format,
 }: ShareCardProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const handleShare = useCallback(async () => {
     const lines: string[] = [
-      `💰 ${groupName} — Expense Summary`,
+      `💰 ${groupName} — ${t('spending.expenseSummary')}`,
       ``,
-      `Total spent: ${format(grandTotal)}`,
+      `${t('spending.totalSpent')}: ${format(grandTotal)}`,
       ``,
       `By category:`,
     ];
@@ -114,10 +116,10 @@ function ShareCardModal({
       const cap = category.charAt(0).toUpperCase() + category.slice(1);
       lines.push(`${cat.emoji}  ${cap.padEnd(14)} ${format(total)}  (${pct}%)`);
     }
-    lines.push(``, `Shared via PaySplit`);
+    lines.push(``, t('spending.sharedVia'));
 
     await Share.share({ message: lines.join('\n') });
-  }, [groupName, grandTotal, totals, format]);
+  }, [groupName, grandTotal, totals, format, t]);
 
   return (
     <Modal
@@ -133,7 +135,7 @@ function ShareCardModal({
           testID="share-card-sheet"
         >
           <View style={m.handle} />
-          <Text style={m.sheetTitle}>Share Summary</Text>
+          <Text style={m.sheetTitle}>{t('spending.shareSummary')}</Text>
 
           {/* Preview card */}
           <View style={m.card}>
@@ -146,7 +148,7 @@ function ShareCardModal({
                 <Text style={m.cardGroup} numberOfLines={1}>
                   {groupName}
                 </Text>
-                <Text style={m.cardSubtitle}>Expense Summary</Text>
+                <Text style={m.cardSubtitle}>{t('spending.expenseSummary')}</Text>
               </View>
             </View>
 
@@ -154,7 +156,7 @@ function ShareCardModal({
 
             {/* Total */}
             <View style={m.cardTotal}>
-              <Text style={m.cardTotalLabel}>TOTAL SPENT</Text>
+              <Text style={m.cardTotalLabel}>{t('spending.totalSpent')}</Text>
               <Text style={m.cardTotalAmount}>{format(grandTotal)}</Text>
             </View>
 
@@ -197,7 +199,7 @@ function ShareCardModal({
             <View style={m.divider} />
 
             {/* Footer */}
-            <Text style={m.cardFooter}>Shared via PaySplit</Text>
+            <Text style={m.cardFooter}>{t('spending.sharedVia')}</Text>
           </View>
 
           {/* Share button */}
@@ -210,7 +212,7 @@ function ShareCardModal({
             onPress={handleShare}
           >
             <MaterialIcons name="share" size={20} color={C.bg} />
-            <Text style={m.shareBtnText}>Share</Text>
+            <Text style={m.shareBtnText}>{t('spending.share')}</Text>
           </Pressable>
         </View>
       </View>
@@ -221,6 +223,7 @@ function ShareCardModal({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function SpendingScreen() {
+  const { t } = useTranslation();
   const { groupId, groupName } = useLocalSearchParams<{
     groupId: string;
     groupName: string;
@@ -294,7 +297,7 @@ export default function SpendingScreen() {
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
         <View style={s.headerText}>
-          <Text style={s.headerTitle}>Spending</Text>
+          <Text style={s.headerTitle}>{t('spending.title')}</Text>
           {groupName ? (
             <Text style={s.headerSub} numberOfLines={1}>
               {groupName}
@@ -322,10 +325,8 @@ export default function SpendingScreen() {
       ) : !hasData ? (
         <View style={s.center}>
           <MaterialIcons name="bar-chart" size={52} color={C.surfaceHL} />
-          <Text style={s.emptyText}>No spending data yet</Text>
-          <Text style={s.emptySub}>
-            Add expenses to see spending by category
-          </Text>
+          <Text style={s.emptyText}>{t('spending.noDataTitle')}</Text>
+          <Text style={s.emptySub}>{t('spending.noDataSub')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -334,17 +335,20 @@ export default function SpendingScreen() {
         >
           {/* Grand total card */}
           <View style={s.totalCard}>
-            <Text style={s.totalLabel}>TOTAL GROUP SPEND</Text>
+            <Text style={s.totalLabel}>{t('spending.totalGroupSpend')}</Text>
             <Text style={s.totalAmount}>{format(grandTotal)}</Text>
             <Text style={s.totalSub}>
-              {totals.reduce((n, t) => n + t.count, 0)} expenses across{' '}
-              {totals.length} {totals.length === 1 ? 'category' : 'categories'}
+              {t('spending.expenseCount', {
+                count: totals.reduce((n, item) => n + item.count, 0),
+                categories: totals.length,
+                categoryLabel: totals.length === 1 ? t('spending.category') : t('spending.categories'),
+              })}
             </Text>
           </View>
 
           {/* Chart */}
           <View style={s.chartCard}>
-            <Text style={s.sectionLabel}>BREAKDOWN</Text>
+            <Text style={s.sectionLabel}>{t('spending.breakdown')}</Text>
             {totals.map(({ category, total, count }) => {
               const cat = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.receipt;
               const fillRatio = total / max;
@@ -365,7 +369,7 @@ export default function SpendingScreen() {
                         {category.charAt(0).toUpperCase() + category.slice(1)}
                       </Text>
                       <Text style={s.catCount}>
-                        {count} {count === 1 ? 'expense' : 'expenses'}
+                        {count} {count === 1 ? t('spending.expenseSingular') : t('spending.expensePlural')}
                       </Text>
                     </View>
                     <View style={s.barTrack}>

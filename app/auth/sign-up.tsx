@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -39,25 +40,24 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
 
   const handleSignUp = async () => {
     if (!email || !phone || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
+      setError(t('auth.fillAllFields'));
       return;
     }
     const normalizedPhone = normalizePhone(phone.trim());
     if (!normalizedPhone) {
-      setError(
-        'Enter a valid phone number with country code (e.g. +1 555 000 1234).',
-      );
+      setError(t('auth.invalidPhone'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('auth.passwordMismatch'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('auth.passwordTooShort'));
       return;
     }
     setError(null);
@@ -91,10 +91,9 @@ export default function SignUpScreen() {
           <View style={s.logoMark}>
             <Text style={s.logoText}>✓</Text>
           </View>
-          <Text style={s.title}>Check your email</Text>
+          <Text style={s.title}>{t('auth.checkEmail')}</Text>
           <Text style={s.subtitle}>
-            We sent a confirmation link to {email}. Click it to activate your
-            account.
+            {t('auth.confirmationSent', { email })}
           </Text>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [
@@ -103,7 +102,7 @@ export default function SignUpScreen() {
             ]}
             onPress={() => router.replace('/auth/sign-in')}
           >
-            <Text style={s.signUpBtnText}>Back to Sign In</Text>
+            <Text style={s.signUpBtnText}>{t('auth.backToSignIn')}</Text>
           </Pressable>
         </View>
       </View>
@@ -122,9 +121,9 @@ export default function SignUpScreen() {
         <View style={s.logoMark}>
           <Text style={s.logoText}>S</Text>
         </View>
-        <Text style={s.title}>Create account</Text>
+        <Text style={s.title}>{t('auth.createAccount')}</Text>
         <Text style={s.subtitle}>
-          Join {APP_DISPLAY_NAME} to split expenses
+          {t('auth.joinApp', { appName: APP_DISPLAY_NAME })}
         </Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
@@ -143,7 +142,7 @@ export default function SignUpScreen() {
           ) : (
             <>
               <AntDesign name="google" size={20} color="#EA4335" />
-              <Text style={s.googleBtnText}>Continue with Google</Text>
+              <Text style={s.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
             </>
           )}
         </Pressable>
@@ -151,13 +150,13 @@ export default function SignUpScreen() {
         {/* Divider */}
         <View style={s.divider}>
           <View style={s.dividerLine} />
-          <Text style={s.dividerText}>or</Text>
+          <Text style={s.dividerText}>{t('auth.or')}</Text>
           <View style={s.dividerLine} />
         </View>
 
         <TextInput
           style={s.input}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor={C.slate500}
           autoCapitalize="none"
           keyboardType="email-address"
@@ -174,7 +173,7 @@ export default function SignUpScreen() {
         />
         <TextInput
           style={s.input}
-          placeholder="Password"
+          placeholder={t('auth.password')}
           placeholderTextColor={C.slate500}
           secureTextEntry
           value={password}
@@ -183,7 +182,7 @@ export default function SignUpScreen() {
         />
         <TextInput
           style={s.input}
-          placeholder="Confirm Password"
+          placeholder={t('auth.confirmPassword')}
           placeholderTextColor={C.slate500}
           secureTextEntry
           value={confirmPassword}
@@ -203,14 +202,14 @@ export default function SignUpScreen() {
           {loading ? (
             <ActivityIndicator color={C.bg} />
           ) : (
-            <Text style={s.signUpBtnText}>Create Account</Text>
+            <Text style={s.signUpBtnText}>{t('auth.createAccountBtn')}</Text>
           )}
         </Pressable>
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Already have an account? </Text>
+          <Text style={s.footerText}>{t('auth.hasAccount')}</Text>
           <Link href="/auth/sign-in" style={s.link}>
-            Sign In
+            {t('auth.signIn')}
           </Link>
         </View>
       </View>

@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -13,8 +14,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { SUPPORTED_LANGUAGES, setLanguage, type LanguageCode } from '@/lib/i18n';
+import i18n from '@/lib/i18n';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
@@ -82,11 +86,17 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function AccountScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
   const [phoneModalVisible, setPhoneModalVisible] = useState(false);
+
+  const currentLang =
+    SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ??
+    SUPPORTED_LANGUAGES[0];
   const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneSaving, setPhoneSaving] = useState(false);
@@ -124,7 +134,7 @@ export default function AccountScreen() {
     if (trimmed) {
       normalized = normalizePhone(trimmed);
       if (!normalized) {
-        setPhoneError('Enter a valid phone number (e.g. +1 555 000 1234)');
+        setPhoneError(t('account.invalidPhone'));
         return;
       }
     }
@@ -148,6 +158,12 @@ export default function AccountScreen() {
     setPickerVisible(false);
   };
 
+  const handleSelectLanguage = async (code: LanguageCode) => {
+    await setLanguage(code);
+    setLangPickerVisible(false);
+    Alert.alert(t('account.restartTitle'), t('account.restartRequired'));
+  };
+
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <ScrollView
@@ -169,33 +185,39 @@ export default function AccountScreen() {
         </View>
 
         {/* Profile */}
-        <SectionHeader title="PROFILE" />
+        <SectionHeader title={t('account.profile')} />
         <View style={s.section}>
           <SettingRow
             icon="phone"
-            label="Phone Number"
-            value={savedPhone ?? 'Add phone number'}
+            label={t('account.phoneNumber')}
+            value={savedPhone ?? t('account.addPhoneNumber')}
             onPress={openPhoneModal}
           />
         </View>
 
         {/* Preferences */}
-        <SectionHeader title="PREFERENCES" />
+        <SectionHeader title={t('account.preferences')} />
         <View style={s.section}>
           <SettingRow
             icon="payments"
-            label="Currency"
+            label={t('account.currency')}
             value={`${currency.flag} ${currency.code} (${currency.symbol.trim()})`}
             onPress={() => setPickerVisible(true)}
+          />
+          <SettingRow
+            icon="language"
+            label={t('account.language')}
+            value={currentLang.nativeLabel}
+            onPress={() => setLangPickerVisible(true)}
           />
         </View>
 
         {/* Account */}
-        <SectionHeader title="ACCOUNT" />
+        <SectionHeader title={t('account.accountSection')} />
         <View style={s.section}>
           <SettingRow
             icon="logout"
-            label="Sign Out"
+            label={t('account.signOut')}
             isDestructive
             onPress={signOut}
           />
@@ -215,7 +237,7 @@ export default function AccountScreen() {
         >
           <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Phone Number</Text>
+            <Text style={s.sheetTitle}>{t('account.phoneNumber')}</Text>
             <PhoneInput
               value={phoneInput}
               onChange={setPhoneInput}
@@ -234,7 +256,7 @@ export default function AccountScreen() {
               {phoneSaving ? (
                 <ActivityIndicator color={C.bg} size="small" />
               ) : (
-                <Text style={s.saveButtonText}>Save</Text>
+                <Text style={s.saveButtonText}>{t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </Pressable>
@@ -254,7 +276,7 @@ export default function AccountScreen() {
         >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Select Currency</Text>
+            <Text style={s.sheetTitle}>{t('account.selectCurrency')}</Text>
             <FlatList
               data={CURRENCIES}
               keyExtractor={(item: Currency) => item.code}
@@ -293,6 +315,55 @@ export default function AccountScreen() {
                         color={C.primary}
                         style={{ marginLeft: 8 }}
                       />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={s.separator} />}
+              scrollEnabled={false}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Language Picker Modal */}
+      <Modal
+        visible={langPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangPickerVisible(false)}
+      >
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setLangPickerVisible(false)}
+        >
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{t('account.selectLanguage')}</Text>
+            <FlatList
+              data={Array.from(SUPPORTED_LANGUAGES)}
+              keyExtractor={(item: (typeof SUPPORTED_LANGUAGES)[number]) => item.code}
+              renderItem={({ item }: { item: (typeof SUPPORTED_LANGUAGES)[number] }) => {
+                const isSelected = item.code === i18n.language;
+                return (
+                  <TouchableOpacity
+                    style={[s.currencyRow, isSelected && s.currencyRowSelected]}
+                    onPress={() => handleSelectLanguage(item.code as LanguageCode)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={s.currencyInfo}>
+                      <Text
+                        style={[
+                          s.currencyCode,
+                          isSelected && s.currencyCodeSelected,
+                        ]}
+                      >
+                        {item.nativeLabel}
+                      </Text>
+                      <Text style={s.currencyName}>{item.label}</Text>
+                    </View>
+                    {isSelected && (
+                      <MaterialIcons name="check" size={20} color={C.primary} />
                     )}
                   </TouchableOpacity>
                 );

@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
 import { useCategoryCache } from '@/hooks/use-category-cache';
@@ -37,13 +38,13 @@ const C = {
   orange: '#f97316',
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  restaurant: '🍽 Food & Drink',
-  train: '🚗 Transport',
-  hotel: '🏨 Accommodation',
-  movie: '🎬 Entertainment',
-  store: '🛍 Shopping',
-  other: '⚙️ Other',
+const CATEGORY_KEYS: Record<string, string> = {
+  restaurant: 'expense.categoryFood',
+  train: 'expense.categoryTransport',
+  hotel: 'expense.categoryAccommodation',
+  movie: 'expense.categoryEntertainment',
+  store: 'expense.categoryShopping',
+  other: 'expense.categoryOther',
 };
 
 interface GroupOption {
@@ -60,6 +61,7 @@ interface Member {
 }
 
 export default function AddExpenseScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { currency: appCurrency } = useCurrency();
@@ -197,7 +199,7 @@ export default function AddExpenseScreen() {
         let displayName: string;
         let avatar: string | null = m.avatar_url;
         if (isMe) {
-          displayName = 'You';
+          displayName = t('expense.you');
         } else if (m.user_id && profileMap[m.user_id]) {
           displayName = profileMap[m.user_id].name;
           avatar = profileMap[m.user_id].avatar_url ?? avatar;
@@ -224,7 +226,7 @@ export default function AddExpenseScreen() {
       }
       setMembersLoading(false);
     },
-    [user, isEditing],
+    [user, isEditing, t],
   );
 
   useEffect(() => {
@@ -344,7 +346,7 @@ export default function AddExpenseScreen() {
   const handlePickReceipt = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      setError('Camera roll permission is required to add a receipt photo.');
+      setError(t('expense.cameraPermission'));
       return;
     }
 
@@ -393,7 +395,7 @@ export default function AddExpenseScreen() {
       setReceiptUri(urlData.publicUrl);
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : 'Failed to upload receipt photo.',
+        err instanceof Error ? err.message : t('expense.uploadFailed'),
       );
     } finally {
       setReceiptUploading(false);
@@ -413,23 +415,23 @@ export default function AddExpenseScreen() {
 
     const amtCents = Math.round(parseFloat(amount) * 100);
     if (isNaN(amtCents) || amtCents <= 0) {
-      setError('Enter a valid amount greater than zero.');
+      setError(t('expense.validAmount'));
       return;
     }
     if (!groupId) {
-      setError('Please select a group.');
+      setError(t('expense.selectGroupError'));
       return;
     }
     if (!paidBy) {
-      setError('Please select who paid.');
+      setError(t('expense.selectPayer'));
       return;
     }
     if (selectedMembers.size === 0) {
-      setError('Select at least one member to split with.');
+      setError(t('expense.selectMembers'));
       return;
     }
     if (!description.trim()) {
-      setError('Please add a description.');
+      setError(t('expense.addDescription'));
       return;
     }
 
@@ -551,10 +553,10 @@ export default function AddExpenseScreen() {
           style={s.headerBtn}
           testID="cancel-button"
         >
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
         <Text style={s.headerTitle}>
-          {isEditing ? 'Edit expense' : 'Add expense'}
+          {isEditing ? t('expense.editExpense') : t('expense.addExpense')}
         </Text>
         <Pressable
           onPress={handleSave}
@@ -562,7 +564,7 @@ export default function AddExpenseScreen() {
           disabled={!canSave || saving}
           testID="header-save-button"
         >
-          <Text style={[s.saveText, !canSave && { opacity: 0.35 }]}>Save</Text>
+          <Text style={[s.saveText, !canSave && { opacity: 0.35 }]}>{t('common.save')}</Text>
         </Pressable>
       </View>
 
@@ -597,7 +599,7 @@ export default function AddExpenseScreen() {
               />
             </View>
             <Text style={[s.groupRowText, !groupId && s.groupRowPlaceholder]}>
-              {groupId ? groupName : 'Select a group (required)'}
+              {groupId ? groupName : t('expense.selectGroup')}
             </Text>
             <MaterialIcons
               name="arrow-drop-down"
@@ -614,7 +616,7 @@ export default function AddExpenseScreen() {
           </View>
           <TextInput
             style={s.input}
-            placeholder="Description (e.g. Dinner)"
+            placeholder={t('expense.description')}
             placeholderTextColor={C.slate400}
             value={description}
             onChangeText={setDescription}
@@ -687,7 +689,7 @@ export default function AddExpenseScreen() {
                     testID="paid-by-section"
                   >
                     <MaterialIcons name="person" size={20} color={C.slate400} />
-                    <Text style={s.compactRowLabel}>Paid by</Text>
+                    <Text style={s.compactRowLabel}>{t('expense.paidBy')}</Text>
                     <View style={s.compactRowValue}>
                       {payer && (
                         <View style={s.compactAvatar}>
@@ -700,7 +702,7 @@ export default function AddExpenseScreen() {
                         {payer?.display_name ?? '—'}
                       </Text>
                     </View>
-                    <Text style={s.compactChange}>Change</Text>
+                    <Text style={s.compactChange}>{t('expense.change')}</Text>
                     <MaterialIcons
                       name="chevron-right"
                       size={18}
@@ -725,16 +727,16 @@ export default function AddExpenseScreen() {
                     size={20}
                     color={C.slate400}
                   />
-                  <Text style={s.compactRowLabel}>Split</Text>
+                  <Text style={s.compactRowLabel}>{t('expense.split')}</Text>
                   <Text style={s.splitSummaryText}>
                     {splitMethod === 'equally'
-                      ? `Equally · ${selectedMembers.size} member${selectedMembers.size !== 1 ? 's' : ''}`
+                      ? t('expense.equalSplitSummary', { count: selectedMembers.size, plural: selectedMembers.size !== 1 ? 's' : '' })
                       : splitMethod === 'exact'
-                        ? 'Exact amounts'
-                        : 'By percent'}
+                        ? t('expense.exactAmounts')
+                        : t('expense.byPercent')}
                   </Text>
                   <Text style={s.compactChange}>
-                    {splitCustomized ? 'Done' : 'Customize'}
+                    {splitCustomized ? t('expense.done') : t('expense.customize')}
                   </Text>
                   <MaterialIcons
                     name={splitCustomized ? 'expand-less' : 'expand-more'}
@@ -763,18 +765,17 @@ export default function AddExpenseScreen() {
                             ]}
                           >
                             {m === 'equally'
-                              ? 'Equally'
+                              ? t('expense.equally')
                               : m === 'exact'
-                                ? 'Exact'
-                                : 'Percent'}
+                                ? t('expense.exact')
+                                : t('expense.percent')}
                           </Text>
                         </Pressable>
                       ))}
                     </View>
                     {splitMethod !== 'equally' && (
                       <Text style={s.splitComingSoon}>
-                        Only equal splits are supported right now. Exact and
-                        percent splits coming soon.
+                        {t('expense.splitComingSoon')}
                       </Text>
                     )}
                     <View
@@ -837,7 +838,7 @@ export default function AddExpenseScreen() {
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <MaterialIcons name="category" size={20} color={C.slate400} />
-              <Text style={s.sectionLabel}>Category</Text>
+              <Text style={s.sectionLabel}>{t('expense.category')}</Text>
             </View>
             <View style={s.categoryChipRow}>
               <View
@@ -852,15 +853,15 @@ export default function AddExpenseScreen() {
                     detectedCategory === 'other' && s.categoryChipTextOther,
                   ]}
                 >
-                  {CATEGORY_LABELS[detectedCategory] ?? detectedCategory}
+                  {t(CATEGORY_KEYS[detectedCategory] ?? 'expense.categoryOther')}
                 </Text>
               </View>
-              <Text style={s.categoryAutoLabel}>Auto-detected</Text>
+              <Text style={s.categoryAutoLabel}>{t('expense.autoDetected')}</Text>
             </View>
             {detectedCategory === 'other' && (
               <TextInput
                 style={s.categoryInput}
-                placeholder="e.g. Health & Wellness"
+                placeholder={t('expense.customCategoryPlaceholder')}
                 placeholderTextColor={C.slate400}
                 value={customCategory}
                 onChangeText={setCustomCategory}
@@ -872,7 +873,7 @@ export default function AddExpenseScreen() {
               customCategory.trim().length > 0 &&
               !isEditing && (
                 <Text style={s.categorySaveHint}>
-                  Will be saved on expense creation
+                  {t('expense.categorySaveHint')}
                 </Text>
               )}
           </View>
@@ -909,7 +910,7 @@ export default function AddExpenseScreen() {
               <MaterialIcons name="add-a-photo" size={20} color={C.slate400} />
             )}
             <Text style={s.addReceiptText}>
-              {receiptUploading ? 'Uploading…' : 'Add receipt photo'}
+              {receiptUploading ? t('expense.uploading') : t('expense.addReceipt')}
             </Text>
           </Pressable>
         )}
@@ -933,7 +934,7 @@ export default function AddExpenseScreen() {
             <>
               <MaterialIcons name="check" size={20} color={C.bg} />
               <Text style={s.saveBtnText}>
-                {isEditing ? 'Save Changes' : 'Save Expense'}
+                {isEditing ? t('expense.saveChanges') : t('expense.saveExpense')}
               </Text>
             </>
           )}
@@ -953,7 +954,7 @@ export default function AddExpenseScreen() {
         >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Select Group</Text>
+            <Text style={s.sheetTitle}>{t('expense.selectGroupSheet')}</Text>
             <FlatList
               data={groups}
               keyExtractor={(item: GroupOption) => item.id}
@@ -1017,7 +1018,7 @@ export default function AddExpenseScreen() {
         >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Who paid?</Text>
+            <Text style={s.sheetTitle}>{t('expense.whoPaid')}</Text>
             {members.map((m) => {
               const isSelected = m.id === paidBy;
               return (
@@ -1071,7 +1072,7 @@ export default function AddExpenseScreen() {
         >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Expense Currency</Text>
+            <Text style={s.sheetTitle}>{t('expense.expenseCurrency')}</Text>
             <FlatList
               data={CURRENCIES}
               keyExtractor={(item: Currency) => item.code}

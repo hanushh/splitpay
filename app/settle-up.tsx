@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
 import {
@@ -30,6 +31,7 @@ const C = {
 type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     groupId,
@@ -97,7 +99,7 @@ export default function SettleUpScreen() {
         <Pressable style={s.backBtn} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
-        <Text style={s.headerTitle}>Settle Up</Text>
+        <Text style={s.headerTitle}>{t('settle.title')}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -114,7 +116,7 @@ export default function SettleUpScreen() {
         <View style={s.errorBanner}>
           <MaterialIcons name="error-outline" size={16} color={C.white} />
           <Text style={s.errorBannerText}>
-            No payee selected. Go back and tap Settle up on a specific member.
+            {t('settle.noPayee')}
           </Text>
         </View>
       ) : null}
@@ -130,7 +132,7 @@ export default function SettleUpScreen() {
             <MaterialIcons name="check-circle" size={52} color={C.primary} />
           </View>
           <Text style={s.amountLabel}>
-            {iThemPay ? `${payeeName} paid you` : `You paid ${payeeName}`}
+            {iThemPay ? t('settle.theyPaid', { name: payeeName }) : t('settle.youPaid', { name: payeeName })}
           </Text>
           <TextInput
             style={s.amountValue}
@@ -143,7 +145,7 @@ export default function SettleUpScreen() {
           />
           {isOverpayment && (
             <Text style={s.overpaymentWarning}>
-              This exceeds the outstanding balance
+              {t('settle.overpayment')}
             </Text>
           )}
           {groupName && (
@@ -155,23 +157,23 @@ export default function SettleUpScreen() {
         </View>
 
         {/* Payment method */}
-        <Text style={s.sectionTitle}>PAYMENT METHOD</Text>
+        <Text style={s.sectionTitle}>{t('settle.paymentMethod')}</Text>
         <View style={s.methodList}>
           {(
             [
               {
-                id: 'cash' as const,
-                icon: 'payments',
-                label: 'Record a cash payment',
-                sub: 'No transfer needed',
+                id: 'cash' as PaymentMethod,
+                icon: 'payments' as keyof typeof MaterialIcons.glyphMap,
+                label: t('settle.cashLabel'),
+                sub: t('settle.cashSub'),
               },
               {
-                id: 'venmo' as const,
-                icon: 'account-balance-wallet',
-                label: 'Pay via Venmo/PayPal',
-                sub: 'Open external app',
+                id: 'venmo' as PaymentMethod,
+                icon: 'account-balance-wallet' as keyof typeof MaterialIcons.glyphMap,
+                label: t('settle.venmoLabel'),
+                sub: t('settle.venmoSub'),
               },
-            ] as const
+            ]
           ).map((m) => (
             <Pressable
               key={m.id}
@@ -212,7 +214,7 @@ export default function SettleUpScreen() {
         </View>
 
         {/* Date */}
-        <Text style={s.sectionTitle}>DATE</Text>
+        <Text style={s.sectionTitle}>{t('settle.date')}</Text>
         <Pressable style={s.infoRow}>
           <MaterialIcons name="calendar-today" size={20} color={C.slate400} />
           <Text style={s.infoText}>{today}</Text>
@@ -220,12 +222,12 @@ export default function SettleUpScreen() {
         </Pressable>
 
         {/* Note */}
-        <Text style={s.sectionTitle}>NOTE (OPTIONAL)</Text>
+        <Text style={s.sectionTitle}>{t('settle.noteOptional')}</Text>
         <View style={s.noteRow}>
           <MaterialIcons name="edit-note" size={20} color={C.slate400} />
           <TextInput
             style={s.noteInput}
-            placeholder="Add a note…"
+            placeholder={t('settle.notePlaceholder')}
             placeholderTextColor={C.slate400}
             value={note}
             onChangeText={setNote}
@@ -236,7 +238,7 @@ export default function SettleUpScreen() {
         {/* Receipt */}
         <Pressable style={s.receiptBtn}>
           <MaterialIcons name="add-a-photo" size={20} color={C.slate400} />
-          <Text style={s.receiptText}>Add a receipt image</Text>
+          <Text style={s.receiptText}>{t('settle.addReceipt')}</Text>
         </Pressable>
       </ScrollView>
 
@@ -252,7 +254,7 @@ export default function SettleUpScreen() {
         >
           <MaterialIcons name="check" size={20} color={C.bg} />
           <Text style={s.saveBtnText}>
-            {saving ? 'Saving…' : 'Save Payment'}
+            {saving ? t('settle.saving') : t('settle.savePayment')}
           </Text>
         </Pressable>
       </View>

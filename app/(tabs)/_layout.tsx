@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PRIMARY = '#17e86b';
 const SURFACE_DARK = '#1a3324';
@@ -8,6 +9,7 @@ const SURFACE_HL = '#244732';
 const SLATE_400 = '#94a3b8';
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   return (
     <Tabs
       screenOptions={{
@@ -31,7 +33,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Groups',
+          title: t('tabs.groups'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="groups" size={size} color={color} />
           ),
@@ -40,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="friends"
         options={{
-          title: 'Friends',
+          title: t('tabs.friends'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="people" size={size} color={color} />
           ),
@@ -49,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="activity"
         options={{
-          title: 'Activity',
+          title: t('tabs.activity'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="history" size={size} color={color} />
           ),
@@ -58,7 +60,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="account"
         options={{
-          title: 'Account',
+          title: t('tabs.account'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="account-circle" size={size} color={color} />
           ),
