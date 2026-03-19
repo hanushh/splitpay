@@ -43,16 +43,39 @@ export default function GroupBalancesScreen() {
   const [members, setMembers] = useState<MemberBalance[]>([]);
   const [totalCents, setTotalCents] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
   const fetchBalances = useCallback(async () => {
     if (!user || !groupId) return;
+    setFetchError(null);
 
-    const [{ data: myBalance }, { data: memberRows }, { data: myMember }] = await Promise.all([
+    const [
+      { data: myBalance, error: balanceErr },
+      { data: memberRows, error: membersErr },
+      { data: myMember, error: myMemberErr },
+    ] = await Promise.all([
       supabase.from('group_balances').select('balance_cents').eq('group_id', groupId).eq('user_id', user.id).single(),
       supabase.rpc('get_group_member_balances', { p_group_id: groupId, p_user_id: user.id }),
       supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', user.id).single(),
     ]);
+
+    if (membersErr) {
+      setFetchError(membersErr.message ?? 'Failed to load member balances.');
+      setLoading(false);
+      return;
+    }
+    if (balanceErr && balanceErr.code !== 'PGRST116') {
+      // PGRST116 = row not found (no balance row yet) — treat as 0, not an error
+      setFetchError(balanceErr.message ?? 'Failed to load your balance.');
+      setLoading(false);
+      return;
+    }
+    if (myMemberErr && myMemberErr.code !== 'PGRST116') {
+      setFetchError(myMemberErr.message ?? 'Failed to identify your membership.');
+      setLoading(false);
+      return;
+    }
 
     setTotalCents(myBalance?.balance_cents ?? 0);
     setMyMemberId((myMember as { id: string } | null)?.id ?? null);
@@ -113,6 +136,11 @@ export default function GroupBalancesScreen() {
 
       {loading ? (
         <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
+      ) : fetchError ? (
+        <View style={s.errorRow}>
+          <MaterialIcons name="error-outline" size={16} color={C.orange} />
+          <Text style={s.errorText}>{fetchError}</Text>
+        </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
           {members.map((m) => {
@@ -207,4 +235,6 @@ const s = StyleSheet.create({
   balanceText: { fontWeight: '600', fontSize: 14 },
   settleBtn: { backgroundColor: C.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
   settleBtnText: { color: C.bg, fontWeight: '700', fontSize: 13 },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, marginTop: 40 },
+  errorText: { color: C.orange, fontSize: 13, flex: 1 },
 });

@@ -84,7 +84,8 @@ export default function InviteFriendScreen() {
       .from('group_members')
       .select('groups!inner(id, name)')
       .eq('user_id', user.id)
-      .then(({ data }) => {
+      .then(({ data, error: groupsErr }) => {
+        if (groupsErr) { setError(groupsErr.message ?? 'Failed to load your groups.'); return; }
         const seen = new Set<string>();
         const list = (data ?? [])
           .map((row: any) => row.groups as GroupOption)

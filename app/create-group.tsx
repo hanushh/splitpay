@@ -139,11 +139,17 @@ export default function CreateGroupScreen() {
         const token = generateInviteToken();
         const inviteeEmail = contact.emails[0] ?? null;
 
-        await supabase.from('group_members').insert({
+        const { error: contactMemberErr } = await supabase.from('group_members').insert({
           group_id: groupId,
           user_id: null,
           display_name: contact.name,
         });
+
+        if (contactMemberErr) {
+          setError(contactMemberErr.message ?? `Failed to add ${contact.name} to the group.`);
+          setSaving(false);
+          return;
+        }
 
         const { error: inviteErr } = await supabase.from('invitations').insert({
           inviter_id: user.id,

@@ -101,7 +101,7 @@ export default function GroupDetailScreen() {
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
-    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }, { data: memberRows }] = await Promise.all([
+    const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }, { data: memberRows, error: memberRowsErr }] = await Promise.all([
       supabase.from('groups').select('id, name, description, image_url, created_by').eq('id', id).single(),
       supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
@@ -115,6 +115,11 @@ export default function GroupDetailScreen() {
     }
     if (expErr) {
       setFetchError(expErr.message);
+      setLoading(false);
+      return;
+    }
+    if (memberRowsErr) {
+      setFetchError(memberRowsErr.message ?? 'Failed to load group members.');
       setLoading(false);
       return;
     }
