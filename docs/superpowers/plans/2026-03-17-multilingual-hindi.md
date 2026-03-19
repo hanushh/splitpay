@@ -15,46 +15,49 @@
 ## File Structure
 
 ### New Files
-| File | Responsibility |
-|------|---------------|
-| `lib/i18n.ts` | i18next init, language detection, `SUPPORTED_LANGUAGES` config, `setLanguage()`, `initI18n()` |
-| `locales/en.json` | All English translation strings (~200 flat dot-prefixed keys) |
-| `locales/hi.json` | Hindi translations (AI-generated first pass for review) |
+
+| File              | Responsibility                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `lib/i18n.ts`     | i18next init, language detection, `SUPPORTED_LANGUAGES` config, `setLanguage()`, `initI18n()` |
+| `locales/en.json` | All English translation strings (~200 flat dot-prefixed keys)                                 |
+| `locales/hi.json` | Hindi translations (AI-generated first pass for review)                                       |
 
 ### Modified Files
-| File | Change |
-|------|--------|
-| `app/_layout.tsx` | Add `i18nReady` state gate, call `initI18n()` before render |
-| `app/auth/sign-in.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/auth/sign-up.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/auth/callback.tsx` | Replace "Signing you in..." with `t()` |
-| `app/(tabs)/index.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/(tabs)/friends.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/(tabs)/activity.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/(tabs)/account.tsx` | Replace hardcoded strings with `t()` calls + add Language picker row + Language picker modal |
-| `app/group/[id].tsx` | Replace hardcoded strings with `t()` calls |
-| `app/group/balances.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/group/spending.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/add-expense.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/create-group.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/settle-up.tsx` | Replace hardcoded strings with `t()` calls |
-| `app/invite-friend.tsx` | Replace hardcoded strings with `t()` calls |
-| `components/MemberSearchPicker.tsx` | Replace hardcoded strings with `t()` calls |
-| `components/SplashScreen.tsx` | Replace "Loading..." and "Settling expenses made simple" with `t()` calls |
-| `app/(tabs)/_layout.tsx` | Replace hardcoded tab bar titles with `t()` calls |
-| `app/invite.tsx` | No changes needed (pure redirect, no user-facing strings) |
-| `jest.config.js` | Add `react-i18next`, `i18next`, and `expo-localization` mock mappings |
-| `__mocks__/react-i18next.ts` | New mock file for test passthrough |
-| `__mocks__/i18next.ts` | New mock file for i18next default export |
-| `__mocks__/expo-localization.ts` | New mock file for tests |
+
+| File                                | Change                                                                                       |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- |
+| `app/_layout.tsx`                   | Add `i18nReady` state gate, call `initI18n()` before render                                  |
+| `app/auth/sign-in.tsx`              | Replace hardcoded strings with `t()` calls                                                   |
+| `app/auth/sign-up.tsx`              | Replace hardcoded strings with `t()` calls                                                   |
+| `app/auth/callback.tsx`             | Replace "Signing you in..." with `t()`                                                       |
+| `app/(tabs)/index.tsx`              | Replace hardcoded strings with `t()` calls                                                   |
+| `app/(tabs)/friends.tsx`            | Replace hardcoded strings with `t()` calls                                                   |
+| `app/(tabs)/activity.tsx`           | Replace hardcoded strings with `t()` calls                                                   |
+| `app/(tabs)/account.tsx`            | Replace hardcoded strings with `t()` calls + add Language picker row + Language picker modal |
+| `app/group/[id].tsx`                | Replace hardcoded strings with `t()` calls                                                   |
+| `app/group/balances.tsx`            | Replace hardcoded strings with `t()` calls                                                   |
+| `app/group/spending.tsx`            | Replace hardcoded strings with `t()` calls                                                   |
+| `app/add-expense.tsx`               | Replace hardcoded strings with `t()` calls                                                   |
+| `app/create-group.tsx`              | Replace hardcoded strings with `t()` calls                                                   |
+| `app/settle-up.tsx`                 | Replace hardcoded strings with `t()` calls                                                   |
+| `app/invite-friend.tsx`             | Replace hardcoded strings with `t()` calls                                                   |
+| `components/MemberSearchPicker.tsx` | Replace hardcoded strings with `t()` calls                                                   |
+| `components/SplashScreen.tsx`       | Replace "Loading..." and "Settling expenses made simple" with `t()` calls                    |
+| `app/(tabs)/_layout.tsx`            | Replace hardcoded tab bar titles with `t()` calls                                            |
+| `app/invite.tsx`                    | No changes needed (pure redirect, no user-facing strings)                                    |
+| `jest.config.js`                    | Add `react-i18next`, `i18next`, and `expo-localization` mock mappings                        |
+| `__mocks__/react-i18next.ts`        | New mock file for test passthrough                                                           |
+| `__mocks__/i18next.ts`              | New mock file for i18next default export                                                     |
+| `__mocks__/expo-localization.ts`    | New mock file for tests                                                                      |
 
 ---
 
-## Chunk 1: Infrastructure (lib/i18n.ts, locales, mocks, _layout.tsx)
+## Chunk 1: Infrastructure (lib/i18n.ts, locales, mocks, \_layout.tsx)
 
 ### Task 1: Install dependencies
 
 **Files:**
+
 - Modify: `package.json`
 
 - [ ] **Step 1: Install i18next, react-i18next, expo-localization**
@@ -83,6 +86,7 @@ git commit -m "feat(i18n): install i18next, react-i18next, expo-localization"
 ### Task 2: Create English translation file
 
 **Files:**
+
 - Create: `locales/en.json`
 
 - [ ] **Step 1: Create `locales/en.json`**
@@ -365,6 +369,7 @@ git commit -m "feat(i18n): add English translation file with all UI strings"
 ### Task 3: Create Hindi translation file
 
 **Files:**
+
 - Create: `locales/hi.json`
 
 - [ ] **Step 1: Create `locales/hi.json`**
@@ -372,6 +377,7 @@ git commit -m "feat(i18n): add English translation file with all UI strings"
 Generate AI-translated Hindi values for all keys in `en.json`. Use the same key structure. The user will review and correct these before shipping.
 
 Important notes for Hindi translations:
+
 - Keep brand name "PaySplit" untranslated
 - Keep interpolation variables `{{var}}` intact
 - Keep emoji prefixes (🍽, 🚗, etc.) intact
@@ -389,6 +395,7 @@ git commit -m "feat(i18n): add Hindi translation file (AI-generated, pending rev
 ### Task 4: Create i18n initialization module
 
 **Files:**
+
 - Create: `lib/i18n.ts`
 
 - [ ] **Step 1: Create `lib/i18n.ts`**
@@ -461,6 +468,7 @@ git commit -m "feat(i18n): add i18n initialization module with language detectio
 ### Task 5: Create test mocks
 
 **Files:**
+
 - Create: `__mocks__/react-i18next.ts`
 - Create: `__mocks__/expo-localization.ts`
 - Modify: `jest.config.js`
@@ -484,7 +492,13 @@ export function getLocales() {
 }
 
 export function getCalendars() {
-  return [{ calendar: 'gregory', timeZone: 'America/New_York', uses24hourClock: false }];
+  return [
+    {
+      calendar: 'gregory',
+      timeZone: 'America/New_York',
+      uses24hourClock: false,
+    },
+  ];
 }
 ```
 
@@ -532,6 +546,7 @@ git commit -m "feat(i18n): add test mocks for react-i18next and expo-localizatio
 ### Task 6: Integrate i18n init into root layout
 
 **Files:**
+
 - Modify: `app/_layout.tsx:1-81`
 
 - [ ] **Step 1: Add i18n imports and state to `app/_layout.tsx`**
@@ -601,6 +616,7 @@ git commit -m "feat(i18n): integrate i18n initialization into root layout"
 ### Task 7: Translate sign-in screen
 
 **Files:**
+
 - Modify: `app/auth/sign-in.tsx`
 
 - [ ] **Step 1: Add `useTranslation` import**
@@ -619,18 +635,18 @@ const { t } = useTranslation();
 
 - [ ] **Step 3: Replace all hardcoded strings**
 
-| Line | Before | After |
-|------|--------|-------|
-| 42 | `'Please fill in all fields.'` | `t('auth.fillAllFields')` |
-| 74 | `Welcome back` | `{t('auth.welcomeBack')}` |
-| 75 | `Sign in to {APP_DISPLAY_NAME}` | `{t('auth.signInTo', { appName: APP_DISPLAY_NAME })}` |
-| 90 | `Continue with Google` | `{t('auth.continueWithGoogle')}` |
-| 98 | `or` | `{t('auth.or')}` |
-| 104 | `"Email or phone number"` placeholder | `t('auth.emailOrPhone')` |
-| 115 | `"Password"` placeholder | `t('auth.password')` |
-| 131 | `Sign In` | `{t('auth.signIn')}` |
-| 136 | `Don't have an account? ` | `{t('auth.noAccount')}` |
-| 137 | `Sign Up` | `{t('auth.signUp')}` |
+| Line | Before                                | After                                                 |
+| ---- | ------------------------------------- | ----------------------------------------------------- |
+| 42   | `'Please fill in all fields.'`        | `t('auth.fillAllFields')`                             |
+| 74   | `Welcome back`                        | `{t('auth.welcomeBack')}`                             |
+| 75   | `Sign in to {APP_DISPLAY_NAME}`       | `{t('auth.signInTo', { appName: APP_DISPLAY_NAME })}` |
+| 90   | `Continue with Google`                | `{t('auth.continueWithGoogle')}`                      |
+| 98   | `or`                                  | `{t('auth.or')}`                                      |
+| 104  | `"Email or phone number"` placeholder | `t('auth.emailOrPhone')`                              |
+| 115  | `"Password"` placeholder              | `t('auth.password')`                                  |
+| 131  | `Sign In`                             | `{t('auth.signIn')}`                                  |
+| 136  | `Don't have an account? `             | `{t('auth.noAccount')}`                               |
+| 137  | `Sign Up`                             | `{t('auth.signUp')}`                                  |
 
 - [ ] **Step 4: Run typecheck**
 
@@ -650,6 +666,7 @@ git commit -m "feat(i18n): translate sign-in screen"
 ### Task 8: Translate sign-up screen
 
 **Files:**
+
 - Modify: `app/auth/sign-up.tsx`
 
 - [ ] **Step 1: Add `useTranslation` import and hook**
@@ -658,26 +675,26 @@ Same pattern as sign-in.
 
 - [ ] **Step 2: Replace all hardcoded strings**
 
-| Location | Before | After |
-|----------|--------|-------|
-| Line 44 | `'Please fill in all fields.'` | `t('auth.fillAllFields')` |
-| Line 49 | `'Enter a valid phone number...'` | `t('auth.invalidPhone')` |
-| Line 53 | `'Passwords do not match.'` | `t('auth.passwordMismatch')` |
-| Line 57 | `'Password must be at least 6 characters.'` | `t('auth.passwordTooShort')` |
-| Line 86 | `Check your email` | `{t('auth.checkEmail')}` |
-| Line 88 | `We sent a confirmation link to...` | `{t('auth.confirmationSent', { email })}` |
-| Line 94 | `Back to Sign In` | `{t('auth.backToSignIn')}` |
-| Line 110 | `Create account` | `{t('auth.createAccount')}` |
+| Location | Before                                      | After                                                |
+| -------- | ------------------------------------------- | ---------------------------------------------------- |
+| Line 44  | `'Please fill in all fields.'`              | `t('auth.fillAllFields')`                            |
+| Line 49  | `'Enter a valid phone number...'`           | `t('auth.invalidPhone')`                             |
+| Line 53  | `'Passwords do not match.'`                 | `t('auth.passwordMismatch')`                         |
+| Line 57  | `'Password must be at least 6 characters.'` | `t('auth.passwordTooShort')`                         |
+| Line 86  | `Check your email`                          | `{t('auth.checkEmail')}`                             |
+| Line 88  | `We sent a confirmation link to...`         | `{t('auth.confirmationSent', { email })}`            |
+| Line 94  | `Back to Sign In`                           | `{t('auth.backToSignIn')}`                           |
+| Line 110 | `Create account`                            | `{t('auth.createAccount')}`                          |
 | Line 111 | `Join {APP_DISPLAY_NAME} to split expenses` | `{t('auth.joinApp', { appName: APP_DISPLAY_NAME })}` |
-| Line 126 | `Continue with Google` | `{t('auth.continueWithGoogle')}` |
-| Line 134 | `or` | `{t('auth.or')}` |
-| Line 140 | `"Email"` placeholder | `t('auth.email')` |
-| Line 151 | `"Phone number..."` placeholder | `t('auth.phone')` |
-| Line 159 | `"Password"` placeholder | `t('auth.password')` |
-| Line 170 | `"Confirm Password"` placeholder | `t('auth.confirmPassword')` |
-| Line 185 | `Create Account` | `{t('auth.createAccountBtn')}` |
-| Line 190 | `Already have an account? ` | `{t('auth.hasAccount')}` |
-| Line 191 | `Sign In` | `{t('auth.signIn')}` |
+| Line 126 | `Continue with Google`                      | `{t('auth.continueWithGoogle')}`                     |
+| Line 134 | `or`                                        | `{t('auth.or')}`                                     |
+| Line 140 | `"Email"` placeholder                       | `t('auth.email')`                                    |
+| Line 151 | `"Phone number..."` placeholder             | `t('auth.phone')`                                    |
+| Line 159 | `"Password"` placeholder                    | `t('auth.password')`                                 |
+| Line 170 | `"Confirm Password"` placeholder            | `t('auth.confirmPassword')`                          |
+| Line 185 | `Create Account`                            | `{t('auth.createAccountBtn')}`                       |
+| Line 190 | `Already have an account? `                 | `{t('auth.hasAccount')}`                             |
+| Line 191 | `Sign In`                                   | `{t('auth.signIn')}`                                 |
 
 - [ ] **Step 3: Commit**
 
@@ -691,6 +708,7 @@ git commit -m "feat(i18n): translate sign-up screen"
 ### Task 9: Translate auth callback screen
 
 **Files:**
+
 - Modify: `app/auth/callback.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace string**
@@ -711,6 +729,7 @@ git commit -m "feat(i18n): translate auth callback screen"
 ### Task 10: Translate groups home screen
 
 **Files:**
+
 - Modify: `app/(tabs)/index.tsx`
 
 - [ ] **Step 1: Add `useTranslation` import and hook**
@@ -719,20 +738,20 @@ git commit -m "feat(i18n): translate auth callback screen"
 
 Pass `t` as a prop or use hook inside `GroupCard`. Key replacements:
 
-| Before | After |
-|--------|-------|
-| `'settled up'` | `t('groups.settledUp')` |
+| Before           | After                         |
+| ---------------- | ----------------------------- |
+| `'settled up'`   | `t('groups.settledUp')`       |
 | `'you are owed'` | `t('groups.youAreOwedShort')` |
-| `'you owe'` | `t('groups.youOweShort')` |
+| `'you owe'`      | `t('groups.youOweShort')`     |
 
 - [ ] **Step 3: Replace strings in `TotalBalanceDisplay`**
 
-| Before | After |
-|--------|-------|
-| `'You are all settled up'` | `t('groups.allSettled')` |
-| `` `You are owed ${format(cents)}` `` | `t('groups.youAreOwed', { amount: format(cents) })` |
-| `` `You owe ${format(cents)}` `` | `t('groups.youOwe', { amount: format(cents) })` |
-| `'Total Balance'` | `t('groups.totalBalance')` |
+| Before                                           | After                                                |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `'You are all settled up'`                       | `t('groups.allSettled')`                             |
+| `` `You are owed ${format(cents)}` ``            | `t('groups.youAreOwed', { amount: format(cents) })`  |
+| `` `You owe ${format(cents)}` ``                 | `t('groups.youOwe', { amount: format(cents) })`      |
+| `'Total Balance'`                                | `t('groups.totalBalance')`                           |
 | `'across active groups'` / `'across all groups'` | `t('groups.acrossActive')` / `t('groups.acrossAll')` |
 
 - [ ] **Step 4: Replace strings in `STATUS_FILTERS`**
@@ -740,23 +759,26 @@ Pass `t` as a prop or use hook inside `GroupCard`. Key replacements:
 Make `STATUS_FILTERS` use `t()` by computing them inside the component:
 
 ```typescript
-const statusFilters = useMemo(() => [
-  { key: 'all' as const, label: t('groups.filterAll') },
-  { key: 'owed' as const, label: t('groups.filterOwed') },
-  { key: 'owes' as const, label: t('groups.filterOwe') },
-  { key: 'settled' as const, label: t('groups.filterSettled') },
-], [t]);
+const statusFilters = useMemo(
+  () => [
+    { key: 'all' as const, label: t('groups.filterAll') },
+    { key: 'owed' as const, label: t('groups.filterOwed') },
+    { key: 'owes' as const, label: t('groups.filterOwe') },
+    { key: 'settled' as const, label: t('groups.filterSettled') },
+  ],
+  [t],
+);
 ```
 
 - [ ] **Step 5: Replace remaining strings**
 
-| Before | After |
-|--------|-------|
-| `'Your Groups'` | `t('groups.title')` |
-| `'Search groups…'` placeholder | `t('groups.searchPlaceholder')` |
-| `'No groups match your search'` | `t('groups.noMatch')` |
-| `'Start a new group'` | `t('groups.startNew')` |
-| `'Retry'` | `t('common.retry')` |
+| Before                          | After                           |
+| ------------------------------- | ------------------------------- |
+| `'Your Groups'`                 | `t('groups.title')`             |
+| `'Search groups…'` placeholder  | `t('groups.searchPlaceholder')` |
+| `'No groups match your search'` | `t('groups.noMatch')`           |
+| `'Start a new group'`           | `t('groups.startNew')`          |
+| `'Retry'`                       | `t('common.retry')`             |
 
 - [ ] **Step 6: Run typecheck + tests**
 
@@ -776,11 +798,13 @@ git commit -m "feat(i18n): translate groups home screen"
 ### Task 11: Translate friends screen
 
 **Files:**
+
 - Modify: `app/(tabs)/friends.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - `'Friends'` → `t('friends.title')`
 - `'Search contacts…'` → `t('friends.searchPlaceholder')`
 - `'On PaySplit'` → `t('friends.onApp')`
@@ -811,11 +835,13 @@ git commit -m "feat(i18n): translate friends screen"
 ### Task 12: Translate activity screen
 
 **Files:**
+
 - Modify: `app/(tabs)/activity.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - `'Activity'` → `t('activity.title')`
 - Filter labels → use computed array with `t()` like groups screen
 - `'No activity yet'` → `t('activity.noActivityTitle')`
@@ -841,6 +867,7 @@ git commit -m "feat(i18n): translate activity screen"
 ### Task 13: Translate account screen + add language picker
 
 **Files:**
+
 - Modify: `app/(tabs)/account.tsx`
 
 - [ ] **Step 1: Add imports**
@@ -848,7 +875,11 @@ git commit -m "feat(i18n): translate activity screen"
 ```typescript
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
-import { SUPPORTED_LANGUAGES, setLanguage, type LanguageCode } from '@/lib/i18n';
+import {
+  SUPPORTED_LANGUAGES,
+  setLanguage,
+  type LanguageCode,
+} from '@/lib/i18n';
 import i18n from '@/lib/i18n';
 ```
 
@@ -860,7 +891,9 @@ Inside `AccountScreen`, add:
 const { t } = useTranslation();
 const [langPickerVisible, setLangPickerVisible] = useState(false);
 
-const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ?? SUPPORTED_LANGUAGES[0];
+const currentLang =
+  SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ??
+  SUPPORTED_LANGUAGES[0];
 ```
 
 - [ ] **Step 3: Add language selection handler**
@@ -875,20 +908,20 @@ const handleSelectLanguage = async (code: LanguageCode) => {
 
 - [ ] **Step 4: Replace existing hardcoded strings with `t()` calls**
 
-| Before | After |
-|--------|-------|
-| `"PROFILE"` | `t('account.profile')` |
-| `"Phone Number"` | `t('account.phoneNumber')` |
-| `'Add phone number'` | `t('account.addPhoneNumber')` |
-| `"PREFERENCES"` | `t('account.preferences')` |
-| `"Currency"` | `t('account.currency')` |
-| `"Select Currency"` | `t('account.selectCurrency')` |
-| `"ACCOUNT"` | `t('account.accountSection')` |
-| `"Sign Out"` | `t('account.signOut')` |
-| `"Phone Number"` sheet title | `t('account.phoneNumber')` |
-| `"Used to match you..."` | `t('account.phoneHint')` |
-| `'Enter a valid phone number...'` | `t('account.invalidPhone')` |
-| `"Save"` button | `t('common.save')` |
+| Before                            | After                         |
+| --------------------------------- | ----------------------------- |
+| `"PROFILE"`                       | `t('account.profile')`        |
+| `"Phone Number"`                  | `t('account.phoneNumber')`    |
+| `'Add phone number'`              | `t('account.addPhoneNumber')` |
+| `"PREFERENCES"`                   | `t('account.preferences')`    |
+| `"Currency"`                      | `t('account.currency')`       |
+| `"Select Currency"`               | `t('account.selectCurrency')` |
+| `"ACCOUNT"`                       | `t('account.accountSection')` |
+| `"Sign Out"`                      | `t('account.signOut')`        |
+| `"Phone Number"` sheet title      | `t('account.phoneNumber')`    |
+| `"Used to match you..."`          | `t('account.phoneHint')`      |
+| `'Enter a valid phone number...'` | `t('account.invalidPhone')`   |
+| `"Save"` button                   | `t('common.save')`            |
 
 - [ ] **Step 5: Add Language setting row in PREFERENCES section**
 
@@ -919,7 +952,9 @@ After the Currency Picker Modal, add a Language Picker Modal following the same 
       <View style={s.sheetHandle} />
       <Text style={s.sheetTitle}>{t('account.selectLanguage')}</Text>
       <FlatList
-        data={SUPPORTED_LANGUAGES as unknown as typeof SUPPORTED_LANGUAGES[number][]}
+        data={
+          SUPPORTED_LANGUAGES as unknown as (typeof SUPPORTED_LANGUAGES)[number][]
+        }
         keyExtractor={(item) => item.code}
         renderItem={({ item }) => {
           const isSelected = item.code === i18n.language;
@@ -930,7 +965,9 @@ After the Currency Picker Modal, add a Language Picker Modal following the same 
               activeOpacity={0.7}
             >
               <View style={s.currencyInfo}>
-                <Text style={[s.currencyCode, isSelected && s.currencyCodeSelected]}>
+                <Text
+                  style={[s.currencyCode, isSelected && s.currencyCodeSelected]}
+                >
                   {item.nativeLabel}
                 </Text>
                 <Text style={s.currencyName}>{item.label}</Text>
@@ -969,11 +1006,13 @@ git commit -m "feat(i18n): translate account screen and add language picker"
 ### Task 14: Translate group detail screen
 
 **Files:**
+
 - Modify: `app/group/[id].tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements (~25 strings):
+
 - Balance text, action buttons ("Settle up", "Balances", "Add member")
 - Expenses section header, empty state
 - Settings modal ("Group Settings", "Archive Group", "Delete Group", "Leave Group")
@@ -992,11 +1031,13 @@ git commit -m "feat(i18n): translate group detail screen"
 ### Task 15: Translate group balances screen
 
 **Files:**
+
 - Modify: `app/group/balances.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - `'All settled up'`, `'You are owed in total'`, `'You owe in total'`, `'You are all settled up'`
 - `'GROUP MEMBERS'`, `'View chart'`
 - `'Settled up'`, `'owes you'`, `'you owe'`
@@ -1015,11 +1056,13 @@ git commit -m "feat(i18n): translate group balances screen"
 ### Task 16: Translate spending screen
 
 **Files:**
+
 - Modify: `app/group/spending.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - `'Spending'`, empty state text
 - `'TOTAL GROUP SPEND'`, expense count text
 - `'BREAKDOWN'`, `'Share Summary'`, `'Expense Summary'`
@@ -1039,11 +1082,13 @@ git commit -m "feat(i18n): translate spending screen"
 ### Task 17: Translate add-expense screen
 
 **Files:**
+
 - Modify: `app/add-expense.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements (~30 strings):
+
 - Header: "Cancel", "Add expense", "Save"
 - `'Select a group (required)'`, `'Description (e.g. Dinner)'`
 - Paid by label, "Change"
@@ -1068,14 +1113,16 @@ git commit -m "feat(i18n): translate add-expense screen"
 ### Task 18: Translate create-group screen
 
 **Files:**
+
 - Modify: `app/create-group.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - "Cancel", "New Group", "Create"
 - Preview hint texts
-- "GROUP NAME *", placeholder
+- "GROUP NAME \*", placeholder
 - "DESCRIPTION", placeholder
 - "ADD MEMBERS (OPTIONAL)"
 - "Create Group" button
@@ -1093,11 +1140,13 @@ git commit -m "feat(i18n): translate create-group screen"
 ### Task 19: Translate settle-up screen
 
 **Files:**
+
 - Modify: `app/settle-up.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - "Settle Up" header
 - Payment amount labels ("You paid {{name}}" / "{{name}} paid you")
 - "This exceeds the outstanding balance"
@@ -1119,11 +1168,13 @@ git commit -m "feat(i18n): translate settle-up screen"
 ### Task 20: Translate invite-friend screen
 
 **Files:**
+
 - Modify: `app/invite-friend.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - "Cancel", "Add members", "Add"
 - "Done", "Members added"
 - Success state title and subtitle (dynamic with counts)
@@ -1142,11 +1193,13 @@ git commit -m "feat(i18n): translate invite-friend screen"
 ### Task 21: Translate MemberSearchPicker component
 
 **Files:**
+
 - Modify: `components/MemberSearchPicker.tsx`
 
 - [ ] **Step 1: Add `useTranslation` and replace all strings**
 
 Key replacements:
+
 - `'Search by name, phone, or email…'` → `t('memberPicker.searchPlaceholder')`
 - `'Loading contacts…'` → `t('memberPicker.loadingContacts')`
 - `'Grant contacts permission...'` → `t('memberPicker.grantPermission')`
@@ -1168,6 +1221,7 @@ git commit -m "feat(i18n): translate MemberSearchPicker component"
 ### Task 22: Translate tab layout labels
 
 **Files:**
+
 - Modify: `app/(tabs)/_layout.tsx`
 
 - [ ] **Step 1: Add `useTranslation` import and hook**
@@ -1180,12 +1234,12 @@ Inside `TabLayout`, add `const { t } = useTranslation();`
 
 - [ ] **Step 2: Replace hardcoded tab titles**
 
-| Line | Before | After |
-|------|--------|-------|
-| 33 | `title: 'Groups'` | `title: t('tabs.groups')` |
-| 42 | `title: 'Friends'` | `title: t('tabs.friends')` |
-| 51 | `title: 'Activity'` | `title: t('tabs.activity')` |
-| 60 | `title: 'Account'` | `title: t('tabs.account')` |
+| Line | Before              | After                       |
+| ---- | ------------------- | --------------------------- |
+| 33   | `title: 'Groups'`   | `title: t('tabs.groups')`   |
+| 42   | `title: 'Friends'`  | `title: t('tabs.friends')`  |
+| 51   | `title: 'Activity'` | `title: t('tabs.activity')` |
+| 60   | `title: 'Account'`  | `title: t('tabs.account')`  |
 
 - [ ] **Step 3: Commit**
 
@@ -1199,6 +1253,7 @@ git commit -m "feat(i18n): translate tab bar labels"
 ### Task 23: Translate SplashScreen component
 
 **Files:**
+
 - Modify: `components/SplashScreen.tsx`
 
 - [ ] **Step 1: Add `useTranslation` import and hook**
@@ -1220,10 +1275,10 @@ export default function SplashScreen({ loadingText }: SplashScreenProps) {
 
 - [ ] **Step 2: Replace strings**
 
-| Before | After |
-|--------|-------|
-| `'Loading…'` (default prop) | Remove default, use `t('splash.loading')` inside component |
-| `'Settling expenses made simple'` | `{t('splash.tagline')}` |
+| Before                            | After                                                      |
+| --------------------------------- | ---------------------------------------------------------- |
+| `'Loading…'` (default prop)       | Remove default, use `t('splash.loading')` inside component |
+| `'Settling expenses made simple'` | `{t('splash.tagline')}`                                    |
 
 - [ ] **Step 3: Commit**
 
@@ -1265,6 +1320,7 @@ If tests fail due to snapshot or string assertion changes, update them. The `rea
 - [ ] **Step 4: Manual smoke test**
 
 Start the dev server and verify:
+
 - App loads without crash (i18n initializes properly)
 - All screens show English text (not raw keys)
 - Language picker appears in Account settings

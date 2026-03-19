@@ -17,7 +17,10 @@ const params = {
 
 describe('useSettlement', () => {
   it('calls record_settlement RPC with correct params and returns true on success', async () => {
-    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: 'settlement-uuid', error: null });
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: 'settlement-uuid',
+      error: null,
+    });
 
     const { result } = renderHook(() => useSettlement());
 
@@ -27,12 +30,12 @@ describe('useSettlement', () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith('record_settlement', {
-      p_group_id:         'group-1',
-      p_payee_member_id:  'member-2',
-      p_amount_cents:     5000,
-      p_payment_method:   'cash',
-      p_note:             'test note',
-      p_payer_member_id:  null,
+      p_group_id: 'group-1',
+      p_payee_member_id: 'member-2',
+      p_amount_cents: 5000,
+      p_payment_method: 'cash',
+      p_note: 'test note',
+      p_payer_member_id: null,
     });
     expect(ok!).toBe(true);
     expect(result.current.error).toBeNull();
@@ -60,12 +63,16 @@ describe('useSettlement', () => {
   it('sets loading true during the call and false after', async () => {
     let resolveRpc!: (v: object) => void;
     (supabase.rpc as jest.Mock).mockReturnValueOnce(
-      new Promise((res) => { resolveRpc = res; })
+      new Promise((res) => {
+        resolveRpc = res;
+      }),
     );
 
     const { result } = renderHook(() => useSettlement());
 
-    act(() => { result.current.settle(params); });
+    act(() => {
+      result.current.settle(params);
+    });
 
     expect(result.current.loading).toBe(true);
 
@@ -83,22 +90,29 @@ describe('useSettlement', () => {
 
     const { result } = renderHook(() => useSettlement());
 
-    await act(async () => { await result.current.settle(params); });
+    await act(async () => {
+      await result.current.settle(params);
+    });
     expect(result.current.error).toBe('first error');
 
-    await act(async () => { await result.current.settle(params); });
+    await act(async () => {
+      await result.current.settle(params);
+    });
     expect(result.current.error).toBeNull();
   });
 
   it('omits p_note when note is undefined', async () => {
-    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: 'uuid', error: null });
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: 'uuid',
+      error: null,
+    });
     const { result } = renderHook(() => useSettlement());
     await act(async () => {
       await result.current.settle({ ...params, note: undefined });
     });
     expect(supabase.rpc).toHaveBeenCalledWith(
       'record_settlement',
-      expect.objectContaining({ p_note: null })
+      expect.objectContaining({ p_note: null }),
     );
   });
 });

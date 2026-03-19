@@ -5,14 +5,22 @@ const TEST_PASSWORD = process.env.E2E_PASSWORD ?? 'TestPass123!';
 let activeEmail = TEST_EMAIL;
 let activePassword = TEST_PASSWORD;
 
-async function trySignIn(email: string, password: string, timeoutMs = 15000): Promise<boolean> {
-  await waitFor(element(by.id('email-input'))).toBeVisible().withTimeout(12000);
+async function trySignIn(
+  email: string,
+  password: string,
+  timeoutMs = 15000,
+): Promise<boolean> {
+  await waitFor(element(by.id('email-input')))
+    .toBeVisible()
+    .withTimeout(12000);
   await element(by.id('email-input')).replaceText(email);
   await element(by.id('password-input')).replaceText(password);
   await device.disableSynchronization();
   await element(by.id('sign-in-button')).tap();
   try {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(timeoutMs);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(timeoutMs);
     return true;
   } catch {
     return false;
@@ -26,10 +34,14 @@ async function signUpAndSignIn() {
   activePassword = `E2E_${Date.now()}!aA1`;
 
   try {
-    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(2000);
+    await waitFor(element(by.text('Create account')))
+      .toBeVisible()
+      .withTimeout(2000);
   } catch {
     await element(by.text('Sign Up')).tap();
-    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(8000);
+    await waitFor(element(by.text('Create account')))
+      .toBeVisible()
+      .withTimeout(8000);
   }
 
   await element(by.id('email-input')).replaceText(activeEmail);
@@ -41,7 +53,9 @@ async function signUpAndSignIn() {
   await device.enableSynchronization();
 
   try {
-    await waitFor(element(by.text('Back to Sign In'))).toBeVisible().withTimeout(12000);
+    await waitFor(element(by.text('Back to Sign In')))
+      .toBeVisible()
+      .withTimeout(12000);
     await element(by.text('Back to Sign In')).tap();
   } catch {
     try {
@@ -58,22 +72,34 @@ async function signUpAndSignIn() {
 }
 
 async function ensureAtLeastOneGroup() {
-  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+  await waitFor(element(by.id('groups-screen')))
+    .toBeVisible()
+    .withTimeout(10000);
   await element(by.id('create-group-header-btn')).tap();
-  await waitFor(element(by.id('create-group-screen'))).toBeVisible().withTimeout(5000);
-  await element(by.id('group-name-input')).typeText(`E2E Expense Group ${Date.now()}`);
+  await waitFor(element(by.id('create-group-screen')))
+    .toBeVisible()
+    .withTimeout(5000);
+  await element(by.id('group-name-input')).typeText(
+    `E2E Expense Group ${Date.now()}`,
+  );
   await device.disableSynchronization();
   await element(by.id('create-group-button')).tap();
   // After creation, the app navigates to the group detail screen — wait for it then go back
-  await waitFor(element(by.id('group-detail-screen'))).toBeVisible().withTimeout(20000);
+  await waitFor(element(by.id('group-detail-screen')))
+    .toBeVisible()
+    .withTimeout(20000);
   await device.enableSynchronization();
   await device.pressBack();
-  await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
+  await waitFor(element(by.id('groups-screen')))
+    .toBeVisible()
+    .withTimeout(5000);
 }
 
 async function ensureSignedIn() {
   try {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(3000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(3000);
     return;
   } catch {
     const signedIn = await trySignIn(activeEmail, activePassword, 20000);
@@ -106,18 +132,24 @@ describe('Add Expense — validation', () => {
   });
 
   it('Save button in header is disabled with no data', async () => {
-    const attrs = (await element(by.id('header-save-button')).getAttributes()) as { enabled?: boolean };
+    const attrs = (await element(
+      by.id('header-save-button'),
+    ).getAttributes()) as { enabled?: boolean };
     expect(attrs.enabled).toBe(false);
   });
 
   it('footer Save Expense button is disabled with no data', async () => {
-    const attrs = (await element(by.id('save-expense-button')).getAttributes()) as { enabled?: boolean };
+    const attrs = (await element(
+      by.id('save-expense-button'),
+    ).getAttributes()) as { enabled?: boolean };
     expect(attrs.enabled).toBe(false);
   });
 
   it('group picker opens and lists only user groups', async () => {
     await element(by.id('group-picker-button')).tap();
-    await waitFor(element(by.id('group-list'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('group-list')))
+      .toBeVisible()
+      .withTimeout(5000);
     // At least one group option should exist
     await detoxExpect(element(by.id('group-option-0'))).toBeVisible();
   });
@@ -125,7 +157,9 @@ describe('Add Expense — validation', () => {
   it('selects a group and closes picker', async () => {
     await device.disableSynchronization();
     await element(by.id('group-option-0')).tap();
-    await waitFor(element(by.id('group-list'))).not.toBeVisible().withTimeout(3000);
+    await waitFor(element(by.id('group-list')))
+      .not.toBeVisible()
+      .withTimeout(3000);
   });
 
   it('loads members after group selection', async () => {
@@ -138,7 +172,9 @@ describe('Add Expense — validation', () => {
 
   it('fills description', async () => {
     await element(by.id('description-input')).typeText('E2E Dinner');
-    await detoxExpect(element(by.id('description-input'))).toHaveText('E2E Dinner');
+    await detoxExpect(element(by.id('description-input'))).toHaveText(
+      'E2E Dinner',
+    );
   });
 
   it('fills amount', async () => {
@@ -146,7 +182,9 @@ describe('Add Expense — validation', () => {
   });
 
   it('Save button becomes enabled after all required fields filled', async () => {
-    const attrs = (await element(by.id('save-expense-button')).getAttributes()) as { enabled?: boolean };
+    const attrs = (await element(
+      by.id('save-expense-button'),
+    ).getAttributes()) as { enabled?: boolean };
     expect(attrs.enabled).toBe(true);
   });
 
@@ -168,16 +206,24 @@ describe('Add Expense — split method UI', () => {
   });
 
   it('shows split method buttons after selecting group', async () => {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(10000);
     await element(by.id('fab-add-expense')).tap();
-    await waitFor(element(by.id('add-expense-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('add-expense-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
 
     // Select a group — disable sync for network calls
     await element(by.id('group-picker-button')).tap();
-    await waitFor(element(by.id('group-option-0'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('group-option-0')))
+      .toBeVisible()
+      .withTimeout(5000);
     await device.disableSynchronization();
     await element(by.id('group-option-0')).tap();
-    await waitFor(element(by.id('paid-by-section'))).toBeVisible().withTimeout(15000);
+    await waitFor(element(by.id('paid-by-section')))
+      .toBeVisible()
+      .withTimeout(15000);
     await device.enableSynchronization();
   });
 
@@ -206,7 +252,9 @@ describe('Add Expense — split method UI', () => {
 
   it('cancel returns to groups screen', async () => {
     await element(by.id('cancel-button')).tap();
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
   });
 });
 
@@ -218,16 +266,24 @@ describe('Add Expense — validation errors', () => {
   });
 
   it('shows error for zero amount', async () => {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(10000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(10000);
     await element(by.id('fab-add-expense')).tap();
-    await waitFor(element(by.id('add-expense-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('add-expense-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
 
     // Select group and fill description but use 0 as amount
     await element(by.id('group-picker-button')).tap();
-    await waitFor(element(by.id('group-option-0'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('group-option-0')))
+      .toBeVisible()
+      .withTimeout(5000);
     await device.disableSynchronization();
     await element(by.id('group-option-0')).tap();
-    await waitFor(element(by.id('paid-by-section'))).toBeVisible().withTimeout(15000);
+    await waitFor(element(by.id('paid-by-section')))
+      .toBeVisible()
+      .withTimeout(15000);
     await device.enableSynchronization();
     await element(by.id('description-input')).typeText('Zero test');
     await element(by.id('amount-input')).typeText('0');
@@ -241,6 +297,8 @@ describe('Add Expense — validation errors', () => {
 
   it('cancel clears and returns', async () => {
     await element(by.id('cancel-button')).tap();
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
   });
 });

@@ -39,7 +39,15 @@ const C = {
   slate500: '#64748b',
 };
 
-function Initials({ name, size = 36, app = false }: { name: string; size?: number; app?: boolean }) {
+function Initials({
+  name,
+  size = 36,
+  app = false,
+}: {
+  name: string;
+  size?: number;
+  app?: boolean;
+}) {
   const initials = name
     .split(' ')
     .filter(Boolean)
@@ -59,14 +67,28 @@ function Initials({ name, size = 36, app = false }: { name: string; size?: numbe
   );
 }
 
-export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = [], onSelectionChange }: MemberSearchPickerProps) {
-  const { matched, unmatched, loading: friendsLoading, permissionDenied } = useFriends();
-  const { friends: existingFriends, loading: existingLoading } = useExistingFriends();
+export function MemberSearchPicker({
+  excludeUserIds = [],
+  excludeContactNames = [],
+  onSelectionChange,
+}: MemberSearchPickerProps) {
+  const {
+    matched,
+    unmatched,
+    loading: friendsLoading,
+    permissionDenied,
+  } = useFriends();
+  const { friends: existingFriends, loading: existingLoading } =
+    useExistingFriends();
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [selectedAppUsers, setSelectedAppUsers] = useState<SelectedMember[]>([]);
-  const [selectedContacts, setSelectedContacts] = useState<UnmatchedContact[]>([]);
+  const [selectedAppUsers, setSelectedAppUsers] = useState<SelectedMember[]>(
+    [],
+  );
+  const [selectedContacts, setSelectedContacts] = useState<UnmatchedContact[]>(
+    [],
+  );
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -87,11 +109,19 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
   const allAppUsers = useMemo<SelectedMember[]>(() => {
     const map = new Map<string, SelectedMember>();
     for (const m of matched) {
-      map.set(m.userId, { userId: m.userId, name: m.name, avatarUrl: m.avatarUrl });
+      map.set(m.userId, {
+        userId: m.userId,
+        name: m.name,
+        avatarUrl: m.avatarUrl,
+      });
     }
     for (const f of existingFriends) {
       if (!map.has(f.userId)) {
-        map.set(f.userId, { userId: f.userId, name: f.displayName, avatarUrl: f.avatarUrl });
+        map.set(f.userId, {
+          userId: f.userId,
+          name: f.displayName,
+          avatarUrl: f.avatarUrl,
+        });
       }
     }
     const excludeSet = new Set(excludeUserIds);
@@ -102,11 +132,11 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
 
   const selectedAppUserIds = useMemo(
     () => new Set(selectedAppUsers.map((u) => u.userId)),
-    [selectedAppUsers]
+    [selectedAppUsers],
   );
   const selectedContactKeys = useMemo(
     () => new Set(selectedContacts.map((c) => c.contactKey)),
-    [selectedContacts]
+    [selectedContacts],
   );
 
   const q = debouncedQuery.toLowerCase().trim();
@@ -114,9 +144,11 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
   const filteredAppUsers = useMemo(
     () =>
       allAppUsers.filter(
-        (u) => !selectedAppUserIds.has(u.userId) && (!q || u.name.toLowerCase().includes(q))
+        (u) =>
+          !selectedAppUserIds.has(u.userId) &&
+          (!q || u.name.toLowerCase().includes(q)),
       ),
-    [allAppUsers, selectedAppUserIds, q]
+    [allAppUsers, selectedAppUserIds, q],
   );
 
   const excludeContactNamesLower = useMemo(
@@ -133,9 +165,9 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
           (!q ||
             c.name.toLowerCase().includes(q) ||
             c.phoneNumbers.some((p) => p.includes(q)) ||
-            c.emails.some((e) => e.toLowerCase().includes(q)))
+            c.emails.some((e) => e.toLowerCase().includes(q))),
       ),
-    [unmatched, selectedContactKeys, excludeContactNamesLower, q]
+    [unmatched, selectedContactKeys, excludeContactNamesLower, q],
   );
 
   const addAppUser = useCallback(
@@ -144,7 +176,7 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
       setSelectedAppUsers(next);
       onSelectionChange({ appUsers: next, contacts: selectedContacts });
     },
-    [selectedAppUsers, selectedContacts, onSelectionChange]
+    [selectedAppUsers, selectedContacts, onSelectionChange],
   );
 
   const removeAppUser = useCallback(
@@ -153,7 +185,7 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
       setSelectedAppUsers(next);
       onSelectionChange({ appUsers: next, contacts: selectedContacts });
     },
-    [selectedAppUsers, selectedContacts, onSelectionChange]
+    [selectedAppUsers, selectedContacts, onSelectionChange],
   );
 
   const addContact = useCallback(
@@ -162,7 +194,7 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
       setSelectedContacts(next);
       onSelectionChange({ appUsers: selectedAppUsers, contacts: next });
     },
-    [selectedAppUsers, selectedContacts, onSelectionChange]
+    [selectedAppUsers, selectedContacts, onSelectionChange],
   );
 
   const removeContact = useCallback(
@@ -171,26 +203,42 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
       setSelectedContacts(next);
       onSelectionChange({ appUsers: selectedAppUsers, contacts: next });
     },
-    [selectedAppUsers, selectedContacts, onSelectionChange]
+    [selectedAppUsers, selectedContacts, onSelectionChange],
   );
 
   const loading = friendsLoading || existingLoading;
-  const hasSelection = selectedAppUsers.length > 0 || selectedContacts.length > 0;
-  const showResults = q.length > 0 || (!loading && (filteredAppUsers.length > 0 || filteredContacts.length > 0));
+  const hasSelection =
+    selectedAppUsers.length > 0 || selectedContacts.length > 0;
+  const showResults =
+    q.length > 0 ||
+    (!loading && (filteredAppUsers.length > 0 || filteredContacts.length > 0));
 
   return (
     <View style={s.container}>
       {/* Selected chips */}
       {hasSelection && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsRow} contentContainerStyle={s.chipsContent}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.chipsRow}
+          contentContainerStyle={s.chipsContent}
+        >
           {selectedAppUsers.map((u) => (
-            <Pressable key={u.userId} style={s.chipApp} onPress={() => removeAppUser(u.userId)}>
+            <Pressable
+              key={u.userId}
+              style={s.chipApp}
+              onPress={() => removeAppUser(u.userId)}
+            >
               <Text style={s.chipAppText}>{u.name}</Text>
               <Text style={s.chipRemove}>✕</Text>
             </Pressable>
           ))}
           {selectedContacts.map((c) => (
-            <Pressable key={c.contactKey} style={s.chipContact} onPress={() => removeContact(c.contactKey)}>
+            <Pressable
+              key={c.contactKey}
+              style={s.chipContact}
+              onPress={() => removeContact(c.contactKey)}
+            >
               <Text style={s.chipContactText}>{c.name}</Text>
               <Text style={s.chipRemove}>✕</Text>
             </Pressable>
@@ -217,7 +265,9 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
         </View>
       )}
       {!loading && permissionDenied && (
-        <Text style={s.hint}>Grant contacts permission to search your address book.</Text>
+        <Text style={s.hint}>
+          Grant contacts permission to search your address book.
+        </Text>
       )}
 
       {/* Results */}
@@ -227,7 +277,11 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
             <>
               <Text style={s.sectionLabel}>On PaySplit</Text>
               {filteredAppUsers.map((u) => (
-                <Pressable key={u.userId} style={s.row} onPress={() => addAppUser(u)}>
+                <Pressable
+                  key={u.userId}
+                  style={s.row}
+                  onPress={() => addAppUser(u)}
+                >
                   <Initials name={u.name} app />
                   <View style={s.rowInfo}>
                     <Text style={s.rowName}>{u.name}</Text>
@@ -243,9 +297,20 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
 
           {filteredContacts.length > 0 && (
             <>
-              <Text style={[s.sectionLabel, filteredAppUsers.length > 0 && s.sectionLabelSpaced]}>Invite</Text>
+              <Text
+                style={[
+                  s.sectionLabel,
+                  filteredAppUsers.length > 0 && s.sectionLabelSpaced,
+                ]}
+              >
+                Invite
+              </Text>
               {filteredContacts.map((c) => (
-                <Pressable key={c.contactKey} style={s.row} onPress={() => addContact(c)}>
+                <Pressable
+                  key={c.contactKey}
+                  style={s.row}
+                  onPress={() => addContact(c)}
+                >
                   <Initials name={c.name} />
                   <View style={s.rowInfo}>
                     <Text style={s.rowName}>{c.name}</Text>
@@ -261,9 +326,13 @@ export function MemberSearchPicker({ excludeUserIds = [], excludeContactNames = 
             </>
           )}
 
-          {q.length > 0 && filteredAppUsers.length === 0 && filteredContacts.length === 0 && (
-            <Text style={s.hint}>No contacts matching &quot;{debouncedQuery}&quot;</Text>
-          )}
+          {q.length > 0 &&
+            filteredAppUsers.length === 0 &&
+            filteredContacts.length === 0 && (
+              <Text style={s.hint}>
+                No contacts matching &quot;{debouncedQuery}&quot;
+              </Text>
+            )}
         </View>
       )}
     </View>

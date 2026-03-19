@@ -31,9 +31,9 @@ function getProjectId(): string | undefined {
   };
 
   return (
-    constantsWithEas.easConfig?.projectId
-    ?? constantsWithEas.expoConfig?.extra?.eas?.projectId
-    ?? undefined
+    constantsWithEas.easConfig?.projectId ??
+    constantsWithEas.expoConfig?.extra?.eas?.projectId ??
+    undefined
   );
 }
 
@@ -53,7 +53,9 @@ export function ensurePushNotificationHandler() {
   });
 }
 
-export async function registerPushTokenForCurrentUser(): Promise<string | null> {
+export async function registerPushTokenForCurrentUser(): Promise<
+  string | null
+> {
   if (Platform.OS === 'web' || !Device.isDevice) {
     return null;
   }
@@ -93,7 +95,12 @@ export async function registerPushTokenForCurrentUser(): Promise<string | null> 
   const token = tokenResult.data;
   if (!token) return null;
 
-  const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
+  const platform =
+    Platform.OS === 'ios'
+      ? 'ios'
+      : Platform.OS === 'android'
+        ? 'android'
+        : 'unknown';
   const deviceName = Device.modelName ?? null;
 
   const { error } = await supabase.rpc('upsert_push_token', {
@@ -119,12 +126,18 @@ export async function removePushToken(token: string | null): Promise<void> {
 }
 
 export async function dispatchPendingPushNotifications(): Promise<void> {
-  const { error } = await supabase.functions.invoke('dispatch-push-notifications', {
-    method: 'POST',
-    body: {},
-  });
+  const { error } = await supabase.functions.invoke(
+    'dispatch-push-notifications',
+    {
+      method: 'POST',
+      body: {},
+    },
+  );
 
   if (error) {
-    console.warn('[Push] Failed to dispatch push notifications:', error.message);
+    console.warn(
+      '[Push] Failed to dispatch push notifications:',
+      error.message,
+    );
   }
 }

@@ -29,12 +29,40 @@ const C = {
   white: '#ffffff',
 };
 
-const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string; emoji: string }> = {
-  restaurant: { icon: 'restaurant', bg: 'rgba(249,115,22,0.15)', color: '#f97316', emoji: '🍽' },
-  hotel:      { icon: 'hotel', bg: 'rgba(99,102,241,0.15)', color: '#818cf8', emoji: '🏨' },
-  train:      { icon: 'train', bg: 'rgba(20,184,166,0.15)', color: '#2dd4bf', emoji: '🚂' },
-  store:      { icon: 'local-convenience-store', bg: 'rgba(234,179,8,0.15)', color: '#eab308', emoji: '🛒' },
-  receipt:    { icon: 'receipt-long', bg: 'rgba(23,232,107,0.15)', color: '#17e86b', emoji: '🧾' },
+const CATEGORY_ICONS: Record<
+  string,
+  { icon: string; bg: string; color: string; emoji: string }
+> = {
+  restaurant: {
+    icon: 'restaurant',
+    bg: 'rgba(249,115,22,0.15)',
+    color: '#f97316',
+    emoji: '🍽',
+  },
+  hotel: {
+    icon: 'hotel',
+    bg: 'rgba(99,102,241,0.15)',
+    color: '#818cf8',
+    emoji: '🏨',
+  },
+  train: {
+    icon: 'train',
+    bg: 'rgba(20,184,166,0.15)',
+    color: '#2dd4bf',
+    emoji: '🚂',
+  },
+  store: {
+    icon: 'local-convenience-store',
+    bg: 'rgba(234,179,8,0.15)',
+    color: '#eab308',
+    emoji: '🛒',
+  },
+  receipt: {
+    icon: 'receipt-long',
+    bg: 'rgba(23,232,107,0.15)',
+    color: '#17e86b',
+    emoji: '🧾',
+  },
 };
 
 interface Expense {
@@ -62,7 +90,14 @@ interface ShareCardProps {
   format: (cents: number) => string;
 }
 
-function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, format }: ShareCardProps) {
+function ShareCardModal({
+  visible,
+  onClose,
+  groupName,
+  grandTotal,
+  totals,
+  format,
+}: ShareCardProps) {
   const insets = useSafeAreaInsets();
 
   const handleShare = useCallback(async () => {
@@ -85,10 +120,18 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
   }, [groupName, grandTotal, totals, format]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={m.overlay}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={[m.sheet, { paddingBottom: insets.bottom + 16 }]} testID="share-card-sheet">
+        <View
+          style={[m.sheet, { paddingBottom: insets.bottom + 16 }]}
+          testID="share-card-sheet"
+        >
           <View style={m.handle} />
           <Text style={m.sheetTitle}>Share Summary</Text>
 
@@ -100,7 +143,9 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
                 <MaterialIcons name="bar-chart" size={20} color={C.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={m.cardGroup} numberOfLines={1}>{groupName}</Text>
+                <Text style={m.cardGroup} numberOfLines={1}>
+                  {groupName}
+                </Text>
                 <Text style={m.cardSubtitle}>Expense Summary</Text>
               </View>
             </View>
@@ -118,7 +163,8 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
             {/* Category rows */}
             {totals.map(({ category, total }) => {
               const cat = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.receipt;
-              const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
+              const pct =
+                grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
               const cap = category.charAt(0).toUpperCase() + category.slice(1);
               return (
                 <View key={category} style={m.cardRow}>
@@ -126,11 +172,23 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
                   <Text style={m.cardCat}>{cap}</Text>
                   <View style={m.cardBarWrap}>
                     <View style={m.cardBarTrack}>
-                      <View style={[m.cardBarFill, { flex: total / (totals[0]?.total ?? 1), backgroundColor: cat.color + '66' }]} />
-                      <View style={{ flex: 1 - total / (totals[0]?.total ?? 1) }} />
+                      <View
+                        style={[
+                          m.cardBarFill,
+                          {
+                            flex: total / (totals[0]?.total ?? 1),
+                            backgroundColor: cat.color + '66',
+                          },
+                        ]}
+                      />
+                      <View
+                        style={{ flex: 1 - total / (totals[0]?.total ?? 1) }}
+                      />
                     </View>
                   </View>
-                  <Text style={[m.cardAmt, { color: cat.color }]}>{format(total)}</Text>
+                  <Text style={[m.cardAmt, { color: cat.color }]}>
+                    {format(total)}
+                  </Text>
                   <Text style={m.cardPct}>{pct}%</Text>
                 </View>
               );
@@ -145,7 +203,10 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
           {/* Share button */}
           <Pressable
             testID="share-card-confirm-btn"
-            style={({ pressed }: { pressed: boolean }) => [m.shareBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }: { pressed: boolean }) => [
+              m.shareBtn,
+              pressed && { opacity: 0.85 },
+            ]}
             onPress={handleShare}
           >
             <MaterialIcons name="share" size={20} color={C.bg} />
@@ -160,7 +221,10 @@ function ShareCardModal({ visible, onClose, groupName, grandTotal, totals, forma
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function SpendingScreen() {
-  const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName: string }>();
+  const { groupId, groupName } = useLocalSearchParams<{
+    groupId: string;
+    groupName: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { format } = useCurrency();
@@ -190,7 +254,9 @@ export default function SpendingScreen() {
     setLoading(false);
   }, [groupId, user]);
 
-  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
 
   const totals: CategoryTotal[] = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
@@ -214,15 +280,26 @@ export default function SpendingScreen() {
   const hasData = totals.length > 0;
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]} testID="spending-screen">
+    <View
+      style={[s.container, { paddingTop: insets.top }]}
+      testID="spending-screen"
+    >
       {/* Header */}
       <View style={s.header}>
-        <Pressable style={s.iconBtn} onPress={() => router.back()} testID="spending-back-btn">
+        <Pressable
+          style={s.iconBtn}
+          onPress={() => router.back()}
+          testID="spending-back-btn"
+        >
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
         <View style={s.headerText}>
           <Text style={s.headerTitle}>Spending</Text>
-          {groupName ? <Text style={s.headerSub} numberOfLines={1}>{groupName}</Text> : null}
+          {groupName ? (
+            <Text style={s.headerSub} numberOfLines={1}>
+              {groupName}
+            </Text>
+          ) : null}
         </View>
         <Pressable
           testID="spending-share-btn"
@@ -246,10 +323,15 @@ export default function SpendingScreen() {
         <View style={s.center}>
           <MaterialIcons name="bar-chart" size={52} color={C.surfaceHL} />
           <Text style={s.emptyText}>No spending data yet</Text>
-          <Text style={s.emptySub}>Add expenses to see spending by category</Text>
+          <Text style={s.emptySub}>
+            Add expenses to see spending by category
+          </Text>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scroll}
+        >
           {/* Grand total card */}
           <View style={s.totalCard}>
             <Text style={s.totalLabel}>TOTAL GROUP SPEND</Text>
@@ -266,7 +348,8 @@ export default function SpendingScreen() {
             {totals.map(({ category, total, count }) => {
               const cat = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.receipt;
               const fillRatio = total / max;
-              const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
+              const pct =
+                grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
               return (
                 <View key={category} style={s.row}>
                   <View style={[s.iconBox, { backgroundColor: cat.bg }]}>
@@ -278,16 +361,30 @@ export default function SpendingScreen() {
                   </View>
                   <View style={s.barSection}>
                     <View style={s.rowTop}>
-                      <Text style={s.catLabel}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
-                      <Text style={s.catCount}>{count} {count === 1 ? 'expense' : 'expenses'}</Text>
+                      <Text style={s.catLabel}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </Text>
+                      <Text style={s.catCount}>
+                        {count} {count === 1 ? 'expense' : 'expenses'}
+                      </Text>
                     </View>
                     <View style={s.barTrack}>
-                      <View style={[s.barFill, { flex: fillRatio, backgroundColor: cat.color + '55' }]} />
+                      <View
+                        style={[
+                          s.barFill,
+                          {
+                            flex: fillRatio,
+                            backgroundColor: cat.color + '55',
+                          },
+                        ]}
+                      />
                       <View style={{ flex: 1 - fillRatio }} />
                     </View>
                   </View>
                   <View style={s.amountCol}>
-                    <Text style={[s.amount, { color: cat.color }]}>{format(total)}</Text>
+                    <Text style={[s.amount, { color: cat.color }]}>
+                      {format(total)}
+                    </Text>
                     <Text style={s.pct}>{pct}%</Text>
                   </View>
                 </View>
@@ -313,7 +410,12 @@ export default function SpendingScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
   iconBtn: { padding: 10, width: 44, alignItems: 'center' },
   headerText: { flex: 1, alignItems: 'center' },
   headerTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
@@ -332,18 +434,62 @@ const s = StyleSheet.create({
     borderColor: C.surfaceHL,
     alignItems: 'center',
   },
-  totalLabel: { color: C.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
-  totalAmount: { color: C.white, fontSize: 36, fontWeight: '700', marginBottom: 4 },
+  totalLabel: {
+    color: C.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  totalAmount: {
+    color: C.white,
+    fontSize: 36,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   totalSub: { color: C.slate400, fontSize: 13 },
-  chartCard: { backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.surfaceHL },
-  sectionLabel: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  chartCard: {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
+  sectionLabel: {
+    color: C.slate400,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   barSection: { flex: 1, gap: 6 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   catLabel: { color: C.white, fontWeight: '600', fontSize: 14 },
   catCount: { color: C.slate500, fontSize: 11 },
-  barTrack: { height: 8, borderRadius: 4, backgroundColor: C.surfaceHL, flexDirection: 'row', overflow: 'hidden' },
+  barTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.surfaceHL,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
   barFill: { borderRadius: 4 },
   amountCol: { alignItems: 'flex-end', gap: 2, minWidth: 64 },
   amount: { fontSize: 14, fontWeight: '700' },
@@ -351,7 +497,11 @@ const s = StyleSheet.create({
 });
 
 const m = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
   sheet: {
     backgroundColor: C.surface,
     borderTopLeftRadius: 24,
@@ -359,8 +509,21 @@ const m = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 20,
   },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: C.surfaceHL, alignSelf: 'center', marginBottom: 16 },
-  sheetTitle: { color: C.white, fontWeight: '700', fontSize: 17, marginBottom: 16, textAlign: 'center' },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.surfaceHL,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    color: C.white,
+    fontWeight: '700',
+    fontSize: 17,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
 
   // Preview card
   card: {
@@ -371,7 +534,12 @@ const m = StyleSheet.create({
     borderColor: C.surfaceHL,
     marginBottom: 16,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
   cardIconWrap: {
     width: 40,
     height: 40,
@@ -384,17 +552,44 @@ const m = StyleSheet.create({
   cardSubtitle: { color: C.slate400, fontSize: 12, marginTop: 2 },
   divider: { height: 1, backgroundColor: C.surfaceHL, marginVertical: 12 },
   cardTotal: { alignItems: 'center', paddingVertical: 4 },
-  cardTotalLabel: { color: C.primary, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+  cardTotalLabel: {
+    color: C.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
   cardTotalAmount: { color: C.white, fontSize: 28, fontWeight: '700' },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   cardEmoji: { fontSize: 14, width: 20, textAlign: 'center' },
   cardCat: { color: C.white, fontSize: 13, fontWeight: '600', width: 80 },
   cardBarWrap: { flex: 1 },
-  cardBarTrack: { height: 6, borderRadius: 3, backgroundColor: C.surfaceHL, flexDirection: 'row', overflow: 'hidden' },
+  cardBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.surfaceHL,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
   cardBarFill: { borderRadius: 3 },
-  cardAmt: { fontSize: 12, fontWeight: '700', minWidth: 56, textAlign: 'right' },
+  cardAmt: {
+    fontSize: 12,
+    fontWeight: '700',
+    minWidth: 56,
+    textAlign: 'right',
+  },
   cardPct: { color: C.slate500, fontSize: 11, width: 32, textAlign: 'right' },
-  cardFooter: { color: C.slate500, fontSize: 11, textAlign: 'center', letterSpacing: 0.5 },
+  cardFooter: {
+    color: C.slate500,
+    fontSize: 11,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
 
   // Share button
   shareBtn: {

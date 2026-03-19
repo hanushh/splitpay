@@ -36,7 +36,10 @@ interface MemberBalance {
 }
 
 export default function GroupBalancesScreen() {
-  const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName: string }>();
+  const { groupId, groupName } = useLocalSearchParams<{
+    groupId: string;
+    groupName: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { format } = useCurrency();
@@ -55,9 +58,22 @@ export default function GroupBalancesScreen() {
       { data: memberRows, error: membersErr },
       { data: myMember, error: myMemberErr },
     ] = await Promise.all([
-      supabase.from('group_balances').select('balance_cents').eq('group_id', groupId).eq('user_id', user.id).single(),
-      supabase.rpc('get_group_member_balances', { p_group_id: groupId, p_user_id: user.id }),
-      supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', user.id).single(),
+      supabase
+        .from('group_balances')
+        .select('balance_cents')
+        .eq('group_id', groupId)
+        .eq('user_id', user.id)
+        .single(),
+      supabase.rpc('get_group_member_balances', {
+        p_group_id: groupId,
+        p_user_id: user.id,
+      }),
+      supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', user.id)
+        .single(),
     ]);
 
     if (membersErr) {
@@ -72,7 +88,9 @@ export default function GroupBalancesScreen() {
       return;
     }
     if (myMemberErr && myMemberErr.code !== 'PGRST116') {
-      setFetchError(myMemberErr.message ?? 'Failed to identify your membership.');
+      setFetchError(
+        myMemberErr.message ?? 'Failed to identify your membership.',
+      );
       setLoading(false);
       return;
     }
@@ -80,28 +98,47 @@ export default function GroupBalancesScreen() {
     setTotalCents(myBalance?.balance_cents ?? 0);
     setMyMemberId((myMember as { id: string } | null)?.id ?? null);
 
-    const list: MemberBalance[] = ((memberRows as { member_id: string; display_name: string; avatar_url: string | null; balance_cents: number }[]) ?? [])
-      .map((row) => ({
-        id: row.member_id,
-        display_name: row.display_name ?? 'Unknown',
-        avatar_url: row.avatar_url,
-        balance_cents: Number(row.balance_cents),
-        isCurrentUser: false,
-      }));
+    const list: MemberBalance[] = (
+      (memberRows as {
+        member_id: string;
+        display_name: string;
+        avatar_url: string | null;
+        balance_cents: number;
+      }[]) ?? []
+    ).map((row) => ({
+      id: row.member_id,
+      display_name: row.display_name ?? 'Unknown',
+      avatar_url: row.avatar_url,
+      balance_cents: Number(row.balance_cents),
+      isCurrentUser: false,
+    }));
 
     setMembers(list);
     setLoading(false);
   }, [user, groupId]);
 
-  useEffect(() => { fetchBalances(); }, [fetchBalances]);
-  useFocusEffect(useCallback(() => { fetchBalances(); }, [fetchBalances]));
-  useEffect(() => settlementEvents.subscribe(() => { fetchBalances(); }), [fetchBalances]);
+  useEffect(() => {
+    fetchBalances();
+  }, [fetchBalances]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalances();
+    }, [fetchBalances]),
+  );
+  useEffect(
+    () =>
+      settlementEvents.subscribe(() => {
+        fetchBalances();
+      }),
+    [fetchBalances],
+  );
 
-  const totalText = totalCents === 0
-    ? 'All settled up'
-    : totalCents > 0
-      ? `+${format(totalCents)}`
-      : `-${format(totalCents)}`;
+  const totalText =
+    totalCents === 0
+      ? 'All settled up'
+      : totalCents > 0
+        ? `+${format(totalCents)}`
+        : `-${format(totalCents)}`;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -110,7 +147,9 @@ export default function GroupBalancesScreen() {
         <Pressable style={s.backBtn} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back" size={24} color={C.white} />
         </Pressable>
-        <Text style={s.headerTitle} numberOfLines={1}>{groupName ?? 'Group'}</Text>
+        <Text style={s.headerTitle} numberOfLines={1}>
+          {groupName ?? 'Group'}
+        </Text>
         <Pressable style={s.backBtn}>
           <MaterialIcons name="settings" size={24} color={C.white} />
         </Pressable>
@@ -119,11 +158,20 @@ export default function GroupBalancesScreen() {
       {/* Total balance banner */}
       <View style={s.banner}>
         <View style={s.bannerLeft}>
-          <Text style={[s.bannerAmount, { color: totalCents >= 0 ? C.primary : C.orange }]}>
+          <Text
+            style={[
+              s.bannerAmount,
+              { color: totalCents >= 0 ? C.primary : C.orange },
+            ]}
+          >
             {totalText}
           </Text>
           <Text style={s.bannerSub}>
-            {totalCents > 0 ? 'You are owed in total' : totalCents < 0 ? 'You owe in total' : 'You are all settled up'}
+            {totalCents > 0
+              ? 'You are owed in total'
+              : totalCents < 0
+                ? 'You owe in total'
+                : 'You are all settled up'}
           </Text>
         </View>
         <Pressable style={s.chartBtn}>
@@ -142,9 +190,17 @@ export default function GroupBalancesScreen() {
           <Text style={s.errorText}>{fetchError}</Text>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.listContent}
+        >
           {members.map((m) => {
-            const initials = m.display_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+            const initials = m.display_name
+              .split(' ')
+              .map((w) => w[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2);
             const isOwed = m.balance_cents > 0;
             const amtText = format(m.balance_cents);
 
@@ -152,14 +208,34 @@ export default function GroupBalancesScreen() {
               <View key={m.id} style={s.memberCard}>
                 <View style={s.memberLeft}>
                   {m.avatar_url ? (
-                    <Image source={{ uri: m.avatar_url }} style={s.memberAvatar} />
+                    <Image
+                      source={{ uri: m.avatar_url }}
+                      style={s.memberAvatar}
+                    />
                   ) : (
-                    <View style={[s.memberAvatar, m.isCurrentUser ? s.meAvatar : s.defaultAvatar]}>
-                      <Text style={[s.memberInitials, m.isCurrentUser && { color: C.bg }]}>{initials}</Text>
+                    <View
+                      style={[
+                        s.memberAvatar,
+                        m.isCurrentUser ? s.meAvatar : s.defaultAvatar,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.memberInitials,
+                          m.isCurrentUser && { color: C.bg },
+                        ]}
+                      >
+                        {initials}
+                      </Text>
                     </View>
                   )}
                   <View>
-                    <Text style={[s.memberName, m.isCurrentUser && { color: C.primary }]}>
+                    <Text
+                      style={[
+                        s.memberName,
+                        m.isCurrentUser && { color: C.primary },
+                      ]}
+                    >
                       {m.isCurrentUser ? 'ME' : m.display_name}
                     </Text>
                     {m.isCurrentUser && <Text style={s.memberSub}>You</Text>}
@@ -171,29 +247,40 @@ export default function GroupBalancesScreen() {
                     <Text style={s.settledText}>Settled up</Text>
                   ) : (
                     <View style={s.balanceInfo}>
-                      <Text style={[s.balanceText, { color: isOwed ? C.primary : C.orange }]}>
+                      <Text
+                        style={[
+                          s.balanceText,
+                          { color: isOwed ? C.primary : C.orange },
+                        ]}
+                      >
                         {isOwed ? `owes you ${amtText}` : `you owe ${amtText}`}
                       </Text>
                       {!m.isCurrentUser && (!isOwed || myMemberId) && (
                         <Pressable
                           style={s.settleBtn}
-                          onPress={() => router.push({
-                            pathname: '/settle-up',
-                            params: {
-                              groupId,
-                              groupName,
-                              friendName: m.display_name,
-                              amountCents: String(Math.abs(m.balance_cents)),
-                              // isOwed=true: they owe me → they are payer, I am payee
-                              // isOwed=false: I owe them → I am payer (RPC default), they are payee
-                              ...(isOwed
-                                ? { payerMemberId: m.id, friendMemberId: myMemberId ?? '' }
-                                : { friendMemberId: m.id }
-                              ),
-                            },
-                          })}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/settle-up',
+                              params: {
+                                groupId,
+                                groupName,
+                                friendName: m.display_name,
+                                amountCents: String(Math.abs(m.balance_cents)),
+                                // isOwed=true: they owe me → they are payer, I am payee
+                                // isOwed=false: I owe them → I am payer (RPC default), they are payee
+                                ...(isOwed
+                                  ? {
+                                      payerMemberId: m.id,
+                                      friendMemberId: myMemberId ?? '',
+                                    }
+                                  : { friendMemberId: m.id }),
+                              },
+                            })
+                          }
                         >
-                          <Text style={s.settleBtnText}>{isOwed ? 'Settle up' : 'Pay'}</Text>
+                          <Text style={s.settleBtnText}>
+                            {isOwed ? 'Settle up' : 'Pay'}
+                          </Text>
                         </Pressable>
                       )}
                     </View>
@@ -210,22 +297,76 @@ export default function GroupBalancesScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
   backBtn: { padding: 10 },
-  headerTitle: { flex: 1, color: C.white, fontWeight: '700', fontSize: 18, textAlign: 'center' },
-  banner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginBottom: 20, backgroundColor: C.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.surfaceHL },
+  headerTitle: {
+    flex: 1,
+    color: C.white,
+    fontWeight: '700',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginBottom: 20,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
   bannerLeft: { gap: 4 },
   bannerAmount: { fontSize: 28, fontWeight: '700' },
   bannerSub: { color: C.slate400, fontSize: 13 },
-  chartBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surfaceHL, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  chartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.surfaceHL,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
   chartBtnText: { color: C.primary, fontWeight: '600', fontSize: 13 },
-  sectionTitle: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 16, marginBottom: 10 },
+  sectionTitle: {
+    color: C.slate400,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
   listContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 10 },
-  memberCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.surfaceHL },
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
   memberLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   memberAvatar: { width: 48, height: 48, borderRadius: 24 },
-  meAvatar: { backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  defaultAvatar: { backgroundColor: C.surfaceHL, alignItems: 'center', justifyContent: 'center' },
+  meAvatar: {
+    backgroundColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  defaultAvatar: {
+    backgroundColor: C.surfaceHL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   memberInitials: { color: C.primary, fontWeight: '700', fontSize: 16 },
   memberName: { color: C.white, fontWeight: '700', fontSize: 15 },
   memberSub: { color: C.slate400, fontSize: 12 },
@@ -233,8 +374,19 @@ const s = StyleSheet.create({
   settledText: { color: C.slate400, fontWeight: '600', fontSize: 13 },
   balanceInfo: { alignItems: 'flex-end', gap: 6 },
   balanceText: { fontWeight: '600', fontSize: 14 },
-  settleBtn: { backgroundColor: C.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
+  settleBtn: {
+    backgroundColor: C.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
   settleBtnText: { color: C.bg, fontWeight: '700', fontSize: 13 },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, marginTop: 40 },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    margin: 16,
+    marginTop: 40,
+  },
   errorText: { color: C.orange, fontSize: 13, flex: 1 },
 });

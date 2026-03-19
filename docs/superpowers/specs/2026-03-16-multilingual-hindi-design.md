@@ -30,12 +30,12 @@ Add internationalization (i18n) infrastructure to PaySplit using `i18next`, with
 
 ## Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `i18next` | Core translation engine |
-| `react-i18next` | React bindings (`useTranslation` hook) |
-| `expo-localization` | Device locale detection (**must be installed**: `pnpm add expo-localization`) |
-| `@react-native-async-storage/async-storage` | Persist language preference (already installed v2.2.0) |
+| Package                                     | Purpose                                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------------------- |
+| `i18next`                                   | Core translation engine                                                       |
+| `react-i18next`                             | React bindings (`useTranslation` hook)                                        |
+| `expo-localization`                         | Device locale detection (**must be installed**: `pnpm add expo-localization`) |
+| `@react-native-async-storage/async-storage` | Persist language preference (already installed v2.2.0)                        |
 
 **Installation:** `pnpm add i18next react-i18next expo-localization`
 
@@ -151,9 +151,7 @@ if (!i18nReady) {
 
 return (
   <AuthProvider>
-    <CurrencyProvider>
-      {/* ... existing layout */}
-    </CurrencyProvider>
+    <CurrencyProvider>{/* ... existing layout */}</CurrencyProvider>
   </AuthProvider>
 );
 ```
@@ -164,14 +162,15 @@ Replace hardcoded strings with `t()` calls from `useTranslation()`:
 
 ```tsx
 // Before
-<Text>Welcome back</Text>
+<Text>Welcome back</Text>;
 
 // After
 const { t } = useTranslation();
-<Text>{t('auth.welcomeBack')}</Text>
+<Text>{t('auth.welcomeBack')}</Text>;
 ```
 
 **Files to modify:**
+
 - `app/auth/sign-in.tsx`
 - `app/auth/sign-up.tsx`
 - `app/(tabs)/index.tsx`
@@ -192,6 +191,7 @@ const { t } = useTranslation();
 ### `app/(tabs)/account.tsx`
 
 Add a "Language" setting row:
+
 - Displays current language name (e.g., "English" or "हिन्दी")
 - Tapping opens a picker/modal with `SUPPORTED_LANGUAGES`
 - On selection: saves via `setLanguage()`, shows Alert prompting restart
@@ -219,13 +219,13 @@ Existing tests continue to work — assertions may need updating from English st
 
 ## Translation Key Conventions
 
-| Convention | Example |
-|------------|---------|
-| Flat dot-prefix by screen | `auth.signIn`, `groups.title` |
-| camelCase after prefix | `auth.fillAllFields` |
-| Interpolation with `{{var}}` | `auth.signInTo: "Sign in to {{appName}}"` |
-| Plurals with `_one`/`_other` suffix | `groups.memberCount_one`, `groups.memberCount_other` |
-| Common/shared strings under `common.*` | `common.cancel`, `common.save` |
+| Convention                             | Example                                              |
+| -------------------------------------- | ---------------------------------------------------- |
+| Flat dot-prefix by screen              | `auth.signIn`, `groups.title`                        |
+| camelCase after prefix                 | `auth.fillAllFields`                                 |
+| Interpolation with `{{var}}`           | `auth.signInTo: "Sign in to {{appName}}"`            |
+| Plurals with `_one`/`_other` suffix    | `groups.memberCount_one`, `groups.memberCount_other` |
+| Common/shared strings under `common.*` | `common.cancel`, `common.save`                       |
 
 ---
 
@@ -274,13 +274,13 @@ No other code changes required.
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| AI-generated Hindi translations may be inaccurate | User reviews all translations before shipping |
-| Missing translation keys show raw keys in UI | i18next `fallbackLng: 'en'` ensures English fallback |
-| Existing tests break due to string changes | Mock `react-i18next` with passthrough `t` function |
-| Large diff touching many files | Break into incremental PRs (infra → screen-by-screen) |
-| `resolveJsonModule` not enabled | Verify tsconfig before implementation; add if missing |
+| Risk                                              | Mitigation                                            |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| AI-generated Hindi translations may be inaccurate | User reviews all translations before shipping         |
+| Missing translation keys show raw keys in UI      | i18next `fallbackLng: 'en'` ensures English fallback  |
+| Existing tests break due to string changes        | Mock `react-i18next` with passthrough `t` function    |
+| Large diff touching many files                    | Break into incremental PRs (infra → screen-by-screen) |
+| `resolveJsonModule` not enabled                   | Verify tsconfig before implementation; add if missing |
 
 ---
 

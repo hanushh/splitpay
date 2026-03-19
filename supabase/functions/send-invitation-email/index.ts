@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const body = await req.json().catch(() => ({})) as { tokens?: string[] };
+    const body = (await req.json().catch(() => ({}))) as { tokens?: string[] };
     const tokens: string[] = Array.isArray(body.tokens) ? body.tokens : [];
 
     // Build query for pending, unexpired invitations that have an email address
@@ -55,11 +55,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const FROM_ADDRESS = Deno.env.get('EMAIL_FROM') ?? 'PaySplit <no-reply@paysplit.app>';
-    const INVITE_WEB_BASE = Deno.env.get('APP_INVITE_WEB_BASE') ?? 'paysplit://invite';
+    const FROM_ADDRESS =
+      Deno.env.get('EMAIL_FROM') ?? 'PaySplit <no-reply@paysplit.app>';
+    const INVITE_WEB_BASE =
+      Deno.env.get('APP_INVITE_WEB_BASE') ?? 'paysplit://invite';
 
     if (!RESEND_API_KEY) {
-      console.warn('[send-invitation-email] RESEND_API_KEY not set — skipping sends');
+      console.warn(
+        '[send-invitation-email] RESEND_API_KEY not set — skipping sends',
+      );
       return json(200, { sent: 0, warning: 'Email service not configured' });
     }
 
@@ -110,10 +114,16 @@ Deno.serve(async (req: Request) => {
           sentCount++;
         } else {
           const errText = await res.text();
-          console.error(`[send-invitation-email] Resend error for ${inv.invitee_email}:`, errText);
+          console.error(
+            `[send-invitation-email] Resend error for ${inv.invitee_email}:`,
+            errText,
+          );
         }
       } catch (sendErr) {
-        console.error(`[send-invitation-email] Network error for ${inv.invitee_email}:`, sendErr);
+        console.error(
+          `[send-invitation-email] Network error for ${inv.invitee_email}:`,
+          sendErr,
+        );
       }
     }
 

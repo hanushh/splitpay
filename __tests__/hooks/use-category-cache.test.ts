@@ -1,5 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useCategoryCache, __resetCacheForTesting } from '@/hooks/use-category-cache';
+import {
+  useCategoryCache,
+  __resetCacheForTesting,
+} from '@/hooks/use-category-cache';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

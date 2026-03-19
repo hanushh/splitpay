@@ -57,11 +57,13 @@ export default function SignInScreen() {
     if (error) setError(error);
   };
 
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      style={[
+        s.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={s.inner}>
         <View style={s.logoMark}>
@@ -74,7 +76,10 @@ export default function SignInScreen() {
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.googleBtn,
+            (googleLoading || pressed) && s.btnPressed,
+          ]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -116,7 +121,10 @@ export default function SignInScreen() {
         />
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.signInBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.signInBtn,
+            (loading || pressed) && s.btnPressed,
+          ]}
           onPress={handleSignIn}
           disabled={loading || googleLoading}
           testID="sign-in-button"
@@ -130,7 +138,9 @@ export default function SignInScreen() {
 
         <View style={s.footer}>
           <Text style={s.footerText}>Don&apos;t have an account? </Text>
-          <Link href="/auth/sign-up" style={s.link}>Sign Up</Link>
+          <Link href="/auth/sign-up" style={s.link}>
+            Sign Up
+          </Link>
         </View>
       </View>
     </KeyboardAvoidingView>

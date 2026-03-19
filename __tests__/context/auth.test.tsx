@@ -76,7 +76,11 @@ describe('useAuth', () => {
   it('signUp calls supabase.auth.signUp', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signUp('new@example.com', 'password123', '+15550001234');
+      await result.current.signUp(
+        'new@example.com',
+        'password123',
+        '+15550001234',
+      );
     });
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: 'new@example.com',
@@ -92,7 +96,11 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: null };
     await act(async () => {
-      response = await result.current.signUp('existing@example.com', 'pass', '+15550001234');
+      response = await result.current.signUp(
+        'existing@example.com',
+        'pass',
+        '+15550001234',
+      );
     });
     expect(response.error).toBe('Email already in use');
   });
@@ -115,7 +123,11 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: 'not set' };
     await act(async () => {
-      response = await result.current.signUp('new@example.com', 'password123', '+15550001234');
+      response = await result.current.signUp(
+        'new@example.com',
+        'password123',
+        '+15550001234',
+      );
     });
     expect(response.error).toBeNull();
   });
@@ -160,7 +172,9 @@ describe('useAuth — invite tokens', () => {
     await act(async () => {
       await result.current.clearPendingInviteToken();
     });
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('pending_invite_token');
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      'pending_invite_token',
+    );
   });
 });
 
@@ -189,13 +203,17 @@ describe('useAuth — deep link handling', () => {
     (supabase.from as jest.Mock).mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => {
-      expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith('deeplink-code-123');
+      expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+        'deeplink-code-123',
+      );
       expect(router.replace).toHaveBeenCalledWith('/(tabs)');
     });
   });
@@ -220,7 +238,9 @@ describe('useAuth — deep link handling', () => {
     (supabase.from as jest.Mock).mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
@@ -235,7 +255,9 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('ignores deep links that do not match known prefixes', async () => {
-    (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce('paysplit://unknown/path');
+    (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(
+      'paysplit://unknown/path',
+    );
 
     renderHook(() => useAuth(), { wrapper });
     await act(async () => {});

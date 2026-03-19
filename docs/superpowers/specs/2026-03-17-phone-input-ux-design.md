@@ -1,4 +1,5 @@
 # Phone Input UX — Design Spec
+
 **Date:** 2026-03-17
 **Status:** Approved
 
@@ -19,19 +20,21 @@ Replace every phone `TextInput` with a new shared `PhoneInput` component. It ren
 ## Component: `components/ui/PhoneInput.tsx`
 
 ### Props
+
 ```ts
 interface PhoneInputProps {
-  value: string;                         // E.164 (e.g. "+919876543210") or empty string
-  onChange: (e164: string) => void;      // called on EVERY digit change, even partial
-  editable?: boolean;                    // default true; false disables both pill and input
+  value: string; // E.164 (e.g. "+919876543210") or empty string
+  onChange: (e164: string) => void; // called on EVERY digit change, even partial
+  editable?: boolean; // default true; false disables both pill and input
   autoFocus?: boolean;
-  testID?: string;                       // forwarded to the digit TextInput only
+  testID?: string; // forwarded to the digit TextInput only
 }
 ```
 
 **`onChange` firing rule:** called unconditionally on every digit change (including deletion, including partial/invalid numbers). The parent decides what to do with the value at submission time. `onChange` is never suppressed.
 
 **`value` on mount / prop update:** When `value` is a non-empty E.164 string, parse it into country-code and local-digit parts and pre-populate the pill and digit field:
+
 1. Strip the leading `+`.
 2. Try to match `+971`, `+977`, `+234`, `+64` (4-digit codes) first, then `+91`, `+61`, `+81`, `+60`, `+52`, `+92`, `+63`, `+65`, `+27`, `+94`, `+44`, `+49`, `+33`, `+62` (2–3-digit codes), then `+1` last (shortest).
 3. Remainder after the dial code prefix = local digits.
@@ -39,6 +42,7 @@ interface PhoneInputProps {
 5. **`+1` (US / CA) collision:** when a `+1` number is parsed, always display the **US** 🇺🇸 flag in the pill. Canada is available to select in the picker but `+1` numbers are always displayed as US on load. This is a known simplification.
 
 ### Layout
+
 ```
 ┌─────────────────────────────────────────────┐
 │  🇮🇳 +91  ▾  │  98765 43210                │
@@ -50,26 +54,29 @@ interface PhoneInputProps {
 - **Right field** (`TextInput`): `keyboardType="phone-pad"`, shows only the local digits, formatted. Receives the `testID` prop. When `editable={false}`, `editable={false}` is passed to the TextInput.
 
 ### Default country
+
 India (`🇮🇳 +91`) is the default when `value` is empty.
 
 ### Auto-formatting rules
 
 The formatting switch keys on the **dial code string** (e.g. `'+91'`), regardless of which country was selected. Canada and US both use dial code `'+1'` and therefore both use the `+1` format.
 
-| Dial code string | Local format pattern | Max local digits |
-|---|---|---|
-| `'+91'` (India) | `XXXXX XXXXX` | 10 |
-| `'+1'` (US and Canada) | `XXX XXX XXXX` | 10 |
-| `'+44'` (UK) | `XXXXX XXXXX` | 10 |
-| `'+971'` (UAE) | `XX XXX XXXX` | 9 |
-| All others (incl. `'+977'` Nepal, `'+234'` Nigeria, etc.) | space every 4 digits | 12 |
+| Dial code string                                          | Local format pattern | Max local digits |
+| --------------------------------------------------------- | -------------------- | ---------------- |
+| `'+91'` (India)                                           | `XXXXX XXXXX`        | 10               |
+| `'+1'` (US and Canada)                                    | `XXX XXX XXXX`       | 10               |
+| `'+44'` (UK)                                              | `XXXXX XXXXX`        | 10               |
+| `'+971'` (UAE)                                            | `XX XXX XXXX`        | 9                |
+| All others (incl. `'+977'` Nepal, `'+234'` Nigeria, etc.) | space every 4 digits | 12               |
 
 Nepal (`+977`) and all other countries not in the table intentionally fall through to the "space every 4 digits / max 12" fallback. This is acceptable.
 
 On every digit change: strip non-digits from input, truncate to max digits for the active dial code, apply the pattern, display the formatted string, call `onChange(dialCode + strippedDigits)`.
 
 ### Country change behaviour
+
 When the user selects a new country from the picker:
+
 1. Update the pill to the new country.
 2. Clear the digit field to empty.
 3. Call `onChange('')`.
@@ -77,6 +84,7 @@ When the user selects a new country from the picker:
 5. Focus the digit `TextInput`.
 
 ### Country picker bottom sheet
+
 - Renders using RN `Modal` (transparent) + `FlatList`. No external dependency.
 - Semi-transparent overlay (`rgba(0,0,0,0.5)`) fills the screen; the sheet itself is a bottom-anchored `View`.
 - **Dismissal:** tapping the overlay outside the sheet OR pressing the Android hardware back button closes the sheet without making any change (country and digits are unchanged).
@@ -92,7 +100,9 @@ When the user selects a new country from the picker:
 ## Integration Points
 
 ### `app/auth/setup-phone.tsx`
+
 Replace the existing `TextInput` with:
+
 ```tsx
 <PhoneInput
   value={phone}
@@ -102,10 +112,13 @@ Replace the existing `TextInput` with:
   editable={!saving}
 />
 ```
+
 `phone` state remains `useState('')`. At submission `normalizePhone(phone)` is called for validation.
 
 ### `app/auth/sign-up.tsx`
+
 Same pattern. Also update the `normalizePhone` import from `@/hooks/use-friends` → `@/lib/phone`:
+
 ```tsx
 import { normalizePhone } from '@/lib/phone';
 // ...
@@ -115,11 +128,13 @@ import { normalizePhone } from '@/lib/phone';
   autoFocus
   testID="phone-input"
   editable={!loading}
-/>
+/>;
 ```
 
 ### `app/(tabs)/account.tsx`
+
 Replace the `TextInput` inside the phone edit modal:
+
 ```tsx
 <PhoneInput
   value={phoneInput}
@@ -127,6 +142,7 @@ Replace the `TextInput` inside the phone edit modal:
   editable={!phoneSaving}
 />
 ```
+
 `phoneInput` is the existing `useState('')` state (pre-populated with `savedPhone ?? ''` when the modal opens, as already implemented). At submission `normalizePhone(phoneInput)` is called.
 
 ---

@@ -15,7 +15,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MemberSearchPicker, type MemberSelection } from '@/components/MemberSearchPicker';
+import {
+  MemberSearchPicker,
+  type MemberSelection,
+} from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
@@ -36,17 +39,111 @@ type IconName = keyof typeof MaterialIcons.glyphMap;
 function inferIcon(name: string): IconName {
   const t = name.toLowerCase();
   const rules: { keywords: string[]; icon: IconName }[] = [
-    { keywords: ['trip', 'travel', 'flight', 'fly', 'tour', 'backpack', 'japan', 'paris', 'london', 'bali', 'euro'], icon: 'flight'           },
-    { keywords: ['beach', 'holiday', 'resort', 'vacation', 'summer', 'island', 'ski', 'snow', 'camp', 'hike'],       icon: 'beach-access'     },
-    { keywords: ['home', 'house', 'apartment', 'apt', 'flat', 'rent', 'roommate', 'condo'],                          icon: 'home'             },
-    { keywords: ['dinner', 'lunch', 'breakfast', 'food', 'restaurant', 'eat', 'brunch', 'cafe', 'coffee', 'pizza'],  icon: 'restaurant'       },
-    { keywords: ['car', 'drive', 'road', 'auto', 'uber', 'taxi'],                                                    icon: 'directions-car'   },
-    { keywords: ['shop', 'mall', 'market', 'grocery', 'store', 'buy'],                                               icon: 'shopping-cart'    },
-    { keywords: ['sport', 'soccer', 'football', 'cricket', 'gym', 'tennis', 'basketball', 'game', 'match'],          icon: 'sports-soccer'    },
-    { keywords: ['music', 'concert', 'band', 'festival', 'party', 'gig'],                                            icon: 'music-note'       },
-    { keywords: ['work', 'office', 'project', 'team', 'client', 'business', 'conf'],                                 icon: 'work'             },
-    { keywords: ['school', 'class', 'course', 'study', 'college', 'university'],                                     icon: 'school'           },
-    { keywords: ['hospital', 'clinic', 'medical', 'health', 'doctor'],                                               icon: 'local-hospital'   },
+    {
+      keywords: [
+        'trip',
+        'travel',
+        'flight',
+        'fly',
+        'tour',
+        'backpack',
+        'japan',
+        'paris',
+        'london',
+        'bali',
+        'euro',
+      ],
+      icon: 'flight',
+    },
+    {
+      keywords: [
+        'beach',
+        'holiday',
+        'resort',
+        'vacation',
+        'summer',
+        'island',
+        'ski',
+        'snow',
+        'camp',
+        'hike',
+      ],
+      icon: 'beach-access',
+    },
+    {
+      keywords: [
+        'home',
+        'house',
+        'apartment',
+        'apt',
+        'flat',
+        'rent',
+        'roommate',
+        'condo',
+      ],
+      icon: 'home',
+    },
+    {
+      keywords: [
+        'dinner',
+        'lunch',
+        'breakfast',
+        'food',
+        'restaurant',
+        'eat',
+        'brunch',
+        'cafe',
+        'coffee',
+        'pizza',
+      ],
+      icon: 'restaurant',
+    },
+    {
+      keywords: ['car', 'drive', 'road', 'auto', 'uber', 'taxi'],
+      icon: 'directions-car',
+    },
+    {
+      keywords: ['shop', 'mall', 'market', 'grocery', 'store', 'buy'],
+      icon: 'shopping-cart',
+    },
+    {
+      keywords: [
+        'sport',
+        'soccer',
+        'football',
+        'cricket',
+        'gym',
+        'tennis',
+        'basketball',
+        'game',
+        'match',
+      ],
+      icon: 'sports-soccer',
+    },
+    {
+      keywords: ['music', 'concert', 'band', 'festival', 'party', 'gig'],
+      icon: 'music-note',
+    },
+    {
+      keywords: [
+        'work',
+        'office',
+        'project',
+        'team',
+        'client',
+        'business',
+        'conf',
+      ],
+      icon: 'work',
+    },
+    {
+      keywords: ['school', 'class', 'course', 'study', 'college', 'university'],
+      icon: 'school',
+    },
+    {
+      keywords: ['hospital', 'clinic', 'medical', 'health', 'doctor'],
+      icon: 'local-hospital',
+    },
   ];
   for (const rule of rules) {
     if (rule.keywords.some((kw) => t.includes(kw))) return rule.icon;
@@ -64,7 +161,10 @@ export default function CreateGroupScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [memberSelection, setMemberSelection] = useState<MemberSelection>({ appUsers: [], contacts: [] });
+  const [memberSelection, setMemberSelection] = useState<MemberSelection>({
+    appUsers: [],
+    contacts: [],
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,19 +181,19 @@ export default function CreateGroupScreen() {
       const groupName = name.trim();
 
       // Insert group
-      const { error: groupErr } = await supabase
-        .from('groups')
-        .insert({
-          id: groupId,
-          name: groupName,
-          description: description.trim() || null,
-          icon_name: selectedIcon,
-          created_by: user.id,
-          archived: false,
-        });
+      const { error: groupErr } = await supabase.from('groups').insert({
+        id: groupId,
+        name: groupName,
+        description: description.trim() || null,
+        icon_name: selectedIcon,
+        created_by: user.id,
+        archived: false,
+      });
 
       if (groupErr) {
-        setError(groupErr.message ?? 'Failed to create group. Please try again.');
+        setError(
+          groupErr.message ?? 'Failed to create group. Please try again.',
+        );
         setSaving(false);
         return;
       }
@@ -104,7 +204,9 @@ export default function CreateGroupScreen() {
         .insert({ group_id: groupId, user_id: user.id });
 
       if (memberErr) {
-        setError(memberErr.message ?? 'Group created but failed to add you as member.');
+        setError(
+          memberErr.message ?? 'Group created but failed to add you as member.',
+        );
         setSaving(false);
         return;
       }
@@ -115,19 +217,28 @@ export default function CreateGroupScreen() {
         .insert({ group_id: groupId, user_id: user.id, balance_cents: 0 });
 
       if (balanceErr) {
-        setError(balanceErr.message ?? 'Group created but failed to initialise your balance.');
+        setError(
+          balanceErr.message ??
+            'Group created but failed to initialise your balance.',
+        );
         setSaving(false);
         return;
       }
 
       // Add app users via RPC — also creates their group_balances rows
       if (memberSelection.appUsers.length > 0) {
-        const { error: friendErr } = await supabase.rpc('add_group_members_by_ids', {
-          p_group_id: groupId,
-          p_user_ids: memberSelection.appUsers.map((u) => u.userId),
-        });
+        const { error: friendErr } = await supabase.rpc(
+          'add_group_members_by_ids',
+          {
+            p_group_id: groupId,
+            p_user_ids: memberSelection.appUsers.map((u) => u.userId),
+          },
+        );
         if (friendErr) {
-          setError(friendErr.message ?? 'Group created but failed to add some members.');
+          setError(
+            friendErr.message ??
+              'Group created but failed to add some members.',
+          );
           setSaving(false);
           return;
         }
@@ -139,14 +250,19 @@ export default function CreateGroupScreen() {
         const token = generateInviteToken();
         const inviteeEmail = contact.emails[0] ?? null;
 
-        const { error: contactMemberErr } = await supabase.from('group_members').insert({
-          group_id: groupId,
-          user_id: null,
-          display_name: contact.name,
-        });
+        const { error: contactMemberErr } = await supabase
+          .from('group_members')
+          .insert({
+            group_id: groupId,
+            user_id: null,
+            display_name: contact.name,
+          });
 
         if (contactMemberErr) {
-          setError(contactMemberErr.message ?? `Failed to add ${contact.name} to the group.`);
+          setError(
+            contactMemberErr.message ??
+              `Failed to add ${contact.name} to the group.`,
+          );
           setSaving(false);
           return;
         }
@@ -160,15 +276,18 @@ export default function CreateGroupScreen() {
         });
 
         if (inviteErr) {
-          setError(inviteErr.message ?? `Failed to create invite for ${contact.name}. They were added to the group but you won't be able to share a link.`);
+          setError(
+            inviteErr.message ??
+              `Failed to create invite for ${contact.name}. They were added to the group but you won't be able to share a link.`,
+          );
           setSaving(false);
           return;
         }
 
         const shareUrl = INVITE_WEB_LINK_BASE
-            ? `${INVITE_WEB_LINK_BASE}?token=${token}`
-            : `paysplit://invite?token=${token}`;
-          pendingInvites.push({ contactName: contact.name, shareUrl });
+          ? `${INVITE_WEB_LINK_BASE}?token=${token}`
+          : `paysplit://invite?token=${token}`;
+        pendingInvites.push({ contactName: contact.name, shareUrl });
       }
 
       setSaving(false);
@@ -181,13 +300,18 @@ export default function CreateGroupScreen() {
           message: `Hey ${pendingInvites[0].contactName}! Join ${groupName} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
         });
       } else if (pendingInvites.length > 1) {
-        const links = pendingInvites.map((p) => `${p.contactName}: ${p.shareUrl}`).join('\n');
+        const links = pendingInvites
+          .map((p) => `${p.contactName}: ${p.shareUrl}`)
+          .join('\n');
         await Share.share({
           message: `Join ${groupName} on ${APP_DISPLAY_NAME}!\n${links}`,
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please try again.';
       setError(message);
       setSaving(false);
     }
@@ -200,18 +324,32 @@ export default function CreateGroupScreen() {
     >
       {/* Header */}
       <View style={s.header} testID="create-group-screen">
-        <Pressable onPress={() => router.back()} style={s.headerBtn} testID="cancel-button">
+        <Pressable
+          onPress={() => router.back()}
+          style={s.headerBtn}
+          testID="cancel-button"
+        >
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={s.headerTitle}>New Group</Text>
-        <Pressable onPress={handleSave} style={s.headerBtn} disabled={!canSave || saving} testID="header-create-button">
-          <Text style={[s.createText, !canSave && { opacity: 0.35 }]}>Create</Text>
+        <Pressable
+          onPress={handleSave}
+          style={s.headerBtn}
+          disabled={!canSave || saving}
+          testID="header-create-button"
+        >
+          <Text style={[s.createText, !canSave && { opacity: 0.35 }]}>
+            Create
+          </Text>
         </Pressable>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          s.scroll,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         keyboardShouldPersistTaps="handled"
         testID="create-group-scroll"
       >
@@ -221,7 +359,9 @@ export default function CreateGroupScreen() {
             <MaterialIcons name={selectedIcon} size={48} color={C.primary} />
           </View>
           <Text style={s.previewHint}>
-            {name.trim() ? 'Auto-selected · tap below to override' : 'Icon and colour chosen from group name'}
+            {name.trim()
+              ? 'Auto-selected · tap below to override'
+              : 'Icon and colour chosen from group name'}
           </Text>
         </View>
 
@@ -271,7 +411,11 @@ export default function CreateGroupScreen() {
 
         {/* Create button */}
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.createBtn, !canSave && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.createBtn,
+            !canSave && { opacity: 0.4 },
+            pressed && { opacity: 0.85 },
+          ]}
           onPress={handleSave}
           disabled={!canSave || saving}
           testID="create-group-button"
@@ -304,17 +448,31 @@ const s = StyleSheet.create({
   headerBtn: { padding: 4, minWidth: 60 },
   headerTitle: { color: C.white, fontWeight: '700', fontSize: 17 },
   cancelText: { color: C.slate400, fontSize: 16 },
-  createText: { color: C.primary, fontSize: 16, fontWeight: '700', textAlign: 'right' },
+  createText: {
+    color: C.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
   scroll: { paddingHorizontal: 20 },
   previewWrap: { alignItems: 'center', paddingVertical: 28, gap: 10 },
   preview: {
-    width: 100, height: 100, borderRadius: 28,
-    alignItems: 'center', justifyContent: 'center',
+    width: 100,
+    height: 100,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: C.surfaceHL,
   },
   previewHint: { color: C.slate400, fontSize: 13 },
   fieldBlock: { marginBottom: 24 },
-  fieldLabel: { color: C.slate500, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  fieldLabel: {
+    color: C.slate500,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
   fieldInput: {
     backgroundColor: C.surface,
     borderRadius: 12,
@@ -326,11 +484,21 @@ const s = StyleSheet.create({
     borderColor: C.surfaceHL,
   },
   fieldTextarea: { minHeight: 80, textAlignVertical: 'top' },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
   errorText: { color: C.orange, fontSize: 13 },
   createBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: C.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
     marginTop: 8,
   },
   createBtnText: { color: C.bg, fontWeight: '700', fontSize: 16 },

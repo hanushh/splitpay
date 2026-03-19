@@ -66,7 +66,9 @@ describe('useCurrency', () => {
 
   it('CURRENCIES list includes all expected codes', () => {
     const codes = CURRENCIES.map((c) => c.code);
-    expect(codes).toEqual(expect.arrayContaining(['USD', 'EUR', 'GBP', 'INR', 'JPY']));
+    expect(codes).toEqual(
+      expect.arrayContaining(['USD', 'EUR', 'GBP', 'INR', 'JPY']),
+    );
   });
 
   it('loads persisted currency from SecureStore on mount', async () => {

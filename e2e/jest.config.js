@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.development') });
+require('dotenv').config({
+  path: require('path').resolve(__dirname, '../.env.development'),
+});
 /* eslint-enable no-undef */
 
 /** @type {import('@jest/types').Config.InitialOptions} */

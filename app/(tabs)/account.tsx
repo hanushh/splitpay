@@ -47,14 +47,23 @@ function SettingRow({
 }) {
   return (
     <Pressable
-      style={({ pressed }: { pressed: boolean }) => [s.row, pressed && { opacity: 0.7 }]}
+      style={({ pressed }: { pressed: boolean }) => [
+        s.row,
+        pressed && { opacity: 0.7 },
+      ]}
       onPress={onPress}
     >
       <View style={s.rowLeft}>
         <View style={[s.rowIcon, isDestructive && s.rowIconDestructive]}>
-          <MaterialIcons name={icon} size={20} color={isDestructive ? '#ff5252' : C.primary} />
+          <MaterialIcons
+            name={icon}
+            size={20}
+            color={isDestructive ? '#ff5252' : C.primary}
+          />
         </View>
-        <Text style={[s.rowLabel, isDestructive && s.rowLabelDestructive]}>{label}</Text>
+        <Text style={[s.rowLabel, isDestructive && s.rowLabelDestructive]}>
+          {label}
+        </Text>
       </View>
       {value !== undefined ? (
         <View style={s.rowRight}>
@@ -83,7 +92,8 @@ export default function AccountScreen() {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
-  const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User';
+  const displayName =
+    user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User';
   const email = user?.email ?? '';
   const avatarLetter = displayName[0]?.toUpperCase() ?? 'U';
 
@@ -142,7 +152,10 @@ export default function AccountScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          s.scroll,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
       >
         {/* Profile card */}
         <View style={s.profileCard}>
@@ -196,7 +209,10 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setPhoneModalVisible(false)}
       >
-        <Pressable style={s.modalOverlay} onPress={() => setPhoneModalVisible(false)}>
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setPhoneModalVisible(false)}
+        >
           <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Phone Number</Text>
@@ -206,7 +222,9 @@ export default function AccountScreen() {
               autoFocus
               editable={!phoneSaving}
             />
-            {phoneError ? <Text style={s.phoneErrorText}>{phoneError}</Text> : null}
+            {phoneError ? (
+              <Text style={s.phoneErrorText}>{phoneError}</Text>
+            ) : null}
             <TouchableOpacity
               style={[s.saveButton, phoneSaving && { opacity: 0.6 }]}
               onPress={handleSavePhone}
@@ -230,7 +248,10 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setPickerVisible(false)}
       >
-        <Pressable style={s.modalOverlay} onPress={() => setPickerVisible(false)}>
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setPickerVisible(false)}
+        >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Select Currency</Text>
@@ -247,16 +268,31 @@ export default function AccountScreen() {
                   >
                     <Text style={s.currencyFlag}>{item.flag}</Text>
                     <View style={s.currencyInfo}>
-                      <Text style={[s.currencyCode, isSelected && s.currencyCodeSelected]}>
+                      <Text
+                        style={[
+                          s.currencyCode,
+                          isSelected && s.currencyCodeSelected,
+                        ]}
+                      >
                         {item.code}
                       </Text>
                       <Text style={s.currencyName}>{item.name}</Text>
                     </View>
-                    <Text style={[s.currencySymbol, isSelected && s.currencySymbolSelected]}>
+                    <Text
+                      style={[
+                        s.currencySymbol,
+                        isSelected && s.currencySymbolSelected,
+                      ]}
+                    >
                       {item.symbol.trim()}
                     </Text>
                     {isSelected && (
-                      <MaterialIcons name="check" size={20} color={C.primary} style={{ marginLeft: 8 }} />
+                      <MaterialIcons
+                        name="check"
+                        size={20}
+                        color={C.primary}
+                        style={{ marginLeft: 8 }}
+                      />
                     )}
                   </TouchableOpacity>
                 );

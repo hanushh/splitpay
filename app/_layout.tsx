@@ -1,4 +1,8 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from '@react-navigation/native';
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -24,15 +28,25 @@ function InviteRedeemRedirect() {
     (async () => {
       const token = await getPendingInviteToken();
       if (!token) return;
-      const { data, error: redeemErr } = await supabase.rpc('redeem_invitation_for_current_user', { p_token: token });
+      const { data, error: redeemErr } = await supabase.rpc(
+        'redeem_invitation_for_current_user',
+        { p_token: token },
+      );
       await clearPendingInviteToken();
       if (redeemErr) {
-        Alert.alert('Invite error', redeemErr.message ?? 'Failed to redeem your invite link. Please ask for a new one.');
+        Alert.alert(
+          'Invite error',
+          redeemErr.message ??
+            'Failed to redeem your invite link. Please ask for a new one.',
+        );
         return;
       }
       const row = Array.isArray(data) && data[0];
       if (row?.group_id_out) {
-        router.replace({ pathname: '/group/[id]', params: { id: row.group_id_out } });
+        router.replace({
+          pathname: '/group/[id]',
+          params: { id: row.group_id_out },
+        });
       }
     })();
   }, [session, getPendingInviteToken, clearPendingInviteToken]);
@@ -41,7 +55,8 @@ function InviteRedeemRedirect() {
 }
 
 function RootNavigator() {
-  const { session, loading, phoneComplete, contactsPermissionGranted } = useAuth();
+  const { session, loading, phoneComplete, contactsPermissionGranted } =
+    useAuth();
   const colorScheme = useColorScheme();
 
   if (loading) {
@@ -56,7 +71,9 @@ function RootNavigator() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       {session && !phoneComplete && <Redirect href="/auth/setup-phone" />}
-      {session && phoneComplete && !contactsPermissionGranted && <Redirect href="/auth/setup-contacts" />}
+      {session && phoneComplete && !contactsPermissionGranted && (
+        <Redirect href="/auth/setup-contacts" />
+      )}
       {session && <InviteRedeemRedirect />}
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -64,12 +81,27 @@ function RootNavigator() {
         <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="group/balances" options={{ headerShown: false }} />
         <Stack.Screen name="group/spending" options={{ headerShown: false }} />
-        <Stack.Screen name="add-expense" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="create-group" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="invite-friend" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="settle-up" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen
+          name="add-expense"
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="create-group"
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="invite-friend"
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="settle-up"
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
         <Stack.Screen name="invite" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen
+          name="modal"
+          options={{ presentation: 'modal', title: 'Modal' }}
+        />
       </Stack>
       {!session && <Redirect href="/auth/sign-in" />}
       <StatusBar style="auto" />

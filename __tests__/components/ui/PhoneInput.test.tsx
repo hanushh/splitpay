@@ -7,7 +7,7 @@ describe('PhoneInput', () => {
   it('calls onChange on every digit with dialCode prefix', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={onChange} testID="phone-input" />
+      <PhoneInput value="" onChange={onChange} testID="phone-input" />,
     );
     fireEvent.changeText(getByTestId('phone-input'), '9876543210');
     expect(onChange).toHaveBeenCalled();
@@ -17,21 +17,33 @@ describe('PhoneInput', () => {
 
   it('formats +91 digits as XXXXX XXXXX', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('98765 43210');
   });
 
   it('formats +1 digits as XXX XXX XXXX', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+14155551234" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+14155551234"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('415 555 1234');
   });
 
   it('formats unknown dial code as space-every-4', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+6112345678" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+6112345678"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('1234 5678');
   });
@@ -39,7 +51,7 @@ describe('PhoneInput', () => {
   it('enforces max digits for +91 (10)', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={onChange} testID="phone-input" />
+      <PhoneInput value="" onChange={onChange} testID="phone-input" />,
     );
     fireEvent.changeText(getByTestId('phone-input'), '98765432101');
     const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0];
@@ -49,7 +61,11 @@ describe('PhoneInput', () => {
   it('calls onChange("") when country changes', async () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={onChange} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={onChange}
+        testID="phone-input"
+      />,
     );
     fireEvent.press(getByTestId('phone-pill'));
     fireEvent.press(getByTestId('country-UAE'));
@@ -58,7 +74,11 @@ describe('PhoneInput', () => {
 
   it('parses E.164 value on mount — +91', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('98765 43210');
     expect(getByTestId('phone-pill-text').props.children).toContain('+91');
@@ -66,17 +86,25 @@ describe('PhoneInput', () => {
 
   it('parses E.164 value on mount — +1 shows US flag', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+14155551234" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+14155551234"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     const pillText = getByTestId('phone-pill-text').props.children;
     // +1 collision always shows US flag and dial code
-    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain('🇺🇸');
-    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain('+1');
+    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain(
+      '🇺🇸',
+    );
+    expect(Array.isArray(pillText) ? pillText.join('') : pillText).toContain(
+      '+1',
+    );
   });
 
   it('opens and closes country picker', () => {
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />,
     );
     expect(queryByTestId('country-picker-modal')).toBeNull();
     fireEvent.press(getByTestId('phone-pill'));
@@ -87,7 +115,12 @@ describe('PhoneInput', () => {
 
   it('does not open picker when editable=false', () => {
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} editable={false} testID="phone-input" />
+      <PhoneInput
+        value=""
+        onChange={jest.fn()}
+        editable={false}
+        testID="phone-input"
+      />,
     );
     fireEvent.press(getByTestId('phone-pill'));
     expect(queryByTestId('country-picker-modal')).toBeNull();
@@ -96,7 +129,11 @@ describe('PhoneInput', () => {
   it('overlay dismiss closes picker without changing country', () => {
     const onChange = jest.fn();
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={onChange} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={onChange}
+        testID="phone-input"
+      />,
     );
     fireEvent.press(getByTestId('phone-pill'));
     expect(queryByTestId('country-picker-modal')).not.toBeNull();
@@ -107,7 +144,7 @@ describe('PhoneInput', () => {
 
   it('testID is on the digit TextInput', () => {
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} testID="my-phone" />
+      <PhoneInput value="" onChange={jest.fn()} testID="my-phone" />,
     );
     expect(getByTestId('my-phone').type).toBe('TextInput');
   });

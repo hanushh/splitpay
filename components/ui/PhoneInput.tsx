@@ -42,16 +42,19 @@ const COUNTRIES: Country[] = [
 
 const ALL_COUNTRIES: Country[] = [PINNED, ...COUNTRIES];
 const PARSE_ORDER: Country[] = [...ALL_COUNTRIES].sort(
-  (a, b) => b.dial.length - a.dial.length
+  (a, b) => b.dial.length - a.dial.length,
 );
 
-interface FormatRule { pattern: number[]; max: number }
+interface FormatRule {
+  pattern: number[];
+  max: number;
+}
 
 const FORMAT_RULES: Record<string, FormatRule> = {
-  '+91':  { pattern: [5, 5],    max: 10 },
-  '+1':   { pattern: [3, 3, 4], max: 10 },
-  '+44':  { pattern: [5, 5],    max: 10 },
-  '+971': { pattern: [2, 3, 4], max: 9  },
+  '+91': { pattern: [5, 5], max: 10 },
+  '+1': { pattern: [3, 3, 4], max: 10 },
+  '+44': { pattern: [5, 5], max: 10 },
+  '+971': { pattern: [2, 3, 4], max: 9 },
 };
 
 function formatDigits(digits: string, dial: string): string {
@@ -82,9 +85,8 @@ function parseE164(e164: string): { country: Country; localDigits: string } {
   for (const c of PARSE_ORDER) {
     const dialDigits = c.dial.slice(1);
     if (stripped.startsWith(dialDigits)) {
-      const country = c.dial === '+1'
-        ? COUNTRIES.find(x => x.code === 'US')!
-        : c;
+      const country =
+        c.dial === '+1' ? COUNTRIES.find((x) => x.code === 'US')! : c;
       return { country, localDigits: stripped.slice(dialDigits.length) };
     }
   }
@@ -118,27 +120,38 @@ export default function PhoneInput({
     setDigits(p.localDigits);
   }, [value]);
 
-  const handleDigitChange = useCallback((text: string) => {
-    const raw = text.replace(/\D/g, '').slice(0, maxDigits(country.dial));
-    setDigits(raw);
-    onChange(raw ? country.dial + raw : '');
-  }, [country, onChange]);
+  const handleDigitChange = useCallback(
+    (text: string) => {
+      const raw = text.replace(/\D/g, '').slice(0, maxDigits(country.dial));
+      setDigits(raw);
+      onChange(raw ? country.dial + raw : '');
+    },
+    [country, onChange],
+  );
 
-  const handleSelectCountry = useCallback((c: Country) => {
-    setCountry(c);
-    setDigits('');
-    onChange('');
-    setPickerVisible(false);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, [onChange]);
+  const handleSelectCountry = useCallback(
+    (c: Country) => {
+      setCountry(c);
+      setDigits('');
+      onChange('');
+      setPickerVisible(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    },
+    [onChange],
+  );
 
   const displayValue = formatDigits(digits, country.dial);
 
   return (
     <View style={s.row}>
       <Pressable
-        style={({ pressed }: { pressed: boolean }) => [s.pill, pressed && editable && s.pillPressed]}
-        onPress={() => { if (editable) setPickerVisible(true); }}
+        style={({ pressed }: { pressed: boolean }) => [
+          s.pill,
+          pressed && editable && s.pillPressed,
+        ]}
+        onPress={() => {
+          if (editable) setPickerVisible(true);
+        }}
         testID="phone-pill"
       >
         <Text style={s.pillText} testID="phone-pill-text">
@@ -168,10 +181,17 @@ export default function PhoneInput({
         onRequestClose={() => setPickerVisible(false)}
         testID="country-picker-modal"
       >
-        <Pressable style={s.overlay} onPress={() => setPickerVisible(false)} testID="picker-overlay">
+        <Pressable
+          style={s.overlay}
+          onPress={() => setPickerVisible(false)}
+          testID="picker-overlay"
+        >
           <Pressable style={s.sheet} onPress={() => {}}>
             <Pressable
-              style={({ pressed }: { pressed: boolean }) => [s.countryRow, pressed && s.rowPressed]}
+              style={({ pressed }: { pressed: boolean }) => [
+                s.countryRow,
+                pressed && s.rowPressed,
+              ]}
               onPress={() => handleSelectCountry(PINNED)}
               testID={`country-${PINNED.name.replace(/\s/g, '')}`}
             >
@@ -181,10 +201,13 @@ export default function PhoneInput({
             </Pressable>
             <View style={s.separator} />
             <ScrollView>
-              {COUNTRIES.map(item => (
+              {COUNTRIES.map((item) => (
                 <Pressable
                   key={item.code}
-                  style={({ pressed }: { pressed: boolean }) => [s.countryRow, pressed && s.rowPressed]}
+                  style={({ pressed }: { pressed: boolean }) => [
+                    s.countryRow,
+                    pressed && s.rowPressed,
+                  ]}
                   onPress={() => handleSelectCountry(item)}
                   testID={`country-${item.name.replace(/\s/g, '')}`}
                 >
@@ -202,10 +225,10 @@ export default function PhoneInput({
 }
 
 const C = {
-  surface:   '#1a3324',
+  surface: '#1a3324',
   surfaceHL: '#244732',
-  white:     '#ffffff',
-  slate400:  '#94a3b8',
+  white: '#ffffff',
+  slate400: '#94a3b8',
 };
 
 const s = StyleSheet.create({

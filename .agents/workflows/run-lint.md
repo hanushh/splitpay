@@ -19,4 +19,3 @@ When asked to lint the Splitpay codebase, follow these steps:
    ```
 
 3. Fix any reported issues in the relevant files. You can also use editor integrations to apply some fixes automatically.
-

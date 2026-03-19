@@ -15,7 +15,9 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: jest.fn().mockResolvedValue(null),
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
-  getExpoPushTokenAsync: jest.fn().mockResolvedValue({ data: 'ExponentPushToken[test-token]' }),
+  getExpoPushTokenAsync: jest
+    .fn()
+    .mockResolvedValue({ data: 'ExponentPushToken[test-token]' }),
   AndroidImportance: { MAX: 5 },
 }));
 
@@ -91,19 +93,29 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when permissions are denied', async () => {
-    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
-    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'denied',
+    });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'denied',
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });
 
   it('registers token and returns it on success', async () => {
-    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: null, error: null });
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBe('ExponentPushToken[test-token]');
-    expect(supabase.rpc).toHaveBeenCalledWith('upsert_push_token', expect.objectContaining({
-      p_token: 'ExponentPushToken[test-token]',
-    }));
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'upsert_push_token',
+      expect.objectContaining({
+        p_token: 'ExponentPushToken[test-token]',
+      }),
+    );
   });
 
   it('returns null when upsert_push_token RPC fails', async () => {
@@ -116,7 +128,9 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when no push token is returned', async () => {
-    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({ data: null });
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({
+      data: null,
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });

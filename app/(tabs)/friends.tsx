@@ -18,8 +18,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
-import { useFriends, type MatchedFriend, type UnmatchedContact } from '@/hooks/use-friends';
-import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import {
+  useFriends,
+  type MatchedFriend,
+  type UnmatchedContact,
+} from '@/hooks/use-friends';
+import {
+  APP_DISPLAY_NAME,
+  APP_STORE_URL,
+  INVITE_WEB_LINK_BASE,
+} from '@/lib/app-config';
 import { findTopSharedGroup } from '@/lib/friend-utils';
 
 const C = {
@@ -58,7 +66,12 @@ interface BottomSheetProps {
   onAddToGroup: (friend: MatchedFriend) => void;
 }
 
-function FriendActionSheet({ friend, onClose, onViewBalance, onAddToGroup }: BottomSheetProps) {
+function FriendActionSheet({
+  friend,
+  onClose,
+  onViewBalance,
+  onAddToGroup,
+}: BottomSheetProps) {
   if (!friend) return null;
   const ini = initials(friend.name);
 
@@ -85,22 +98,42 @@ function FriendActionSheet({ friend, onClose, onViewBalance, onAddToGroup }: Bot
 
         <Pressable
           style={s.sheetAction}
-          onPress={() => { onAddToGroup(friend); onClose(); }}
+          onPress={() => {
+            onAddToGroup(friend);
+            onClose();
+          }}
         >
           <MaterialIcons name="group-add" size={22} color={C.primary} />
           <Text style={s.sheetActionText}>Add to Group</Text>
         </Pressable>
 
         <Pressable
-          style={[s.sheetAction, friend.balanceStatus === 'no_groups' && s.sheetActionDisabled]}
-          onPress={friend.balanceStatus !== 'no_groups' ? () => { onViewBalance(friend); onClose(); } : undefined}
+          style={[
+            s.sheetAction,
+            friend.balanceStatus === 'no_groups' && s.sheetActionDisabled,
+          ]}
+          onPress={
+            friend.balanceStatus !== 'no_groups'
+              ? () => {
+                  onViewBalance(friend);
+                  onClose();
+                }
+              : undefined
+          }
         >
           <MaterialIcons
             name="account-balance-wallet"
             size={22}
-            color={friend.balanceStatus === 'no_groups' ? C.slate500 : C.primary}
+            color={
+              friend.balanceStatus === 'no_groups' ? C.slate500 : C.primary
+            }
           />
-          <Text style={[s.sheetActionText, friend.balanceStatus === 'no_groups' && { color: C.slate500 }]}>
+          <Text
+            style={[
+              s.sheetActionText,
+              friend.balanceStatus === 'no_groups' && { color: C.slate500 },
+            ]}
+          >
             View Balance
           </Text>
         </Pressable>
@@ -117,23 +150,32 @@ export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const { format } = useCurrency();
   const { user } = useAuth();
-  const { matched, unmatched, loading, error, permissionDenied, refetch } = useFriends();
-  const [selectedFriend, setSelectedFriend] = useState<MatchedFriend | null>(null);
+  const { matched, unmatched, loading, error, permissionDenied, refetch } =
+    useFriends();
+  const [selectedFriend, setSelectedFriend] = useState<MatchedFriend | null>(
+    null,
+  );
   const [unmatchedShowAll, setUnmatchedShowAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [refetch])
+    }, [refetch]),
   );
 
-  const handleViewBalance = useCallback(async (friend: MatchedFriend) => {
-    if (!user) return;
-    const result = await findTopSharedGroup(user.id, friend.userId);
-    if (!result) return;
-    router.push({ pathname: '/group/balances', params: { groupId: result.groupId, groupName: result.groupName } });
-  }, [user]);
+  const handleViewBalance = useCallback(
+    async (friend: MatchedFriend) => {
+      if (!user) return;
+      const result = await findTopSharedGroup(user.id, friend.userId);
+      if (!result) return;
+      router.push({
+        pathname: '/group/balances',
+        params: { groupId: result.groupId, groupName: result.groupName },
+      });
+    },
+    [user],
+  );
 
   const handleAddToGroup = useCallback((friend: MatchedFriend) => {
     router.push({
@@ -143,9 +185,15 @@ export default function FriendsScreen() {
   }, []);
 
   const q = searchQuery.trim().toLowerCase();
-  const filteredMatched = q ? matched.filter((f) => f.name.toLowerCase().includes(q)) : matched;
-  const filteredUnmatched = q ? unmatched.filter((f) => f.name.toLowerCase().includes(q)) : unmatched;
-  const visibleUnmatched = unmatchedShowAll ? filteredUnmatched : filteredUnmatched.slice(0, UNMATCHED_PAGE_SIZE);
+  const filteredMatched = q
+    ? matched.filter((f) => f.name.toLowerCase().includes(q))
+    : matched;
+  const filteredUnmatched = q
+    ? unmatched.filter((f) => f.name.toLowerCase().includes(q))
+    : unmatched;
+  const visibleUnmatched = unmatchedShowAll
+    ? filteredUnmatched
+    : filteredUnmatched.slice(0, UNMATCHED_PAGE_SIZE);
 
   if (loading) {
     return (
@@ -171,7 +219,9 @@ export default function FriendsScreen() {
     return (
       <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
         <MaterialIcons name="contacts" size={40} color={C.slate400} />
-        <Text style={s.errorText}>Contacts access is required to find friends.</Text>
+        <Text style={s.errorText}>
+          Contacts access is required to find friends.
+        </Text>
         <Pressable style={s.retryBtn} onPress={refetch}>
           <Text style={s.retryBtnText}>Grant Access</Text>
         </Pressable>
@@ -189,10 +239,17 @@ export default function FriendsScreen() {
     const { balanceStatus, balanceCents } = item;
     let chipText = '';
     let chipColor = C.slate400;
-    if (balanceStatus === 'owed') { chipText = `You are owed ${format(balanceCents)}`; chipColor = C.primary; }
-    else if (balanceStatus === 'owes') { chipText = `You owe ${format(Math.abs(balanceCents))}`; chipColor = C.orange; }
-    else if (balanceStatus === 'settled') { chipText = 'Settled up'; }
-    else { chipText = 'No shared groups'; }
+    if (balanceStatus === 'owed') {
+      chipText = `You are owed ${format(balanceCents)}`;
+      chipColor = C.primary;
+    } else if (balanceStatus === 'owes') {
+      chipText = `You owe ${format(Math.abs(balanceCents))}`;
+      chipColor = C.orange;
+    } else if (balanceStatus === 'settled') {
+      chipText = 'Settled up';
+    } else {
+      chipText = 'No shared groups';
+    }
 
     return (
       <Pressable style={s.row} onPress={() => setSelectedFriend(item)}>
@@ -219,7 +276,10 @@ export default function FriendsScreen() {
           <Text style={s.avatarInitials}>{ini}</Text>
         </View>
         <Text style={s.rowName}>{item.name}</Text>
-        <Pressable style={s.inviteBtn} onPress={() => Share.share({ message: shareMessage })}>
+        <Pressable
+          style={s.inviteBtn}
+          onPress={() => Share.share({ message: shareMessage })}
+        >
           <Text style={s.inviteBtnText}>Invite</Text>
         </Pressable>
       </View>
@@ -230,7 +290,12 @@ export default function FriendsScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <Text style={s.screenTitle}>Friends</Text>
       <View style={s.searchWrap}>
-        <MaterialIcons name="search" size={20} color={C.slate400} style={s.searchIcon} />
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={C.slate400}
+          style={s.searchIcon}
+        />
         <TextInput
           style={s.searchInput}
           placeholder="Search contacts…"
@@ -244,8 +309,17 @@ export default function FriendsScreen() {
       </View>
       <SectionList<MatchedFriend | UnmatchedContact, FriendSection>
         sections={sections}
-        keyExtractor={(item: MatchedFriend | UnmatchedContact, index: number) => 'userId' in item ? item.userId : `unmatched-${index}`}
-        renderItem={({ item, section }: { item: MatchedFriend | UnmatchedContact; section: FriendSection }) =>
+        keyExtractor={(
+          item: MatchedFriend | UnmatchedContact,
+          index: number,
+        ) => ('userId' in item ? item.userId : `unmatched-${index}`)}
+        renderItem={({
+          item,
+          section,
+        }: {
+          item: MatchedFriend | UnmatchedContact;
+          section: FriendSection;
+        }) =>
           section.key === 'matched'
             ? renderMatchedItem({ item: item as MatchedFriend })
             : renderUnmatchedItem({ item: item as UnmatchedContact })
@@ -255,21 +329,48 @@ export default function FriendsScreen() {
         )}
         renderSectionFooter={({ section }: { section: FriendSection }) => {
           if (section.key === 'matched' && filteredMatched.length === 0) {
-            return <Text style={s.emptyText}>{q ? 'No matches found.' : 'None of your contacts are on PaySplit yet.'}</Text>;
+            return (
+              <Text style={s.emptyText}>
+                {q
+                  ? 'No matches found.'
+                  : 'None of your contacts are on PaySplit yet.'}
+              </Text>
+            );
           }
           if (section.key === 'unmatched') {
-            if (filteredUnmatched.length === 0) return <Text style={s.emptyText}>{q ? 'No matches found.' : 'All your contacts are already on PaySplit.'}</Text>;
-            if (!unmatchedShowAll && filteredUnmatched.length > UNMATCHED_PAGE_SIZE) {
+            if (filteredUnmatched.length === 0)
               return (
-                <Pressable style={s.showMoreBtn} onPress={() => setUnmatchedShowAll(true)}>
-                  <Text style={s.showMoreText}>Show {filteredUnmatched.length - UNMATCHED_PAGE_SIZE} more</Text>
+                <Text style={s.emptyText}>
+                  {q
+                    ? 'No matches found.'
+                    : 'All your contacts are already on PaySplit.'}
+                </Text>
+              );
+            if (
+              !unmatchedShowAll &&
+              filteredUnmatched.length > UNMATCHED_PAGE_SIZE
+            ) {
+              return (
+                <Pressable
+                  style={s.showMoreBtn}
+                  onPress={() => setUnmatchedShowAll(true)}
+                >
+                  <Text style={s.showMoreText}>
+                    Show {filteredUnmatched.length - UNMATCHED_PAGE_SIZE} more
+                  </Text>
                 </Pressable>
               );
             }
           }
           return null;
         }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={C.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor={C.primary}
+          />
+        }
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
@@ -286,32 +387,123 @@ export default function FriendsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  centered: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 32 },
-  screenTitle: { color: C.white, fontSize: 24, fontWeight: '700', paddingHorizontal: 16, paddingBottom: 8 },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.surfaceHL, paddingHorizontal: 12, height: 44 },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    paddingHorizontal: 32,
+  },
+  screenTitle: {
+    color: C.white,
+    fontSize: 24,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+    paddingHorizontal: 12,
+    height: 44,
+  },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, color: C.white, fontSize: 15, height: 44 },
-  sectionHeader: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  sectionHeader: {
+    color: C.slate400,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   listContent: { paddingBottom: 40 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, marginHorizontal: 16, marginBottom: 6, borderRadius: 14, borderWidth: 1, borderColor: C.surfaceHL },
-  avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surfaceHL, alignItems: 'center', justifyContent: 'center' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: C.surface,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surfaceHL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarInitials: { color: C.primary, fontWeight: '700', fontSize: 14 },
   rowName: { flex: 1, color: C.white, fontWeight: '600', fontSize: 15 },
   chip: { fontSize: 12, fontWeight: '600' },
-  inviteBtn: { backgroundColor: C.surfaceHL, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
+  inviteBtn: {
+    backgroundColor: C.surfaceHL,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
   inviteBtnText: { color: C.primary, fontWeight: '700', fontSize: 13 },
-  emptyText: { color: C.slate400, fontSize: 14, paddingHorizontal: 16, paddingTop: 8 },
+  emptyText: {
+    color: C.slate400,
+    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   showMoreBtn: { paddingHorizontal: 16, paddingTop: 12 },
   showMoreText: { color: C.primary, fontWeight: '600', fontSize: 14 },
   errorText: { color: C.white, fontSize: 15, textAlign: 'center' },
-  retryBtn: { backgroundColor: C.surfaceHL, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  retryBtn: {
+    backgroundColor: C.surfaceHL,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
   retryBtnText: { color: C.primary, fontWeight: '600', fontSize: 14 },
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12, gap: 4 },
-  sheetHandle: { width: 40, height: 4, backgroundColor: C.surfaceHL, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  sheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 12,
+    gap: 4,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
   sheetName: { color: C.white, fontWeight: '700', fontSize: 17 },
-  sheetAction: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.surfaceHL },
+  sheetAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
   sheetActionDisabled: { opacity: 0.4 },
   sheetActionText: { color: C.white, fontSize: 16, fontWeight: '600' },
   sheetCancel: { paddingVertical: 16, alignItems: 'center', marginTop: 8 },

@@ -10,11 +10,17 @@ jest.mock('@/context/auth', () => ({
   useAuth: () => ({ user: mockStableUser }),
 }));
 jest.mock('@/context/currency', () => ({
-  useCurrency: () => ({ currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' } }),
+  useCurrency: () => ({
+    currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' },
+  }),
   CURRENCIES: [{ code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' }],
 }));
 jest.mock('@/hooks/use-category-cache', () => ({
-  useCategoryCache: () => ({ detect: () => 'other', saveMapping: jest.fn(), reinforceMapping: jest.fn() }),
+  useCategoryCache: () => ({
+    detect: () => 'other',
+    saveMapping: jest.fn(),
+    reinforceMapping: jest.fn(),
+  }),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -41,10 +47,7 @@ const mockExpenseRow = {
   receipt_url: null,
 };
 
-const mockSplitRows = [
-  { member_id: 'member-1' },
-  { member_id: 'member-2' },
-];
+const mockSplitRows = [{ member_id: 'member-1' }, { member_id: 'member-2' }];
 
 const mockMembers = [
   { id: 'member-1', display_name: null, avatar_url: null, user_id: 'user-1' },
@@ -65,8 +68,12 @@ beforeEach(() => {
     expenseId: 'expense-1',
   });
 
-  updateMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
-  splitsDeleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+  updateMock = jest
+    .fn()
+    .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+  splitsDeleteMock = jest
+    .fn()
+    .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
   splitsInsertMock = jest.fn().mockResolvedValue({ error: null });
 
   (supabase.from as jest.Mock).mockImplementation((table: string) => {
@@ -80,7 +87,9 @@ beforeEach(() => {
       return {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockExpenseRow, error: null }),
+        single: jest
+          .fn()
+          .mockResolvedValue({ data: mockExpenseRow, error: null }),
         update: updateMock,
       };
     }
@@ -98,14 +107,19 @@ beforeEach(() => {
         in: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
     }
-    return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
   });
 });
 
 test('edit mode: description pre-populated from fetched expense', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
   });
 });
 
@@ -135,7 +149,9 @@ test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not de
   const { getByTestId } = render(<AddExpenseScreen />);
   // Wait for members and expense data to load — both description AND paid-by section
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
     expect(getByTestId('paid-by-section')).toBeTruthy();
   });
   // The paid-by section should show Alex (member-2), not You (member-1/current user)
@@ -148,7 +164,9 @@ test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not de
 test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
   });
   await act(async () => {
     fireEvent.press(getByTestId('save-expense-button'));

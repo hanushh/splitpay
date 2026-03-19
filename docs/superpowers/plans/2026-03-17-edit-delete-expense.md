@@ -15,6 +15,7 @@
 ### Task 1: DB Migration — RLS UPDATE/DELETE policies
 
 **Files:**
+
 - Create: `supabase/migrations/20260317222508_add_expense_update_delete_policies.sql`
 
 - [x] **Step 1: Create the migration file**
@@ -89,6 +90,7 @@ git commit -m "feat: add RLS update/delete policies for expenses and expense_spl
 ### Task 2: Expense detail bottom sheet in `group/[id].tsx`
 
 **Files:**
+
 - Modify: `app/group/[id].tsx`
 
 - [x] **Step 1: Add state for selected expense and deleting flag**
@@ -101,6 +103,7 @@ const [deletingExpense, setDeletingExpense] = useState(false);
 ```
 
 Also add `Alert` to the existing React Native import at the top of the file. The current import is:
+
 ```tsx
 import {
   ActivityIndicator,
@@ -114,16 +117,19 @@ import {
   View,
 } from 'react-native';
 ```
+
 Add `Alert` to this list (keep all existing entries, add `Alert` alphabetically).
 
 - [x] **Step 2: Wire expense card onPress to open the sheet**
 
 Find the existing expense card `Pressable` (around line 297):
+
 ```tsx
 <Pressable key={expense.expense_id} style={...}>
 ```
 
 Add `onPress`:
+
 ```tsx
 <Pressable
   key={expense.expense_id}
@@ -175,7 +181,9 @@ const handleDeleteExpense = useCallback(() => {
 Just before the closing `</KeyboardAvoidingView>` (or before the existing Settings modal), add:
 
 ```tsx
-{/* ── Expense detail sheet ─────────────────────────── */}
+{
+  /* ── Expense detail sheet ─────────────────────────── */
+}
 <Modal
   visible={!!selectedExpense}
   transparent
@@ -183,38 +191,57 @@ Just before the closing `</KeyboardAvoidingView>` (or before the existing Settin
   onRequestClose={() => setSelectedExpense(null)}
 >
   <Pressable
-    style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+    style={[
+      StyleSheet.absoluteFillObject,
+      { backgroundColor: 'rgba(0,0,0,0.6)' },
+    ]}
     onPress={() => setSelectedExpense(null)}
   />
   {selectedExpense && (
     <View style={s.expenseDetailSheet}>
       <View style={s.sheetHandle} />
-      <Text style={s.sheetTitle} numberOfLines={2}>{selectedExpense.description}</Text>
+      <Text style={s.sheetTitle} numberOfLines={2}>
+        {selectedExpense.description}
+      </Text>
       <Text style={s.sheetSubtitle}>
         {new Date(selectedExpense.created_at).toLocaleDateString('en-US', {
-          month: 'long', day: 'numeric', year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
         })}
       </Text>
 
       <View style={s.sheetDetailRow}>
         <MaterialIcons name="payments" size={18} color={C.slate400} />
         <Text style={s.sheetDetailLabel}>Total amount</Text>
-        <Text style={s.sheetDetailValue}>{format(selectedExpense.total_amount_cents)}</Text>
+        <Text style={s.sheetDetailValue}>
+          {format(selectedExpense.total_amount_cents)}
+        </Text>
       </View>
       <View style={s.sheetDetailRow}>
         <MaterialIcons name="person" size={18} color={C.slate400} />
         <Text style={s.sheetDetailLabel}>Paid by</Text>
         <Text style={s.sheetDetailValue}>
-          {selectedExpense.paid_by_is_user ? 'You' : selectedExpense.paid_by_name}
+          {selectedExpense.paid_by_is_user
+            ? 'You'
+            : selectedExpense.paid_by_name}
         </Text>
       </View>
       <View style={s.sheetDetailRow}>
         <MaterialIcons name="call-split" size={18} color={C.slate400} />
         <Text style={s.sheetDetailLabel}>Your share</Text>
-        <Text style={[s.sheetDetailValue, { color: selectedExpense.paid_by_is_user ? C.primary : C.orange }]}>
-          {format(selectedExpense.paid_by_is_user
-            ? selectedExpense.total_amount_cents - selectedExpense.your_split_cents
-            : selectedExpense.your_split_cents)}
+        <Text
+          style={[
+            s.sheetDetailValue,
+            { color: selectedExpense.paid_by_is_user ? C.primary : C.orange },
+          ]}
+        >
+          {format(
+            selectedExpense.paid_by_is_user
+              ? selectedExpense.total_amount_cents -
+                  selectedExpense.your_split_cents
+              : selectedExpense.your_split_cents,
+          )}
         </Text>
       </View>
       <View style={s.sheetDetailRow}>
@@ -242,7 +269,10 @@ Just before the closing `</KeyboardAvoidingView>` (or before the existing Settin
           <Text style={s.sheetEditBtnText}>Edit</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [s.sheetDeleteBtn, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [
+            s.sheetDeleteBtn,
+            pressed && { opacity: 0.8 },
+          ]}
           onPress={handleDeleteExpense}
           disabled={deletingExpense}
         >
@@ -258,7 +288,7 @@ Just before the closing `</KeyboardAvoidingView>` (or before the existing Settin
       </View>
     </View>
   )}
-</Modal>
+</Modal>;
 ```
 
 - [x] **Step 5: Add styles for the detail sheet**
@@ -342,26 +372,39 @@ git commit -m "feat: add expense detail sheet with edit/delete entry points"
 ### Task 3: Edit mode — data fetch and form pre-population
 
 **Files:**
+
 - Modify: `app/add-expense.tsx`
 
 - [ ] **Step 1: Add `expenseId` to route params and `isEditing` flag**
 
 Find the existing `useLocalSearchParams` call (around line 67):
+
 ```tsx
-const { groupId: urlGroupId, groupName: urlGroupName } =
-  useLocalSearchParams<{ groupId?: string; groupName?: string }>();
+const { groupId: urlGroupId, groupName: urlGroupName } = useLocalSearchParams<{
+  groupId?: string;
+  groupName?: string;
+}>();
 ```
 
 Replace with:
+
 ```tsx
-const { groupId: urlGroupId, groupName: urlGroupName, expenseId } =
-  useLocalSearchParams<{ groupId?: string; groupName?: string; expenseId?: string }>();
+const {
+  groupId: urlGroupId,
+  groupName: urlGroupName,
+  expenseId,
+} = useLocalSearchParams<{
+  groupId?: string;
+  groupName?: string;
+  expenseId?: string;
+}>();
 const isEditing = !!expenseId;
 ```
 
 - [ ] **Step 2: Add `editPaidByRef` and a loading state for edit fetch**
 
 After the existing state declarations, add:
+
 ```tsx
 const editPaidByRef = useRef<string | null>(null);
 const [editLoading, setEditLoading] = useState(false);
@@ -369,6 +412,7 @@ const [editError, setEditError] = useState<string | null>(null);
 ```
 
 Also add `useRef` to the React import if not already present:
+
 ```tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 ```
@@ -385,18 +429,22 @@ useEffect(() => {
   setEditError(null);
 
   (async () => {
-    const [{ data: expenseRow, error: expErr }, { data: splitRows, error: splitErr }] =
-      await Promise.all([
-        supabase
-          .from('expenses')
-          .select('id, description, amount_cents, paid_by_member_id, category, receipt_url')
-          .eq('id', expenseId)
-          .single(),
-        supabase
-          .from('expense_splits')
-          .select('member_id')
-          .eq('expense_id', expenseId),
-      ]);
+    const [
+      { data: expenseRow, error: expErr },
+      { data: splitRows, error: splitErr },
+    ] = await Promise.all([
+      supabase
+        .from('expenses')
+        .select(
+          'id, description, amount_cents, paid_by_member_id, category, receipt_url',
+        )
+        .eq('id', expenseId)
+        .single(),
+      supabase
+        .from('expense_splits')
+        .select('member_id')
+        .eq('expense_id', expenseId),
+    ]);
 
     if (expErr || !expenseRow) {
       setEditError(expErr?.message ?? 'Could not load expense.');
@@ -413,10 +461,19 @@ useEffect(() => {
     setDescription(expenseRow.description);
     setAmount((expenseRow.amount_cents / 100).toFixed(2));
     setReceiptUri(expenseRow.receipt_url ?? null);
-    setSelectedMembers(new Set((splitRows ?? []).map((r: { member_id: string }) => r.member_id)));
+    setSelectedMembers(
+      new Set((splitRows ?? []).map((r: { member_id: string }) => r.member_id)),
+    );
 
     // Category: known keys stay as-is; unknown keys go to 'other' + customCategory
-    const knownCategories = ['restaurant', 'train', 'hotel', 'movie', 'store', 'other'];
+    const knownCategories = [
+      'restaurant',
+      'train',
+      'hotel',
+      'movie',
+      'store',
+      'other',
+    ];
     if (knownCategories.includes(expenseRow.category)) {
       setDetectedCategory(expenseRow.category);
     } else {
@@ -435,6 +492,7 @@ useEffect(() => {
 - [ ] **Step 4: Override `paidBy` auto-set in `loadMembers` for edit mode**
 
 Find the `loadMembers` function, specifically the part after `setMembers(list)` (around line 176–181):
+
 ```tsx
 setMembers(list);
 const me = list.find((m) => m.is_me);
@@ -445,6 +503,7 @@ if (me) {
 ```
 
 Replace with:
+
 ```tsx
 setMembers(list);
 const me = list.find((m) => m.is_me);
@@ -471,11 +530,13 @@ Expected: no errors.
 ### Task 4: Edit mode — UI changes (locked group, copy, save handler)
 
 **Files:**
+
 - Modify: `app/add-expense.tsx`
 
 - [ ] **Step 1: Replace the group selector with a locked view in edit mode**
 
 Find the group selector `Pressable` (around line 370–382):
+
 ```tsx
 <Pressable
   style={...}
@@ -487,51 +548,64 @@ Find the group selector `Pressable` (around line 370–382):
 ```
 
 Wrap it in a conditional:
+
 ```tsx
-{isEditing ? (
-  <View
-    style={[s.groupRow, { opacity: 1 }]}
-    testID="group-locked-row"
-  >
-    <View style={s.inputIcon}>
-      <MaterialIcons name="group" size={22} color={C.primary} />
+{
+  isEditing ? (
+    <View style={[s.groupRow, { opacity: 1 }]} testID="group-locked-row">
+      <View style={s.inputIcon}>
+        <MaterialIcons name="group" size={22} color={C.primary} />
+      </View>
+      <Text style={s.groupRowText}>{groupName}</Text>
+      <MaterialIcons name="lock-outline" size={18} color={C.slate500} />
     </View>
-    <Text style={s.groupRowText}>{groupName}</Text>
-    <MaterialIcons name="lock-outline" size={18} color={C.slate500} />
-  </View>
-) : (
-  <Pressable
-    style={({ pressed }: { pressed: boolean }) => [s.groupRow, pressed && { opacity: 0.75 }]}
-    onPress={() => setGroupPickerOpen(true)}
-    testID="group-picker-button"
-  >
-    <View style={s.inputIcon}>
-      <MaterialIcons name="group" size={22} color={groupId ? C.primary : C.slate400} />
-    </View>
-    <Text style={[s.groupRowText, !groupId && s.groupRowPlaceholder]}>
-      {groupId ? groupName : 'Select a group (required)'}
-    </Text>
-    <MaterialIcons name="arrow-drop-down" size={22} color={C.slate400} />
-  </Pressable>
-)}
+  ) : (
+    <Pressable
+      style={({ pressed }: { pressed: boolean }) => [
+        s.groupRow,
+        pressed && { opacity: 0.75 },
+      ]}
+      onPress={() => setGroupPickerOpen(true)}
+      testID="group-picker-button"
+    >
+      <View style={s.inputIcon}>
+        <MaterialIcons
+          name="group"
+          size={22}
+          color={groupId ? C.primary : C.slate400}
+        />
+      </View>
+      <Text style={[s.groupRowText, !groupId && s.groupRowPlaceholder]}>
+        {groupId ? groupName : 'Select a group (required)'}
+      </Text>
+      <MaterialIcons name="arrow-drop-down" size={22} color={C.slate400} />
+    </Pressable>
+  );
+}
 ```
 
 - [ ] **Step 2: Update header title and save button copy**
 
 Find the header title (around line 358):
+
 ```tsx
 <Text style={s.headerTitle}>Add expense</Text>
 ```
+
 Replace with:
+
 ```tsx
 <Text style={s.headerTitle}>{isEditing ? 'Edit expense' : 'Add expense'}</Text>
 ```
 
 Find the footer save button text (around line 614):
+
 ```tsx
 <Text style={s.saveBtnText}>Save Expense</Text>
 ```
+
 Replace with:
+
 ```tsx
 <Text style={s.saveBtnText}>{isEditing ? 'Save Changes' : 'Save Expense'}</Text>
 ```
@@ -539,25 +613,29 @@ Replace with:
 - [ ] **Step 3: Show edit loading / error state**
 
 Find the error row (around line 426):
+
 ```tsx
-{error && (
-  <View style={s.errorRow}>
-    ...
-  </View>
-)}
+{
+  error && <View style={s.errorRow}>...</View>;
+}
 ```
 
 Just before it, add:
+
 ```tsx
-{editLoading && (
-  <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
-)}
-{editError && (
-  <View style={s.errorRow}>
-    <MaterialIcons name="error-outline" size={16} color={C.orange} />
-    <Text style={s.errorText}>{editError}</Text>
-  </View>
-)}
+{
+  editLoading && (
+    <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
+  );
+}
+{
+  editError && (
+    <View style={s.errorRow}>
+      <MaterialIcons name="error-outline" size={16} color={C.orange} />
+      <Text style={s.errorText}>{editError}</Text>
+    </View>
+  );
+}
 ```
 
 - [ ] **Step 4: Update `handleSave` for edit mode**
@@ -594,9 +672,10 @@ router.back();
 **Replace** the entire removed block with:
 
 ```tsx
-const finalCategory = detectedCategory === 'other' && customCategory.trim()
-  ? customCategory.trim().toLowerCase()
-  : detectedCategory;
+const finalCategory =
+  detectedCategory === 'other' && customCategory.trim()
+    ? customCategory.trim().toLowerCase()
+    : detectedCategory;
 
 if (isEditing && expenseId) {
   // ── Edit mode: UPDATE expense, DELETE old splits, INSERT new splits ──
@@ -611,14 +690,22 @@ if (isEditing && expenseId) {
     })
     .eq('id', expenseId);
 
-  if (updateErr) { setError(updateErr.message); setSaving(false); return; }
+  if (updateErr) {
+    setError(updateErr.message);
+    setSaving(false);
+    return;
+  }
 
   const { error: deleteErr } = await supabase
     .from('expense_splits')
     .delete()
     .eq('expense_id', expenseId);
 
-  if (deleteErr) { setError(deleteErr.message); setSaving(false); return; }
+  if (deleteErr) {
+    setError(deleteErr.message);
+    setSaving(false);
+    return;
+  }
 
   const splitIds = [...selectedMembers];
   const perPerson = Math.round(amtCents / splitIds.length);
@@ -631,8 +718,14 @@ if (isEditing && expenseId) {
         : perPerson,
   }));
 
-  const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
-  if (splitErr) { setError(splitErr.message); setSaving(false); return; }
+  const { error: splitErr } = await supabase
+    .from('expense_splits')
+    .insert(splits);
+  if (splitErr) {
+    setError(splitErr.message);
+    setSaving(false);
+    return;
+  }
 
   setSaving(false);
   router.back();
@@ -666,12 +759,15 @@ const perPerson = Math.round(amtCents / splitIds.length);
 const splits = splitIds.map((memberId, i) => ({
   expense_id: expense.id,
   member_id: memberId,
-  amount_cents: i === splitIds.length - 1
-    ? amtCents - perPerson * (splitIds.length - 1)
-    : perPerson,
+  amount_cents:
+    i === splitIds.length - 1
+      ? amtCents - perPerson * (splitIds.length - 1)
+      : perPerson,
 }));
 
-const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
+const { error: splitErr } = await supabase
+  .from('expense_splits')
+  .insert(splits);
 if (splitErr) {
   setError(splitErr.message ?? 'Expense saved but splits failed');
   setSaving(false);
@@ -710,6 +806,7 @@ git commit -m "feat: add edit mode to add-expense screen (pre-populated form, lo
 ### Task 5: Tests
 
 **Files:**
+
 - Create: `__tests__/screens/add-expense-edit.test.tsx`
 - Create: `__tests__/screens/group-detail-delete.test.tsx`
 
@@ -730,11 +827,17 @@ jest.mock('@/context/auth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 jest.mock('@/context/currency', () => ({
-  useCurrency: () => ({ currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' } }),
+  useCurrency: () => ({
+    currency: { code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' },
+  }),
   CURRENCIES: [{ code: 'USD', flag: '🇺🇸', symbol: '$', name: 'US Dollar' }],
 }));
 jest.mock('@/hooks/use-category-cache', () => ({
-  useCategoryCache: () => ({ detect: () => 'other', saveMapping: jest.fn(), reinforceMapping: jest.fn() }),
+  useCategoryCache: () => ({
+    detect: () => 'other',
+    saveMapping: jest.fn(),
+    reinforceMapping: jest.fn(),
+  }),
 }));
 
 const mockRouter = { back: jest.fn(), push: jest.fn() };
@@ -756,10 +859,7 @@ const mockExpenseRow = {
   receipt_url: null,
 };
 
-const mockSplitRows = [
-  { member_id: 'member-1' },
-  { member_id: 'member-2' },
-];
+const mockSplitRows = [{ member_id: 'member-1' }, { member_id: 'member-2' }];
 
 const mockMembers = [
   { id: 'member-1', display_name: null, avatar_url: null, user_id: 'user-1' },
@@ -773,8 +873,12 @@ let splitsInsertMock: jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  updateMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
-  splitsDeleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+  updateMock = jest
+    .fn()
+    .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+  splitsDeleteMock = jest
+    .fn()
+    .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
   splitsInsertMock = jest.fn().mockResolvedValue({ error: null });
 
   (supabase.from as jest.Mock).mockImplementation((table: string) => {
@@ -788,7 +892,9 @@ beforeEach(() => {
       return {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockExpenseRow, error: null }),
+        single: jest
+          .fn()
+          .mockResolvedValue({ data: mockExpenseRow, error: null }),
         update: updateMock,
       };
     }
@@ -806,14 +912,19 @@ beforeEach(() => {
         in: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
     }
-    return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
   });
 });
 
 test('edit mode: description pre-populated from fetched expense', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
   });
 });
 
@@ -843,7 +954,9 @@ test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not de
   const { getByTestId } = render(<AddExpenseScreen />);
   // Wait for members and expense data to load
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
   });
   // The paid-by section should show Alex (member-2), not You (member-1/current user)
   const paidBySection = getByTestId('paid-by-section');
@@ -856,7 +969,9 @@ test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not de
 test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
   await waitFor(() => {
-    expect(getByTestId('description-input').props.value).toBe('Dinner at Locavore');
+    expect(getByTestId('description-input').props.value).toBe(
+      'Dinner at Locavore',
+    );
   });
   fireEvent.press(getByTestId('save-expense-button'));
   await waitFor(() => {
@@ -900,7 +1015,11 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockGroup = {
-  id: 'group-1', name: 'Bali Trip', description: null, image_url: null, created_by: 'user-1',
+  id: 'group-1',
+  name: 'Bali Trip',
+  description: null,
+  image_url: null,
+  created_by: 'user-1',
 };
 const mockExpenses = [
   {
@@ -920,20 +1039,29 @@ let deleteMock: jest.Mock;
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Alert, 'alert');
-  deleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+  deleteMock = jest
+    .fn()
+    .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
 
   (supabase.from as jest.Mock).mockImplementation((_table: string) => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    maybeSingle: jest.fn().mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
+    maybeSingle: jest
+      .fn()
+      .mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
     single: jest.fn().mockResolvedValue({ data: mockGroup, error: null }),
     delete: deleteMock,
   }));
   // Use mockResolvedValue on the already-mocked rpc function (don't reassign)
-  (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockExpenses, error: null });
+  (supabase.rpc as jest.Mock).mockResolvedValue({
+    data: mockExpenses,
+    error: null,
+  });
 });
 
-async function openDetailSheet(getByText: ReturnType<typeof render>['getByText']) {
+async function openDetailSheet(
+  getByText: ReturnType<typeof render>['getByText'],
+) {
   await waitFor(() => getByText('Dinner at Locavore'));
   fireEvent.press(getByText('Dinner at Locavore'));
   await waitFor(() => getByText('Delete'));
@@ -977,7 +1105,11 @@ test('confirming delete calls supabase delete and then re-fetches group', async 
 
 test('delete error shows Alert and does not close the sheet', async () => {
   // Override delete to return an error
-  deleteMock.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: { message: 'Permission denied' } }) });
+  deleteMock.mockReturnValue({
+    eq: jest
+      .fn()
+      .mockResolvedValue({ error: { message: 'Permission denied' } }),
+  });
 
   const { getByText } = render(<GroupDetailScreen />);
   await openDetailSheet(getByText);

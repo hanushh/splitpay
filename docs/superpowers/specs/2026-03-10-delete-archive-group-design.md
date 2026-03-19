@@ -136,13 +136,13 @@ Uses service role key (same pattern as `dispatch-push-notifications`).
 
 ## Files to Modify / Create
 
-| File | Change |
-|---|---|
-| `app/group/[id].tsx` | Make ⚙ tappable (creator only), add settings sheet + delete modal state |
-| `hooks/use-groups.ts` | Add `.eq('archived', false)` filter |
-| `supabase/migrations/<timestamp>_group_archive_delete_policies.sql` | RLS policies for UPDATE and DELETE |
-| `supabase/functions/auto-archive-settled-groups/index.ts` | New edge function |
-| `supabase/config.toml` | Register cron schedule for edge function |
+| File                                                                | Change                                                                  |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `app/group/[id].tsx`                                                | Make ⚙ tappable (creator only), add settings sheet + delete modal state |
+| `hooks/use-groups.ts`                                               | Add `.eq('archived', false)` filter                                     |
+| `supabase/migrations/<timestamp>_group_archive_delete_policies.sql` | RLS policies for UPDATE and DELETE                                      |
+| `supabase/functions/auto-archive-settled-groups/index.ts`           | New edge function                                                       |
+| `supabase/config.toml`                                              | Register cron schedule for edge function                                |
 
 ---
 

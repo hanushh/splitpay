@@ -12,15 +12,15 @@
 
 ## File Map
 
-| File | Status | Responsibility |
-|---|---|---|
-| `supabase/migrations/20260310000000_create_category_keyword_mappings.sql` | **Create** | DB table, RLS policies, index |
-| `lib/category-keywords.ts` | **Create** | STOP_WORDS, KEYWORD_DICT, extractKeywords(), scoreDescription() |
-| `hooks/use-category-cache.ts` | **Create** | Cache lifecycle, detect(), saveMapping(), reinforceMapping() |
-| `__tests__/lib/category-keywords.test.ts` | **Create** | Unit tests for all pure functions |
-| `__tests__/hooks/use-category-cache.test.ts` | **Create** | Hook integration tests |
-| `__mocks__/@react-native-async-storage/async-storage.ts` | **Create** | Jest mock for AsyncStorage |
-| `app/add-expense.tsx` | **Modify** | Remove category grid; add chip + conditional text input; wire hook |
+| File                                                                      | Status     | Responsibility                                                     |
+| ------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------ |
+| `supabase/migrations/20260310000000_create_category_keyword_mappings.sql` | **Create** | DB table, RLS policies, index                                      |
+| `lib/category-keywords.ts`                                                | **Create** | STOP_WORDS, KEYWORD_DICT, extractKeywords(), scoreDescription()    |
+| `hooks/use-category-cache.ts`                                             | **Create** | Cache lifecycle, detect(), saveMapping(), reinforceMapping()       |
+| `__tests__/lib/category-keywords.test.ts`                                 | **Create** | Unit tests for all pure functions                                  |
+| `__tests__/hooks/use-category-cache.test.ts`                              | **Create** | Hook integration tests                                             |
+| `__mocks__/@react-native-async-storage/async-storage.ts`                  | **Create** | Jest mock for AsyncStorage                                         |
+| `app/add-expense.tsx`                                                     | **Modify** | Remove category grid; add chip + conditional text input; wire hook |
 
 ---
 
@@ -51,9 +51,15 @@ const store: Record<string, string> = {};
 
 export default {
   getItem: jest.fn(async (key: string) => store[key] ?? null),
-  setItem: jest.fn(async (key: string, value: string) => { store[key] = value; }),
-  removeItem: jest.fn(async (key: string) => { delete store[key]; }),
-  clear: jest.fn(async () => { Object.keys(store).forEach(k => delete store[k]); }),
+  setItem: jest.fn(async (key: string, value: string) => {
+    store[key] = value;
+  }),
+  removeItem: jest.fn(async (key: string) => {
+    delete store[key];
+  }),
+  clear: jest.fn(async () => {
+    Object.keys(store).forEach((k) => delete store[k]);
+  }),
   __store: store,
 };
 ```
@@ -158,7 +164,7 @@ import {
 describe('extractKeywords', () => {
   it('lowercases and splits on whitespace', () => {
     expect(extractKeywords('Dinner at Zomato')).toEqual(
-      expect.arrayContaining(['dinner', 'zomato'])
+      expect.arrayContaining(['dinner', 'zomato']),
     );
   });
 
@@ -247,30 +253,80 @@ Expected: FAIL — `Cannot find module '@/lib/category-keywords'`
 
 ```ts
 export const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'to', 'for', 'in', 'at', 'on',
-  'with', 'and', 'or', 'by', 'of', 'from', 'my', 'our',
+  'a',
+  'an',
+  'the',
+  'to',
+  'for',
+  'in',
+  'at',
+  'on',
+  'with',
+  'and',
+  'or',
+  'by',
+  'of',
+  'from',
+  'my',
+  'our',
 ]);
 
 export const KEYWORD_DICT: Record<string, string> = {
   // Food & Drink
-  dinner: 'restaurant', lunch: 'restaurant', breakfast: 'restaurant',
-  coffee: 'restaurant', cafe: 'restaurant', zomato: 'restaurant',
-  swiggy: 'restaurant', mcdonalds: 'restaurant', restaurant: 'restaurant',
-  food: 'restaurant', pizza: 'restaurant', burger: 'restaurant',
-  biryani: 'restaurant', snack: 'restaurant', drinks: 'restaurant',
+  dinner: 'restaurant',
+  lunch: 'restaurant',
+  breakfast: 'restaurant',
+  coffee: 'restaurant',
+  cafe: 'restaurant',
+  zomato: 'restaurant',
+  swiggy: 'restaurant',
+  mcdonalds: 'restaurant',
+  restaurant: 'restaurant',
+  food: 'restaurant',
+  pizza: 'restaurant',
+  burger: 'restaurant',
+  biryani: 'restaurant',
+  snack: 'restaurant',
+  drinks: 'restaurant',
   // Transport
-  uber: 'train', ola: 'train', taxi: 'train', metro: 'train',
-  bus: 'train', train: 'train', flight: 'train', fuel: 'train',
-  petrol: 'train', toll: 'train', rapido: 'train', cab: 'train',
+  uber: 'train',
+  ola: 'train',
+  taxi: 'train',
+  metro: 'train',
+  bus: 'train',
+  train: 'train',
+  flight: 'train',
+  fuel: 'train',
+  petrol: 'train',
+  toll: 'train',
+  rapido: 'train',
+  cab: 'train',
   // Accommodation
-  hotel: 'hotel', airbnb: 'hotel', hostel: 'hotel', rent: 'hotel',
-  accommodation: 'hotel', lodge: 'hotel', stay: 'hotel',
+  hotel: 'hotel',
+  airbnb: 'hotel',
+  hostel: 'hotel',
+  rent: 'hotel',
+  accommodation: 'hotel',
+  lodge: 'hotel',
+  stay: 'hotel',
   // Entertainment
-  netflix: 'movie', movie: 'movie', cinema: 'movie', concert: 'movie',
-  spotify: 'movie', ticket: 'movie', show: 'movie', game: 'movie',
+  netflix: 'movie',
+  movie: 'movie',
+  cinema: 'movie',
+  concert: 'movie',
+  spotify: 'movie',
+  ticket: 'movie',
+  show: 'movie',
+  game: 'movie',
   // Shopping
-  amazon: 'store', flipkart: 'store', grocery: 'store', groceries: 'store',
-  walmart: 'store', mall: 'store', shopping: 'store', market: 'store',
+  amazon: 'store',
+  flipkart: 'store',
+  grocery: 'store',
+  groceries: 'store',
+  walmart: 'store',
+  mall: 'store',
+  shopping: 'store',
+  market: 'store',
   supermarket: 'store',
 };
 
@@ -320,7 +376,10 @@ export function scoreDescription(
   return entries.sort(([catA, scoreA], [catB, scoreB]) => {
     if (scoreB !== scoreA) return scoreB - scoreA;
     // Tie-break: built-in category wins over learned
-    return (builtinCategories.has(catB) ? 1 : 0) - (builtinCategories.has(catA) ? 1 : 0);
+    return (
+      (builtinCategories.has(catB) ? 1 : 0) -
+      (builtinCategories.has(catA) ? 1 : 0)
+    );
   })[0][0];
 }
 ```
@@ -411,8 +470,13 @@ describe('useCategoryCache', () => {
 
     const upsertMock = (supabase.from as jest.Mock)().upsert;
     expect(upsertMock).toHaveBeenCalled();
-    const args = upsertMock.mock.calls[0][0] as { keyword: string; category: string }[];
-    expect(args.some((r) => r.keyword === 'pilates' && r.category === 'fitness')).toBe(true);
+    const args = upsertMock.mock.calls[0][0] as {
+      keyword: string;
+      category: string;
+    }[];
+    expect(
+      args.some((r) => r.keyword === 'pilates' && r.category === 'fitness'),
+    ).toBe(true);
 
     // In-memory cache updated — next detect should use it
     expect(result.current.detect('pilates session')).toBe('fitness');
@@ -483,7 +547,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/auth';
 import { supabase } from '@/lib/supabase';
-import { extractKeywords, scoreDescription, KEYWORD_DICT } from '@/lib/category-keywords';
+import {
+  extractKeywords,
+  scoreDescription,
+  KEYWORD_DICT,
+} from '@/lib/category-keywords';
 
 const CACHE_KEY = '@category_cache_v1';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -514,7 +582,9 @@ async function writeCache(mappings: Record<string, Record<string, number>>) {
   } catch {}
 }
 
-async function fetchFromSupabase(): Promise<Record<string, Record<string, number>>> {
+async function fetchFromSupabase(): Promise<
+  Record<string, Record<string, number>>
+> {
   const { data, error } = await supabase
     .from('category_keyword_mappings')
     .select('keyword, category, usage_count')
@@ -524,7 +594,11 @@ async function fetchFromSupabase(): Promise<Record<string, Record<string, number
   if (error || !data) return {};
 
   const mappings: Record<string, Record<string, number>> = {};
-  for (const row of data as { keyword: string; category: string; usage_count: number }[]) {
+  for (const row of data as {
+    keyword: string;
+    category: string;
+    usage_count: number;
+  }[]) {
     if (!mappings[row.keyword]) mappings[row.keyword] = {};
     mappings[row.keyword][row.category] = row.usage_count;
   }
@@ -560,62 +634,73 @@ export function useCategoryCache() {
    * Synchronous — reads from in-memory cache. Zero latency.
    * Triggers a background re-fetch if cache is stale (>24h).
    */
-  const detect = useCallback((description: string): string => {
-    // Background re-fetch if stale — does not block the synchronous return
-    if (user && Date.now() - fetchedAt > CACHE_TTL_MS) {
-      fetchFromSupabase().then((fresh) => {
-        inMemory = fresh;
-        fetchedAt = Date.now();
-        writeCache(fresh);
-      });
-    }
-    const keywords = extractKeywords(description);
-    return scoreDescription(keywords, inMemory);
-  }, [user]);
+  const detect = useCallback(
+    (description: string): string => {
+      // Background re-fetch if stale — does not block the synchronous return
+      if (user && Date.now() - fetchedAt > CACHE_TTL_MS) {
+        fetchFromSupabase().then((fresh) => {
+          inMemory = fresh;
+          fetchedAt = Date.now();
+          writeCache(fresh);
+        });
+      }
+      const keywords = extractKeywords(description);
+      return scoreDescription(keywords, inMemory);
+    },
+    [user],
+  );
 
   /**
    * Called when user manually enters a custom category for "other".
    * Atomically increments usage_count server-side; updates in-memory cache.
    */
-  const saveMapping = useCallback(async (description: string, category: string) => {
-    const keywords = extractKeywords(description);
-    if (keywords.length === 0) return;
+  const saveMapping = useCallback(
+    async (description: string, category: string) => {
+      const keywords = extractKeywords(description);
+      if (keywords.length === 0) return;
 
-    // Atomic server-side upsert+increment — avoids race conditions
-    await supabase.rpc('increment_keyword_usage', {
-      p_keywords: keywords,
-      p_category: category,
-    });
+      // Atomic server-side upsert+increment — avoids race conditions
+      await supabase.rpc('increment_keyword_usage', {
+        p_keywords: keywords,
+        p_category: category,
+      });
 
-    // Merge into in-memory cache optimistically
-    for (const keyword of keywords) {
-      if (!inMemory[keyword]) inMemory[keyword] = {};
-      inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
-    }
-  }, []);
+      // Merge into in-memory cache optimistically
+      for (const keyword of keywords) {
+        if (!inMemory[keyword]) inMemory[keyword] = {};
+        inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
+      }
+    },
+    [],
+  );
 
   /**
    * Called when auto-detection succeeds and user saves the expense.
    * Reinforces all keywords that contributed to this category (built-in or learned).
    */
-  const reinforceMapping = useCallback(async (description: string, category: string) => {
-    const keywords = extractKeywords(description).filter(
-      (kw) => KEYWORD_DICT[kw] === category || inMemory[kw]?.[category] !== undefined,
-    );
-    if (keywords.length === 0) return;
+  const reinforceMapping = useCallback(
+    async (description: string, category: string) => {
+      const keywords = extractKeywords(description).filter(
+        (kw) =>
+          KEYWORD_DICT[kw] === category ||
+          inMemory[kw]?.[category] !== undefined,
+      );
+      if (keywords.length === 0) return;
 
-    // Atomic server-side increment
-    await supabase.rpc('increment_keyword_usage', {
-      p_keywords: keywords,
-      p_category: category,
-    });
+      // Atomic server-side increment
+      await supabase.rpc('increment_keyword_usage', {
+        p_keywords: keywords,
+        p_category: category,
+      });
 
-    // Update in-memory cache optimistically
-    for (const keyword of keywords) {
-      if (!inMemory[keyword]) inMemory[keyword] = {};
-      inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
-    }
-  }, []);
+      // Update in-memory cache optimistically
+      for (const keyword of keywords) {
+        if (!inMemory[keyword]) inMemory[keyword] = {};
+        inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
+      }
+    },
+    [],
+  );
 
   return { detect, saveMapping, reinforceMapping };
 }
@@ -657,7 +742,7 @@ import { clearCategoryCache } from '@/hooks/use-category-cache';
 
 // Inside signOut():
 const signOut = async () => {
-  await clearCategoryCache();          // ← add this line before supabase.auth.signOut
+  await clearCategoryCache(); // ← add this line before supabase.auth.signOut
   await removePushToken(activePushToken.current);
   await supabase.auth.signOut();
 };
@@ -757,37 +842,51 @@ Remove the entire `{/* Category */}` `<View style={s.section}>` block (the 6-but
 Replace with:
 
 ```tsx
-{/* Category — auto-detected chip */}
-{description.trim().length > 0 && (
-  <View style={s.section}>
-    <View style={s.sectionHeader}>
-      <MaterialIcons name="category" size={20} color={C.slate400} />
-      <Text style={s.sectionLabel}>Category</Text>
-    </View>
-    <View style={s.categoryChipRow}>
-      <View style={[s.categoryChip, detectedCategory === 'other' && s.categoryChipOther]}>
-        <Text style={[s.categoryChipText, detectedCategory === 'other' && s.categoryChipTextOther]}>
-          {CATEGORY_LABELS[detectedCategory] ?? detectedCategory}
-        </Text>
+{
+  /* Category — auto-detected chip */
+}
+{
+  description.trim().length > 0 && (
+    <View style={s.section}>
+      <View style={s.sectionHeader}>
+        <MaterialIcons name="category" size={20} color={C.slate400} />
+        <Text style={s.sectionLabel}>Category</Text>
       </View>
-      <Text style={s.categoryAutoLabel}>Auto-detected</Text>
+      <View style={s.categoryChipRow}>
+        <View
+          style={[
+            s.categoryChip,
+            detectedCategory === 'other' && s.categoryChipOther,
+          ]}
+        >
+          <Text
+            style={[
+              s.categoryChipText,
+              detectedCategory === 'other' && s.categoryChipTextOther,
+            ]}
+          >
+            {CATEGORY_LABELS[detectedCategory] ?? detectedCategory}
+          </Text>
+        </View>
+        <Text style={s.categoryAutoLabel}>Auto-detected</Text>
+      </View>
+      {detectedCategory === 'other' && (
+        <TextInput
+          style={s.categoryInput}
+          placeholder="e.g. Health & Wellness"
+          placeholderTextColor={C.slate400}
+          value={customCategory}
+          onChangeText={setCustomCategory}
+          returnKeyType="done"
+          testID="custom-category-input"
+        />
+      )}
+      {detectedCategory === 'other' && customCategory.trim().length > 0 && (
+        <Text style={s.categorySaveHint}>Saved for future auto-detection</Text>
+      )}
     </View>
-    {detectedCategory === 'other' && (
-      <TextInput
-        style={s.categoryInput}
-        placeholder="e.g. Health & Wellness"
-        placeholderTextColor={C.slate400}
-        value={customCategory}
-        onChangeText={setCustomCategory}
-        returnKeyType="done"
-        testID="custom-category-input"
-      />
-    )}
-    {detectedCategory === 'other' && customCategory.trim().length > 0 && (
-      <Text style={s.categorySaveHint}>Saved for future auto-detection</Text>
-    )}
-  </View>
-)}
+  );
+}
 ```
 
 - [ ] **Step 6: Add CATEGORY_LABELS constant and new styles**

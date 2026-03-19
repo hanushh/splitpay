@@ -16,18 +16,18 @@ This file provides Claude Code and other AI assistants with the context needed t
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | React Native 0.81.5 + Expo ~54 |
-| Routing | Expo Router ~6 (file-based) |
+| Layer        | Technology                                          |
+| ------------ | --------------------------------------------------- |
+| Framework    | React Native 0.81.5 + Expo ~54                      |
+| Routing      | Expo Router ~6 (file-based)                         |
 | Backend / DB | Supabase (Postgres, Auth, Realtime, Edge Functions) |
-| Language | TypeScript 5.9 (strict mode) |
-| Styling | React Native `StyleSheet` |
-| Unit tests | Jest 30 + `@testing-library/react-native` |
-| E2E tests | Detox 20 (Android emulator) |
-| Linting | ESLint 9 (flat config, `eslint-config-expo`) |
-| Formatting | Prettier 3 |
-| CI/CD | GitHub Actions → Google Play |
+| Language     | TypeScript 5.9 (strict mode)                        |
+| Styling      | React Native `StyleSheet`                           |
+| Unit tests   | Jest 30 + `@testing-library/react-native`           |
+| E2E tests    | Detox 20 (Android emulator)                         |
+| Linting      | ESLint 9 (flat config, `eslint-config-expo`)        |
+| Formatting   | Prettier 3                                          |
+| CI/CD        | GitHub Actions → Google Play                        |
 
 ---
 
@@ -85,6 +85,7 @@ splitpay/
 ## Development Setup
 
 ### Prerequisites
+
 - Node.js 20+
 - Android Studio (for Android emulator / device)
 - Xcode (macOS, for iOS simulator)
@@ -140,6 +141,7 @@ pnpm test
 ```
 
 Run additionally when applicable:
+
 - **E2E tests** – when UI flows change: `pnpm e2e:build && pnpm e2e:test`
 - **Android build** – when native/Android-specific code changes: `pnpm build:android`
 
@@ -148,11 +150,13 @@ Run additionally when applicable:
 ## Coding Conventions
 
 ### TypeScript
+
 - Strict mode is enabled — no `any`, no implicit returns.
 - Define explicit interfaces/types for all component props and hook return values.
 - DB types live in `lib/database.types.ts`; regenerate when schema changes (see `.agents/workflows/update-supabase-types.md`).
 
 ### Components
+
 - **Functional components only** — no class components.
 - Export the component as the **default export**.
 - Props must have a strict TypeScript interface.
@@ -160,6 +164,7 @@ Run additionally when applicable:
 - Use `IconSymbol` from `components/ui/icon-symbol.tsx` or `expo-vector-icons` for icons.
 
 ### Styling
+
 - Use `StyleSheet.create(...)` from `react-native` — **no inline styles** unless values are dynamic/calculated.
 - Place the `const styles = StyleSheet.create(...)` block **at the bottom** of each file.
 - No Tailwind / NativeWind (not configured).
@@ -168,23 +173,25 @@ Run additionally when applicable:
 ### Color palette (constants/colors)
 
 ```typescript
-primary:    '#17e86b'   // Green CTA
-primaryDark:'#0ea64c'
-danger:     '#ff5252'   // Errors / destructive
-bg:         '#112117'   // Dark background
-surface:    '#1a3324'   // Card background
-surfaceHL:  '#244732'   // Highlighted surface
-orange:     '#f97316'   // Secondary accent
-white:      '#ffffff'
+primary: '#17e86b'; // Green CTA
+primaryDark: '#0ea64c';
+danger: '#ff5252'; // Errors / destructive
+bg: '#112117'; // Dark background
+surface: '#1a3324'; // Card background
+surfaceHL: '#244732'; // Highlighted surface
+orange: '#f97316'; // Secondary accent
+white: '#ffffff';
 ```
 
 ### File naming
+
 - **Screens** (routes): `kebab-case.tsx` (e.g., `sign-in.tsx`, `add-expense.tsx`)
 - **Components**: `PascalCase.tsx` (e.g., `GroupCard.tsx`)
 - **Hooks**: `camelCase.ts` prefixed with `use` (e.g., `useGroups.ts`)
 - **Utilities / lib**: `kebab-case.ts`
 
 ### Import alias
+
 - `@/*` resolves to the project root (configured in `tsconfig.json`).
 - Prefer `@/lib/supabase`, `@/context/auth`, `@/hooks/use-color-scheme`, etc.
 
@@ -214,7 +221,9 @@ export function useGroups() {
     }
   }, []);
 
-  useEffect(() => { fetchGroups(); }, [fetchGroups]);
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   return { groups, loading, error, refetch: fetchGroups };
 }
@@ -231,23 +240,26 @@ export function useGroups() {
 - Tokens are persisted with `expo-secure-store`.
 
 ### Navigation (Expo Router)
+
 - Routes are defined by the file system in `app/`.
 - Modals must be registered in `app/_layout.tsx` with `presentation: 'modal'`.
 - Deep links use the `paysplit://` scheme (OAuth callback, group invite redemption).
 
 ### State management summary
-| Concern | Mechanism |
-|---|---|
-| Auth session | React Context (`context/auth.tsx`) |
-| Display currency | React Context (`context/currency.tsx`) |
-| Group / expense data | Custom hooks + Supabase |
-| Local UI state | `useState` in component |
+
+| Concern              | Mechanism                              |
+| -------------------- | -------------------------------------- |
+| Auth session         | React Context (`context/auth.tsx`)     |
+| Display currency     | React Context (`context/currency.tsx`) |
+| Group / expense data | Custom hooks + Supabase                |
+| Local UI state       | `useState` in component                |
 
 ---
 
 ## Database (Supabase)
 
 ### Core tables
+
 - `profiles` — extended user profiles
 - `groups` — group records
 - `group_members` — membership (nullable `user_id` for external contacts)
@@ -259,6 +271,7 @@ export function useGroups() {
 - `user_notifications` — notification delivery queue
 
 ### Important RPC functions (called from client)
+
 - `get_group_expenses(p_group_id, p_user_id)` — expenses with user's share
 - `get_group_member_balances(p_group_id, p_user_id)` — who owes what
 - `get_friend_balances(p_user_id)` — consolidated cross-group balances
@@ -269,10 +282,13 @@ export function useGroups() {
 - `initialize_demo_data(p_user_id)` — seed demo data on signup
 
 ### RLS
+
 All tables have Row Level Security. Users can only read/write data in groups they belong to.
 
 ### Schema changes
+
 After any migration, regenerate TypeScript types:
+
 ```bash
 # See .agents/workflows/update-supabase-types.md for full steps
 ```
@@ -282,12 +298,14 @@ After any migration, regenerate TypeScript types:
 ## Testing
 
 ### Unit tests (Jest)
+
 - Config: `jest.config.js` using `jest-expo` preset.
 - Test files: `__tests__/` directory, or co-located as `*.test.tsx`.
 - Supabase is mocked via `lib/__mocks__/supabase.ts`.
 - `expo-secure-store` and `expo-router` are mocked in tests.
 
 ### E2E tests (Detox)
+
 - Android emulator: `Pixel_9_Pro` (configured in `.detoxrc.js`).
 - Test files: `e2e/*.e2e.ts`.
 - Covers: auth, create-group, add-expense flows.
@@ -297,6 +315,7 @@ After any migration, regenerate TypeScript types:
 ## Adding New Screens
 
 Follow `.agents/workflows/create-screen.md`. Key steps:
+
 1. Place file in correct directory (`app/(tabs)/` for tabs, `app/` for standalone, modal for modals).
 2. Functional component, TypeScript (`.tsx`), default export.
 3. `StyleSheet.create(...)` at the bottom.
@@ -307,6 +326,7 @@ Follow `.agents/workflows/create-screen.md`. Key steps:
 ## Adding New UI Components
 
 Follow `.agents/workflows/create-ui-component.md`. Key steps:
+
 1. Generic building blocks → `components/ui/`; feature-specific → `components/`.
 2. Strict TypeScript props interface.
 3. `StyleSheet.create(...)` at the bottom.
@@ -323,12 +343,12 @@ Pipeline: `.github/workflows/google-play-release.yml`
 
 **Steps**: lint → typecheck → unit tests → Android AAB build → sign → upload to Google Play.
 
-| Branch | Play Store track |
-|---|---|
-| `main` | production |
-| `beta` | beta |
-| `alpha` | alpha |
-| `internal` | internal |
+| Branch     | Play Store track |
+| ---------- | ---------------- |
+| `main`     | production       |
+| `beta`     | beta             |
+| `alpha`    | alpha            |
+| `internal` | internal         |
 
 **Required GitHub secrets**: `ANDROID_SIGNING_KEY`, `ANDROID_ALIAS`, `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `PLAY_STORE_CREDENTIALS_JSON`.
 
@@ -338,17 +358,17 @@ Pipeline: `.github/workflows/google-play-release.yml`
 
 Reusable step-by-step task guides live in `.agents/workflows/`:
 
-| File | Purpose |
-|---|---|
-| `create-screen.md` | Add a new screen/route |
-| `create-ui-component.md` | Create a reusable component |
-| `run-lint.md` | Run ESLint |
-| `run-typecheck.md` | Run TypeScript compiler |
-| `run-unit-tests.md` | Run Jest tests |
-| `run-e2e.md` | Run Detox E2E tests |
-| `update-supabase-types.md` | Regenerate DB types after schema change |
-| `update-dependencies.md` | Update npm dependencies safely |
-| `verify-android-build.md` | Build and verify Android release locally |
+| File                       | Purpose                                  |
+| -------------------------- | ---------------------------------------- |
+| `create-screen.md`         | Add a new screen/route                   |
+| `create-ui-component.md`   | Create a reusable component              |
+| `run-lint.md`              | Run ESLint                               |
+| `run-typecheck.md`         | Run TypeScript compiler                  |
+| `run-unit-tests.md`        | Run Jest tests                           |
+| `run-e2e.md`               | Run Detox E2E tests                      |
+| `update-supabase-types.md` | Regenerate DB types after schema change  |
+| `update-dependencies.md`   | Update npm dependencies safely           |
+| `verify-android-build.md`  | Build and verify Android release locally |
 
 ---
 

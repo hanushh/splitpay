@@ -1,41 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/auth';
+import { Group, GroupMember } from './use-groups';
 
-export type GroupStatus = 'owed' | 'owes' | 'settled';
-
-export interface GroupMember {
-  id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  icon_name: string | null;
-  archived: boolean;
-  status: GroupStatus;
-  /** Raw balance in cents: positive = owed to user, negative = user owes */
-  balance_cents: number;
-  members: GroupMember[];
-}
-
-export function useGroups() {
+export function useArchivedGroups() {
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchGroups = useCallback(async () => {
+  const fetchArchivedGroups = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
 
     try {
-      // Step 1: Get the IDs of groups the current user belongs to
       const { data: memberships, error: membershipsErr } = await supabase
         .from('group_members')
         .select('group_id')
@@ -44,13 +23,11 @@ export function useGroups() {
       if (membershipsErr) throw new Error(membershipsErr.message);
 
       const memberGroupIds = (memberships ?? []).map((m) => m.group_id);
-
       if (memberGroupIds.length === 0) {
         setGroups([]);
         return;
       }
 
-      // Step 2: Fetch only those groups (with all members and balances)
       const { data: groupRows, error: groupsErr } = await supabase
         .from('groups')
         .select(
@@ -61,8 +38,8 @@ export function useGroups() {
         `,
         )
         .in('id', memberGroupIds)
-        .eq('archived', false)
-        .order('created_at', { ascending: true });
+        .eq('archived', true)
+        .order('created_at', { ascending: false });
 
       if (groupsErr) throw new Error(groupsErr.message);
 
@@ -73,7 +50,6 @@ export function useGroups() {
         user_id: string | null;
       };
 
-      // Collect user_ids that need profile lookup (joined via app, no display_name)
       const allRawMembers = (groupRows ?? []).flatMap(
         (row) => (row.group_members as RawMember[]) ?? [],
       );
@@ -109,9 +85,12 @@ export function useGroups() {
         const balance_cents: number =
           (row.group_balances as { balance_cents: number }[] | null)?.[0]
             ?.balance_cents ?? 0;
-
-        const status: GroupStatus =
-          balance_cents > 0 ? 'owed' : balance_cents < 0 ? 'owes' : 'settled';
+        const status =
+          balance_cents > 0
+            ? 'owed'
+            : balance_cents < 0
+              ? 'owes'
+              : ('settled' as const);
 
         const members: GroupMember[] = (
           (row.group_members as RawMember[]) ?? []
@@ -138,7 +117,7 @@ export function useGroups() {
           description: row.description,
           image_url: row.image_url,
           icon_name: row.icon_name,
-          archived: row.archived ?? false,
+          archived: true,
           status,
           balance_cents,
           members,
@@ -147,18 +126,13 @@ export function useGroups() {
 
       setGroups(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load groups');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load archived groups',
+      );
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!user) return;
-    fetchGroups();
-  }, [user, fetchGroups]);
-
-  const totalBalanceCents = groups.reduce((sum, g) => sum + g.balance_cents, 0);
-
-  return { groups, loading, error, refetch: fetchGroups, totalBalanceCents };
+  return { groups, loading, error, fetch: fetchArchivedGroups };
 }
