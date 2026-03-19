@@ -85,9 +85,10 @@ export async function registerPushTokenForCurrentUser(): Promise<string | null> 
   }
 
   const projectId = getProjectId();
-  const tokenResult = projectId
-    ? await N.getExpoPushTokenAsync({ projectId })
-    : await N.getExpoPushTokenAsync();
+  if (!projectId) {
+    return null;
+  }
+  const tokenResult = await N.getExpoPushTokenAsync({ projectId });
 
   const token = tokenResult.data;
   if (!token) return null;

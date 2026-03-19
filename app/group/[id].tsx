@@ -208,9 +208,7 @@ export default function GroupDetailScreen() {
           onPress: async () => {
             setDeletingExpense(true);
             const { error } = await supabase
-              .from('expenses')
-              .delete()
-              .eq('id', selectedExpense.expense_id);
+              .rpc('delete_expense', { p_expense_id: selectedExpense.expense_id });
             if (error) {
               setDeletingExpense(false);
               Alert.alert('Error', error.message);

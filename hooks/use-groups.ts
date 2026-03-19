@@ -64,6 +64,37 @@ export function useGroups() {
 
       if (groupsErr) throw new Error(groupsErr.message);
 
+      type RawMember = {
+        id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        user_id: string | null;
+      };
+
+      // Collect user_ids that need profile lookup (joined via app, no display_name)
+      const allRawMembers = (groupRows ?? []).flatMap(
+        (row) => (row.group_members as RawMember[]) ?? [],
+      );
+      const userIdsNeedingProfile = [
+        ...new Set(
+          allRawMembers
+            .filter((m) => m.user_id && !m.display_name && m.user_id !== user.id)
+            .map((m) => m.user_id!),
+        ),
+      ];
+
+      let profileMap: Record<string, { name: string; avatar_url: string | null }> = {};
+      if (userIdsNeedingProfile.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', userIdsNeedingProfile);
+        profileMap = (profiles ?? []).reduce(
+          (acc, p) => ({ ...acc, [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url } }),
+          {} as Record<string, { name: string; avatar_url: string | null }>,
+        );
+      }
+
       const mapped: Group[] = (groupRows ?? []).map((row) => {
         const balance_cents: number =
           (row.group_balances as { balance_cents: number }[] | null)?.[0]?.balance_cents ?? 0;
@@ -72,15 +103,19 @@ export function useGroups() {
           balance_cents > 0 ? 'owed' : balance_cents < 0 ? 'owes' : 'settled';
 
         const members: GroupMember[] = (
-          (row.group_members as {
-            id: string;
-            display_name: string | null;
-            avatar_url: string | null;
-            user_id: string | null;
-          }[]) ?? []
+          (row.group_members as RawMember[]) ?? []
         )
           .filter((m) => m.user_id !== user.id)
-          .map((m) => ({ id: m.id, display_name: m.display_name, avatar_url: m.avatar_url }));
+          .map((m) => {
+            if (m.user_id && !m.display_name && profileMap[m.user_id]) {
+              return {
+                id: m.id,
+                display_name: profileMap[m.user_id].name,
+                avatar_url: m.avatar_url ?? profileMap[m.user_id].avatar_url,
+              };
+            }
+            return { id: m.id, display_name: m.display_name, avatar_url: m.avatar_url };
+          });
 
         return {
           id: row.id,
