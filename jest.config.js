@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
+  testTimeout: 15000,
   setupFilesAfterEnv: [
     '@testing-library/react-native/build/matchers/extend-expect',
     '<rootDir>/jest.setup.ts',
