@@ -108,6 +108,10 @@ export default function AddExpenseScreen() {
   const [receiptUploading, setReceiptUploading] = useState(false);
   const editPaidByRef = useRef<string | null>(null);
   const preserveCategoryRef = useRef(false);
+  // Sync ref so the detectedCategory effect can read the current customCategory
+  // without adding it to the dependency array (avoids circular state updates).
+  const customCategoryRef = useRef(customCategory);
+  customCategoryRef.current = customCategory;
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -319,9 +323,11 @@ export default function AddExpenseScreen() {
     return () => clearTimeout(timer);
   }, [description, detect]);
 
-  // Clear custom category input when auto-detection finds a non-other category
+  // Clear custom category input when auto-detection finds a non-other category.
+  // Guard against calling setCustomCategory when it is already '' to avoid
+  // scheduling a no-op state update (which triggers act() warnings in tests).
   useEffect(() => {
-    if (detectedCategory !== 'other') {
+    if (detectedCategory !== 'other' && customCategoryRef.current !== '') {
       setCustomCategory('');
     }
   }, [detectedCategory]);
