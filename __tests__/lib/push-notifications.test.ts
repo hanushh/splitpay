@@ -25,6 +25,7 @@ jest.mock('expo-device', () => ({
 }));
 
 jest.mock('expo-constants', () => ({
+  __esModule: true,
   default: {
     easConfig: { projectId: 'test-project-id' },
     expoConfig: { extra: { eas: { projectId: 'test-project-id' } } },

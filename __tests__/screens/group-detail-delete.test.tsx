@@ -34,24 +34,19 @@ const mockExpenses = [
   },
 ];
 
-let deleteMock: jest.Mock;
-
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Alert, 'alert');
 
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'group-1' });
 
-  deleteMock = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
-
   (supabase.from as jest.Mock).mockImplementation((_table: string) => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
     single: jest.fn().mockResolvedValue({ data: mockGroup, error: null }),
-    delete: deleteMock,
   }));
-  // Use mockResolvedValue on the already-mocked rpc function (don't reassign)
+  // Default: all rpc calls succeed (covers initial load + delete_expense + refetch)
   (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockExpenses, error: null });
 });
 
@@ -79,7 +74,7 @@ test('tapping Delete shows confirmation Alert with expense name', async () => {
   );
 });
 
-test('confirming delete calls supabase delete and then re-fetches group', async () => {
+test('confirming delete calls delete_expense rpc and then re-fetches group', async () => {
   const { getByText } = render(<GroupDetailScreen />);
   await openDetailSheet(getByText);
   fireEvent.press(getByText('Delete'));
@@ -91,15 +86,20 @@ test('confirming delete calls supabase delete and then re-fetches group', async 
   await act(async () => { await deleteButton!.onPress!(); });
 
   await waitFor(() => {
-    expect(deleteMock).toHaveBeenCalledTimes(1);
-    // fetchGroup re-fires supabase.rpc — confirm it was called more than once (initial load + refetch)
+    expect(supabase.rpc).toHaveBeenCalledWith('delete_expense', { p_expense_id: 'exp-1' });
+    // fetchGroup re-fires supabase.rpc — confirm it was called more than once (initial load + delete + refetch)
     expect((supabase.rpc as jest.Mock).mock.calls.length).toBeGreaterThan(1);
   });
 });
 
 test('delete error shows Alert and does not close the sheet', async () => {
-  // Override delete to return an error
-  deleteMock.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: { message: 'Permission denied' } }) });
+  // Override rpc to return an error for delete_expense
+  (supabase.rpc as jest.Mock).mockImplementation((fnName: string) => {
+    if (fnName === 'delete_expense') {
+      return Promise.resolve({ data: null, error: { message: 'Permission denied' } });
+    }
+    return Promise.resolve({ data: mockExpenses, error: null });
+  });
 
   const { getByText } = render(<GroupDetailScreen />);
   await openDetailSheet(getByText);
