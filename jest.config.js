@@ -8,6 +8,8 @@ module.exports = {
     '/node_modules/react-native-reanimated/plugin/',
   ],
   moduleNameMapper: {
+    '^@expo/vector-icons$': '<rootDir>/__mocks__/@expo/vector-icons.ts',
+    '^@expo/vector-icons/(.*)$': '<rootDir>/__mocks__/@expo/vector-icons.ts',
     '^@/(.*)$': '<rootDir>/$1',
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.ts',
     '^expo-router$': '<rootDir>/__mocks__/expo-router.ts',

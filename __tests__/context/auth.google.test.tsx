@@ -139,6 +139,12 @@ describe('Google auth smoke', () => {
       error: { message: 'Invalid code' },
     });
 
+    // Suppress the expected console.error emitted by the auth context on this
+    // error path, and assert it was called with the right arguments.
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: null };
 
@@ -148,6 +154,11 @@ describe('Google auth smoke', () => {
 
     expect(response.error).toBe('Invalid code');
     expect(router.replace).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[Auth] exchangeCodeForSession error:',
+      'Invalid code',
+    );
+    errorSpy.mockRestore();
   });
 
   it('handles implicit flow (hash-based tokens) and navigates to tabs', async () => {
