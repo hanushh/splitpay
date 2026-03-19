@@ -132,7 +132,7 @@ export default function GroupDetailScreen() {
     ]);
 
     if (groupErr || !data) {
-      setFetchError(groupErr?.message ?? 'Group not found.');
+      setFetchError(groupErr?.message ?? t('group.notFound'));
       setLoading(false);
       return;
     }
@@ -175,7 +175,7 @@ export default function GroupDetailScreen() {
       profileMap = (profiles ?? []).reduce(
         (acc, p) => ({
           ...acc,
-          [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url },
+          [p.id]: { name: p.name ?? t('group.unknownMember'), avatar_url: p.avatar_url },
         }),
         {} as Record<string, { name: string; avatar_url: string | null }>,
       );
@@ -192,7 +192,7 @@ export default function GroupDetailScreen() {
     });
     setMembers(resolvedMembers);
     setLoading(false);
-  }, [id, user]);
+  }, [id, user, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -247,8 +247,8 @@ export default function GroupDetailScreen() {
       if (group.balance_cents !== 0) {
         setActionError(
           group.balance_cents > 0
-            ? "You're owed money in this group. Settle up before leaving."
-            : 'You have an outstanding balance. Settle up before leaving.',
+            ? t('group.owedLeaveBlocked')
+            : t('group.owesLeaveBlocked'),
         );
         setActionLoading(false);
         return;
@@ -272,18 +272,18 @@ export default function GroupDetailScreen() {
     }
     setShowDeleteModal(false);
     router.replace('/');
-  }, [group, deleteInput, user, leaveGroup]);
+  }, [group, deleteInput, user, leaveGroup, t]);
 
   const handleDeleteExpense = useCallback(() => {
     if (!selectedExpense) return;
     const name = selectedExpense.description;
     Alert.alert(
-      'Delete expense?',
-      `"${name}" will be permanently deleted and balances will be recalculated.`,
+      t('group.deleteExpenseTitle'),
+      t('group.deleteExpenseMessage', { name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setDeletingExpense(true);
@@ -292,7 +292,7 @@ export default function GroupDetailScreen() {
             });
             if (error) {
               setDeletingExpense(false);
-              Alert.alert('Error', error.message);
+              Alert.alert(t('common.ok'), error.message);
               return;
             }
             setDeletingExpense(false);
@@ -302,7 +302,7 @@ export default function GroupDetailScreen() {
         },
       ],
     );
-  }, [selectedExpense, fetchGroup]);
+  }, [selectedExpense, fetchGroup, t]);
 
   const handleEditExpense = useCallback(() => {
     if (!selectedExpense) return;
@@ -326,8 +326,8 @@ export default function GroupDetailScreen() {
       if (group.balance_cents !== 0) {
         setActionError(
           group.balance_cents > 0
-            ? "You're owed money in this group. Settle up before leaving."
-            : 'You have an outstanding balance. Settle up before leaving.',
+            ? t('group.owedLeaveBlocked')
+            : t('group.owesLeaveBlocked'),
         );
         setActionLoading(false);
         return;
@@ -351,7 +351,7 @@ export default function GroupDetailScreen() {
     }
     setShowSettings(false);
     router.replace('/');
-  }, [group, user, leaveGroup]);
+  }, [group, user, leaveGroup, t]);
 
   const handleUnarchive = useCallback(async () => {
     if (!group) return;
@@ -402,7 +402,7 @@ export default function GroupDetailScreen() {
         testID="group-detail-screen"
       >
         <Text style={{ color: C.slate400 }}>
-          {fetchError ?? 'Group not found'}
+          {fetchError ?? t('group.notFound')}
         </Text>
       </View>
     );
@@ -421,8 +421,8 @@ export default function GroupDetailScreen() {
   const canLeave = group.balance_cents === 0;
   const leaveBlockedReason =
     group.balance_cents > 0
-      ? "You're owed money in this group. Settle up before leaving."
-      : 'You have an outstanding balance. Settle up before leaving.';
+      ? t('group.owedLeaveBlocked')
+      : t('group.owesLeaveBlocked');
 
   return (
     <View
@@ -537,7 +537,7 @@ export default function GroupDetailScreen() {
         {/* Members section */}
         <View style={s.membersSection}>
           <View style={s.membersSectionHeader}>
-            <Text style={s.membersSectionTitle}>Members</Text>
+            <Text style={s.membersSectionTitle}>{t('group.membersSection')}</Text>
             <Text style={s.membersSectionCount}>{members.length}</Text>
           </View>
           <ScrollView
@@ -547,7 +547,7 @@ export default function GroupDetailScreen() {
           >
             {members.map((m) => {
               const isMe = m.user_id === user?.id;
-              const name = m.display_name ?? 'Unknown';
+              const name = m.display_name ?? t('group.unknownMember');
               const initials = name
                 .split(' ')
                 .map((w: string) => w[0])
@@ -699,7 +699,7 @@ export default function GroupDetailScreen() {
         {group.archived && (
           <View style={s.archivedBanner}>
             <MaterialIcons name="archive" size={16} color={C.slate400} />
-            <Text style={s.archivedBannerText}>This group is archived</Text>
+            <Text style={s.archivedBannerText}>{t('group.archivedBanner')}</Text>
           </View>
         )}
       </ScrollView>
@@ -792,7 +792,7 @@ export default function GroupDetailScreen() {
                         color={C.primary}
                       />
                     </View>
-                    <Text style={s.sheetRowText}>Unarchive Group</Text>
+                    <Text style={s.sheetRowText}>{t('group.unarchiveGroup')}</Text>
                   </Pressable>
                 ) : (
                   <Pressable
