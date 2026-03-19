@@ -159,12 +159,16 @@ export default function CreateGroupScreen() {
           status: 'pending',
         });
 
-        if (!inviteErr) {
-          const shareUrl = INVITE_WEB_LINK_BASE
+        if (inviteErr) {
+          setError(inviteErr.message ?? `Failed to create invite for ${contact.name}. They were added to the group but you won't be able to share a link.`);
+          setSaving(false);
+          return;
+        }
+
+        const shareUrl = INVITE_WEB_LINK_BASE
             ? `${INVITE_WEB_LINK_BASE}?token=${token}`
             : `paysplit://invite?token=${token}`;
           pendingInvites.push({ contactName: contact.name, shareUrl });
-        }
       }
 
       setSaving(false);
