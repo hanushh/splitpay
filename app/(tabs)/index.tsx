@@ -19,6 +19,7 @@ import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import { Group, useGroups } from '@/hooks/use-groups';
+import { useArchivedGroups } from '@/hooks/use-archived-groups';
 
 const C = {
   primary: '#17e86b',
@@ -150,9 +151,11 @@ export default function GroupsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
+  const { groups: archivedGroups, loading: archivedLoading, fetch: fetchArchived } = useArchivedGroups();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
   const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   useFocusEffect(
@@ -179,6 +182,13 @@ export default function GroupsScreen() {
       setTimeout(() => (searchInputRef.current as { focus?: () => void } | null)?.focus?.(), 50);
     }
   }, [showSearch]);
+
+  const handleArchivedToggle = useCallback(() => {
+    if (!archivedExpanded) {
+      fetchArchived();
+    }
+    setArchivedExpanded((v) => !v);
+  }, [archivedExpanded, fetchArchived]);
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
 
@@ -288,6 +298,32 @@ export default function GroupsScreen() {
             {visibleGroups.map((group) => (
               <GroupCard key={group.id} group={group} />
             ))}
+
+            {/* Archived groups section */}
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [s.archivedHeader, pressed && { opacity: 0.7 }]}
+              onPress={handleArchivedToggle}
+            >
+              <View style={s.archivedHeaderLeft}>
+                <MaterialIcons name="archive" size={16} color={C.slate400} />
+                <Text style={s.archivedHeaderText}>Archived</Text>
+              </View>
+              <MaterialIcons
+                name={archivedExpanded ? 'expand-less' : 'expand-more'}
+                size={20}
+                color={C.slate400}
+              />
+            </Pressable>
+
+            {archivedExpanded && (
+              archivedLoading ? (
+                <ActivityIndicator color={C.primary} style={{ marginVertical: 16 }} />
+              ) : archivedGroups.length === 0 ? (
+                <Text style={s.archivedEmpty}>No archived groups</Text>
+              ) : (
+                archivedGroups.map((group) => <GroupCard key={group.id} group={group} />)
+              )
+            )}
 
             <View style={s.newGroupRow}>
               <Pressable
@@ -416,6 +452,14 @@ const s = StyleSheet.create({
     backgroundColor: C.surfaceHL, borderRadius: 999,
   },
   retryText: { color: C.primary, fontWeight: '600', fontSize: 14 },
+  archivedHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 12, paddingHorizontal: 4,
+    borderTopWidth: 1, borderTopColor: C.surfaceHL, marginTop: 8,
+  },
+  archivedHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  archivedHeaderText: { color: C.slate400, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+  archivedEmpty: { color: C.slate500, fontSize: 13, textAlign: 'center', paddingVertical: 16 },
   newGroupRow: { alignItems: 'center', paddingVertical: 8 },
   newGroupBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

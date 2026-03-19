@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -49,6 +49,7 @@ interface GroupDetail {
   image_url: string | null;
   balance_cents: number;
   created_by: string | null;
+  archived: boolean;
 }
 
 interface GroupMember {
@@ -102,7 +103,7 @@ export default function GroupDetailScreen() {
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
     const [{ data, error: groupErr }, { data: bal }, { data: expRows, error: expErr }, { data: memberRows, error: memberRowsErr }] = await Promise.all([
-      supabase.from('groups').select('id, name, description, image_url, created_by').eq('id', id).single(),
+      supabase.from('groups').select('id, name, description, image_url, created_by, archived').eq('id', id).single(),
       supabase.from('group_balances').select('balance_cents').eq('group_id', id).eq('user_id', user.id).maybeSingle(),
       supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
       supabase.from('group_members').select('id, display_name, avatar_url, user_id').eq('group_id', id),
@@ -123,7 +124,7 @@ export default function GroupDetailScreen() {
       setLoading(false);
       return;
     }
-    setGroup({ ...data, balance_cents: bal?.balance_cents ?? 0 });
+    setGroup({ ...data, balance_cents: bal?.balance_cents ?? 0, archived: data.archived ?? false });
     const seen = new Set<string>();
     const deduped = ((expRows as Expense[]) ?? []).filter((e) => {
       if (seen.has(e.expense_id)) return false;
@@ -161,7 +162,7 @@ export default function GroupDetailScreen() {
     setLoading(false);
   }, [id, user]);
 
-  useEffect(() => { fetchGroup(); }, [fetchGroup]);
+  useFocusEffect(useCallback(() => { fetchGroup(); }, [fetchGroup]));
 
   const leaveGroup = useCallback(async () => {
     if (!group || !user) return;
@@ -256,6 +257,20 @@ export default function GroupDetailScreen() {
     setShowSettings(false);
     router.replace('/');
   }, [group, user, leaveGroup]);
+
+  const handleUnarchive = useCallback(async () => {
+    if (!group) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase
+      .from('groups')
+      .update({ archived: false })
+      .eq('id', group.id);
+    setActionLoading(false);
+    if (error) { setActionError(error.message); return; }
+    setShowSettings(false);
+    fetchGroup();
+  }, [group, fetchGroup]);
 
   if (loading) {
     return (
@@ -436,23 +451,33 @@ export default function GroupDetailScreen() {
           </View>
         ))}
 
-        {/* Add expense row */}
-        <Pressable
-          style={s.addExpenseRow}
-          onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
-        >
-          <MaterialIcons name="add-circle-outline" size={22} color={C.primary} />
-          <Text style={s.addExpenseText}>Add an expense</Text>
-        </Pressable>
+        {/* Add expense row — hidden for archived groups */}
+        {!group.archived && (
+          <Pressable
+            style={s.addExpenseRow}
+            onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
+          >
+            <MaterialIcons name="add-circle-outline" size={22} color={C.primary} />
+            <Text style={s.addExpenseText}>Add an expense</Text>
+          </Pressable>
+        )}
+        {group.archived && (
+          <View style={s.archivedBanner}>
+            <MaterialIcons name="archive" size={16} color={C.slate400} />
+            <Text style={s.archivedBannerText}>This group is archived</Text>
+          </View>
+        )}
       </ScrollView>
 
-      {/* FAB */}
-      <Pressable
-        style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}
-        onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
-      >
-        <MaterialIcons name="add" size={28} color={C.bg} />
-      </Pressable>
+      {/* FAB — hidden for archived groups */}
+      {!group.archived && (
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}
+          onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
+        >
+          <MaterialIcons name="add" size={28} color={C.bg} />
+        </Pressable>
+      )}
 
       {/* ── Expense detail sheet ─────────────────────────── */}
       <Modal
@@ -551,16 +576,29 @@ export default function GroupDetailScreen() {
 
             {isCreator ? (
               <>
-                <Pressable
-                  style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-                  onPress={handleArchive}
-                  disabled={actionLoading}
-                >
-                  <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
-                    <MaterialIcons name="inventory" size={20} color={C.orange} />
-                  </View>
-                  <Text style={s.sheetRowText}>Archive Group</Text>
-                </Pressable>
+                {group?.archived ? (
+                  <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+                    onPress={handleUnarchive}
+                    disabled={actionLoading}
+                  >
+                    <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(23,232,107,0.12)' }]}>
+                      <MaterialIcons name="unarchive" size={20} color={C.primary} />
+                    </View>
+                    <Text style={s.sheetRowText}>Unarchive Group</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
+                    onPress={handleArchive}
+                    disabled={actionLoading}
+                  >
+                    <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                      <MaterialIcons name="inventory" size={20} color={C.orange} />
+                    </View>
+                    <Text style={s.sheetRowText}>Archive Group</Text>
+                  </Pressable>
+                )}
                 <Pressable
                   style={({ pressed }: { pressed: boolean }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
                   onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
@@ -682,6 +720,8 @@ const s = StyleSheet.create({
   expenseLabel: { fontSize: 11, fontWeight: '600' },
   expenseAmount: { fontSize: 15, fontWeight: '700' },
   addExpenseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20, marginTop: 4 },
+  archivedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, marginTop: 4 },
+  archivedBannerText: { color: C.slate400, fontSize: 13, fontWeight: '500' },
   addExpenseText: { color: C.primary, fontWeight: '600', fontSize: 14 },
   fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
