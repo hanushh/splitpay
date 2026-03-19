@@ -45,16 +45,22 @@ export default function SetupContactsScreen() {
 
   // Re-check when the user returns from the Settings app
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextState: string) => {
-      if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        const { status } = await Contacts.getPermissionsAsync();
-        if (status === Contacts.PermissionStatus.GRANTED) {
-          await refreshContactsPermission();
-          router.replace('/(tabs)');
+    const subscription = AppState.addEventListener(
+      'change',
+      async (nextState: string) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextState === 'active'
+        ) {
+          const { status } = await Contacts.getPermissionsAsync();
+          if (status === Contacts.PermissionStatus.GRANTED) {
+            await refreshContactsPermission();
+            router.replace('/(tabs)');
+          }
         }
-      }
-      appState.current = nextState;
-    });
+        appState.current = nextState;
+      },
+    );
     return () => subscription.remove();
   }, [refreshContactsPermission]);
 
@@ -77,7 +83,13 @@ export default function SetupContactsScreen() {
   }
 
   return (
-    <View style={[s.container, s.centered, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View
+      style={[
+        s.container,
+        s.centered,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       <View style={s.logoMark}>
         <Text style={s.logoText}>S</Text>
       </View>
@@ -94,14 +106,20 @@ export default function SetupContactsScreen() {
 
       {denied ? (
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.btn, pressed && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.btn,
+            pressed && s.btnPressed,
+          ]}
           onPress={() => Linking.openSettings()}
         >
           <Text style={s.btnText}>Open Settings</Text>
         </Pressable>
       ) : (
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.btn, pressed && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.btn,
+            pressed && s.btnPressed,
+          ]}
           onPress={handleAllow}
         >
           <Text style={s.btnText}>Allow Access</Text>

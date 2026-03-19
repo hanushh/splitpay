@@ -34,16 +34,19 @@ The current expense detail sheet is a minimal bottom sheet with icon-label-value
 ### Layout — four sections
 
 **① Header**
+
 - Category icon (colour-coded pill, matches existing `CATEGORY_ICONS` map)
 - Expense title (large, bold)
 - Date formatted as "March 15, 2026 · Restaurant"
 
 **② Hero**
+
 - Total amount in large type (e.g. `$120.00`)
 - Payer row: small avatar (initials) + "Paid by You / [Name]"
 - Payer avatar: green tint if current user, orange tint if someone else
 
 **③ Split breakdown**
+
 - Section label: "SPLIT BETWEEN" (small caps)
 - One row per group member, sorted: current user first, then others alphabetically by `display_name` (treat `null` display names as `'Unknown'` to avoid sort errors)
 - Each row: avatar (initials, colour-coded) · name · optional "paid" badge (on payer) · amount
@@ -52,6 +55,7 @@ The current expense detail sheet is a minimal bottom sheet with icon-label-value
 - While loading: three animated skeleton rows (pulse animation at 1.2 s period)
 
 **④ Actions**
+
 - Edit button (green tint) and Delete button (red tint), side by side
 - Delete button shows `ActivityIndicator` while `deletingExpense` is true
 - Both hidden when `isArchived` is true (consistent with existing behaviour)
@@ -77,7 +81,7 @@ The current expense detail sheet is a minimal bottom sheet with icon-label-value
 
 ```ts
 interface ExpenseSplit {
-  member_id: string;    // matches GroupMember.id (group_members.id PK)
+  member_id: string; // matches GroupMember.id (group_members.id PK)
   amount_cents: number;
 }
 ```
@@ -101,11 +105,11 @@ The sheet JSX is extracted to **`components/ExpenseDetailSheet.tsx`** (feature-s
 
 ```ts
 interface ExpenseDetailSheetProps {
-  expense: Expense | null;           // null = hidden
+  expense: Expense | null; // null = hidden
   splits: ExpenseSplit[];
   splitsLoading: boolean;
-  deletingExpense: boolean;          // shows ActivityIndicator on Delete button
-  members: GroupMember[];            // for name/avatar lookup; join on split.member_id === member.id
+  deletingExpense: boolean; // shows ActivityIndicator on Delete button
+  members: GroupMember[]; // for name/avatar lookup; join on split.member_id === member.id
   currentUserId: string;
   isArchived: boolean;
   onClose: () => void;
@@ -129,10 +133,10 @@ The sheet must apply `useSafeAreaInsets().bottom` as additional bottom padding (
 
 ## Files Changed
 
-| File | Change |
-|---|---|
-| `components/ExpenseDetailSheet.tsx` | **New** — full sheet UI |
-| `app/group/[id].tsx` | Add `splits` + `splitsLoading` state; add `useEffect` to fetch splits on tap; replace inline sheet JSX with `<ExpenseDetailSheet .../>` |
+| File                                | Change                                                                                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `components/ExpenseDetailSheet.tsx` | **New** — full sheet UI                                                                                                                 |
+| `app/group/[id].tsx`                | Add `splits` + `splitsLoading` state; add `useEffect` to fetch splits on tap; replace inline sheet JSX with `<ExpenseDetailSheet .../>` |
 
 ---
 
@@ -145,6 +149,7 @@ No changes. The existing `UNIQUE(expense_id, member_id)` constraint on `expense_
 ## Testing
 
 ### New: `__tests__/components/ExpenseDetailSheet.test.tsx`
+
 - Renders skeleton rows (3) when `splitsLoading=true` and no splits provided
 - Renders member rows with correct names/amounts when splits are provided
 - Hides Edit and Delete actions when `isArchived=true`
@@ -152,6 +157,7 @@ No changes. The existing `UNIQUE(expense_id, member_id)` constraint on `expense_
 - Handles unknown `member_id` (not in `members` array) gracefully — shows "Unknown"
 
 ### Updated: `__tests__/screens/group-detail-delete.test.tsx`
+
 - Make the `supabase.from` mock in `beforeEach` table-aware. For `expense_splits`, `.eq()` must return a resolved promise directly (the query is `await supabase.from('expense_splits').select(...).eq(...)` with no terminal method). For all other tables, return `this` from `.eq()` so `.single()` / `.maybeSingle()` chains still work.
 
 ```ts
@@ -166,7 +172,9 @@ No changes. The existing `UNIQUE(expense_id, member_id)` constraint on `expense_
   return {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    maybeSingle: jest.fn().mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
+    maybeSingle: jest
+      .fn()
+      .mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
     single: jest.fn().mockResolvedValue({ data: mockGroup, error: null }),
   };
 });

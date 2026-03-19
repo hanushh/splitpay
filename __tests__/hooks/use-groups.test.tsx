@@ -56,7 +56,9 @@ function makeFromMock(
       select: jest.fn().mockReturnThis(),
       in: jest.fn().mockReturnThis(),
       eq: groupsEqMock ?? jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: groupRows, error: groupsError }),
+      order: jest
+        .fn()
+        .mockResolvedValue({ data: groupRows, error: groupsError }),
     };
   };
 }
@@ -64,7 +66,9 @@ function makeFromMock(
 describe('useGroups', () => {
   beforeEach(() => {
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
-    (supabase.from as jest.Mock).mockImplementation(makeFromMock(mockGroupRows));
+    (supabase.from as jest.Mock).mockImplementation(
+      makeFromMock(mockGroupRows),
+    );
   });
 
   it('returns groups after load', async () => {
@@ -168,7 +172,11 @@ describe('useGroups', () => {
         group_balances: [{ balance_cents: 1000 }],
         group_members: [
           { user_id: 'user-123', display_name: 'Me', avatar_url: null },
-          { user_id: 'other-user', display_name: 'Alice', avatar_url: 'https://example.com/alice.jpg' },
+          {
+            user_id: 'other-user',
+            display_name: 'Alice',
+            avatar_url: 'https://example.com/alice.jpg',
+          },
           { user_id: 'another-user', display_name: 'Bob', avatar_url: null },
         ],
       },
@@ -181,9 +189,11 @@ describe('useGroups', () => {
     // Current user (user-123) is excluded; Alice and Bob are both included
     // regardless of whether they have an avatar_url
     expect(result.current.groups[0].members).toHaveLength(2);
-    expect(result.current.groups[0].members.map((m: { display_name: string | null }) => m.display_name)).toEqual(
-      expect.arrayContaining(['Alice', 'Bob']),
-    );
+    expect(
+      result.current.groups[0].members.map(
+        (m: { display_name: string | null }) => m.display_name,
+      ),
+    ).toEqual(expect.arrayContaining(['Alice', 'Bob']));
   });
 
   it('refetch re-fetches groups from Supabase', async () => {
@@ -206,7 +216,10 @@ describe('useGroups', () => {
   it('fetches groups on first load without seeding demo data', async () => {
     const { result } = renderHook(() => useGroups());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(supabase.rpc).not.toHaveBeenCalledWith('initialize_demo_data', expect.anything());
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'initialize_demo_data',
+      expect.anything(),
+    );
     expect(result.current.groups).toHaveLength(2);
   });
 

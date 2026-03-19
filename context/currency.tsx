@@ -1,5 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 const STORAGE_KEY = 'app_currency';
 
@@ -12,16 +18,22 @@ export interface Currency {
 }
 
 export const CURRENCIES: Currency[] = [
-  { code: 'USD', symbol: '$',   name: 'US Dollar',        flag: '🇺🇸' },
-  { code: 'EUR', symbol: '€',   name: 'Euro',             flag: '🇪🇺' },
-  { code: 'GBP', symbol: '£',   name: 'British Pound',    flag: '🇬🇧' },
-  { code: 'INR', symbol: '₹',   name: 'Indian Rupee',     flag: '🇮🇳' },
-  { code: 'JPY', symbol: '¥',   name: 'Japanese Yen',     flag: '🇯🇵', noDecimals: true },
-  { code: 'CAD', symbol: 'C$',  name: 'Canadian Dollar',  flag: '🇨🇦' },
-  { code: 'AUD', symbol: 'A$',  name: 'Australian Dollar', flag: '🇦🇺' },
-  { code: 'CHF', symbol: 'CHF ', name: 'Swiss Franc',     flag: '🇨🇭' },
-  { code: 'SGD', symbol: 'S$',  name: 'Singapore Dollar', flag: '🇸🇬' },
-  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso',     flag: '🇲🇽' },
+  { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸' },
+  { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
+  { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳' },
+  {
+    code: 'JPY',
+    symbol: '¥',
+    name: 'Japanese Yen',
+    flag: '🇯🇵',
+    noDecimals: true,
+  },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', flag: '🇨🇦' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', flag: '🇦🇺' },
+  { code: 'CHF', symbol: 'CHF ', name: 'Swiss Franc', flag: '🇨🇭' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', flag: '🇸🇬' },
+  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', flag: '🇲🇽' },
 ];
 
 interface CurrencyContextType {
@@ -71,7 +83,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const format = formatAbs; // alias (we always display absolute values with sign handled by caller)
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, format, formatAbs }}>
+    <CurrencyContext.Provider
+      value={{ currency, setCurrency, format, formatAbs }}
+    >
       {children}
     </CurrencyContext.Provider>
   );

@@ -95,6 +95,7 @@ Add `supabase/migrations/YYYYMMDDHHMMSS_add_expense_update_delete_policies.sql` 
 ### 2. `app/group/[id].tsx`
 
 **New state:**
+
 ```ts
 const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 const [deletingExpense, setDeletingExpense] = useState(false);
@@ -103,15 +104,21 @@ const [deletingExpense, setDeletingExpense] = useState(false);
 **Expense card:** add `onPress={() => setSelectedExpense(expense)}` to existing `Pressable`.
 
 **Navigation to edit:** pass only `expenseId`, `groupId`, `groupName` as params — **not** the full `Expense` object. The edit form fetches its own raw data.
+
 ```ts
 router.push({
   pathname: '/add-expense',
-  params: { expenseId: selectedExpense.expense_id, groupId: id, groupName: group.name }
+  params: {
+    expenseId: selectedExpense.expense_id,
+    groupId: id,
+    groupName: group.name,
+  },
 });
 setSelectedExpense(null);
 ```
 
 **New detail bottom sheet modal** (same pattern as existing `showSettings` modal):
+
 ```tsx
 <Modal
   visible={!!selectedExpense}
@@ -120,10 +127,12 @@ setSelectedExpense(null);
   onRequestClose={() => setSelectedExpense(null)}  // Android back gesture
 >
 ```
+
 Shows: description, formatted total amount, paid by name, split member count, category.
 Edit + Delete action buttons at the bottom.
 
 **Delete handler:**
+
 ```ts
 async function handleDeleteExpense() {
   if (!selectedExpense) return;
@@ -152,7 +161,7 @@ async function handleDeleteExpense() {
           refetchExpenses(); // existing refetch function in this screen
         },
       },
-    ]
+    ],
   );
 }
 ```
@@ -162,9 +171,17 @@ async function handleDeleteExpense() {
 ### 3. `app/add-expense.tsx`
 
 **New route params:**
+
 ```ts
-const { groupId: urlGroupId, groupName: urlGroupName, expenseId } =
-  useLocalSearchParams<{ groupId?: string; groupName?: string; expenseId?: string }>();
+const {
+  groupId: urlGroupId,
+  groupName: urlGroupName,
+  expenseId,
+} = useLocalSearchParams<{
+  groupId?: string;
+  groupName?: string;
+  expenseId?: string;
+}>();
 const isEditing = !!expenseId;
 ```
 
@@ -176,7 +193,9 @@ Two separate Supabase queries on mount when `isEditing`:
 // Query 1: raw expense row
 const { data: expenseRow } = await supabase
   .from('expenses')
-  .select('id, description, amount_cents, paid_by_member_id, category, receipt_url')
+  .select(
+    'id, description, amount_cents, paid_by_member_id, category, receipt_url',
+  )
   .eq('id', expenseId)
   .single();
 
@@ -188,6 +207,7 @@ const { data: splitRows } = await supabase
 ```
 
 Pre-populate state from these results:
+
 - `setDescription(expenseRow.description)`
 - `setAmount((expenseRow.amount_cents / 100).toFixed(2))`
 - `setReceiptUri(expenseRow.receipt_url ?? null)`
@@ -215,12 +235,14 @@ editPaidByRef.current = expenseRow.paid_by_member_id;
 ```
 
 **Receipt handling in edit mode:**
+
 - Pre-populate `receiptUri` from `expenseRow.receipt_url`
 - If user removes it (existing Remove button), `receiptUri` becomes `null`
 - On save, `UPDATE expenses SET receipt_url = receiptUri` (null clears it)
 - Storage object cleanup for replaced/removed receipts is out of scope for this feature (a future cleanup task)
 
 **Group selector in edit mode:** render as non-pressable row with lock icon:
+
 ```tsx
 {isEditing ? (
   <View style={s.groupRow}>
@@ -238,28 +260,50 @@ editPaidByRef.current = expenseRow.paid_by_member_id;
 ```
 
 **Header/button copy:**
+
 - Header title: `isEditing ? 'Edit expense' : 'Add expense'`
 - Save button label: `isEditing ? 'Save Changes' : 'Save Expense'`
 
 **`handleSave` in edit mode (3 sequential operations):**
+
 ```ts
 // 1. UPDATE expense row
 const { error: updateErr } = await supabase
   .from('expenses')
-  .update({ description: description.trim(), amount_cents: amtCents, paid_by_member_id: paidBy, category: finalCategory, receipt_url: receiptUri })
+  .update({
+    description: description.trim(),
+    amount_cents: amtCents,
+    paid_by_member_id: paidBy,
+    category: finalCategory,
+    receipt_url: receiptUri,
+  })
   .eq('id', expenseId);
-if (updateErr) { setError(updateErr.message); setSaving(false); return; }
+if (updateErr) {
+  setError(updateErr.message);
+  setSaving(false);
+  return;
+}
 
 // 2. DELETE existing splits
 const { error: deleteErr } = await supabase
   .from('expense_splits')
   .delete()
   .eq('expense_id', expenseId);
-if (deleteErr) { setError(deleteErr.message); setSaving(false); return; }
+if (deleteErr) {
+  setError(deleteErr.message);
+  setSaving(false);
+  return;
+}
 
 // 3. INSERT new splits (same equal-split logic as create)
-const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
-if (splitErr) { setError(splitErr.message); setSaving(false); return; }
+const { error: splitErr } = await supabase
+  .from('expense_splits')
+  .insert(splits);
+if (splitErr) {
+  setError(splitErr.message);
+  setSaving(false);
+  return;
+}
 
 // Only navigate back after ALL three succeed
 router.back();
@@ -277,17 +321,18 @@ No changes needed — `add-expense` is already registered as a modal. `expenseId
 
 ## Data Operations Summary
 
-| Action | Queries |
-|--------|---------|
-| Load edit form | SELECT from `expenses` WHERE id; SELECT from `expense_splits` WHERE expense_id |
-| Save edit | UPDATE `expenses`; DELETE `expense_splits` WHERE expense_id; INSERT `expense_splits` |
-| Delete | DELETE `expenses` WHERE id (splits cascade via `ON DELETE CASCADE`) |
+| Action         | Queries                                                                              |
+| -------------- | ------------------------------------------------------------------------------------ |
+| Load edit form | SELECT from `expenses` WHERE id; SELECT from `expense_splits` WHERE expense_id       |
+| Save edit      | UPDATE `expenses`; DELETE `expense_splits` WHERE expense_id; INSERT `expense_splits` |
+| Delete         | DELETE `expenses` WHERE id (splits cascade via `ON DELETE CASCADE`)                  |
 
 ---
 
 ## Testing
 
 Unit tests to add/update in `__tests__/`:
+
 - Edit mode renders with pre-populated fields (description, amount, paidBy, selectedMembers)
 - Group selector is non-interactive (no onPress) in edit mode
 - `handleSave` calls UPDATE + DELETE + INSERT (not just INSERT) in edit mode

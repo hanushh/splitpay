@@ -73,4 +73,3 @@ When adding new screens, follow the existing patterns and use `.agents/workflows
   - `npm run build:android` (see `.agents/workflows/verify-android-build.md`).
 - CI/CD:
   - `.github/workflows/google-play-release.yml` builds the Android app bundle and uploads it to Google Play for the `com.hanushh.paysplit` package.
-

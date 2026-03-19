@@ -29,16 +29,22 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-async function getUserByEmail(supabaseUrl: string, serviceKey: string, email: string) {
+async function getUserByEmail(
+  supabaseUrl: string,
+  serviceKey: string,
+  email: string,
+) {
   // Use GoTrue admin search — avoids fetching all users
   const res = await fetch(
     `${supabaseUrl}/auth/v1/admin/users?filter=${encodeURIComponent(email)}&per_page=1`,
-    { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+    { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } },
   );
   if (!res.ok) return null;
   const data = await res.json();
   const users: { id: string; email: string }[] = data.users ?? [];
-  return users.find((u) => u.email?.toLowerCase() === email.toLowerCase()) ?? null;
+  return (
+    users.find((u) => u.email?.toLowerCase() === email.toLowerCase()) ?? null
+  );
 }
 
 Deno.serve(async (req: Request) => {
@@ -55,7 +61,8 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const token = url.searchParams.get('token');
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -70,18 +77,29 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (error || !request) {
-      return json(400, { ok: false, error: 'Invalid or already-used deletion link.' });
+      return json(400, {
+        ok: false,
+        error: 'Invalid or already-used deletion link.',
+      });
     }
 
     if (new Date(request.expires_at) < new Date()) {
-      return json(400, { ok: false, error: 'This link expired after 24 hours. Please submit a new request.' });
+      return json(400, {
+        ok: false,
+        error: 'This link expired after 24 hours. Please submit a new request.',
+      });
     }
 
-    const { error: deleteErr } = await supabase.auth.admin.deleteUser(request.user_id);
+    const { error: deleteErr } = await supabase.auth.admin.deleteUser(
+      request.user_id,
+    );
 
     if (deleteErr) {
       console.error('[account-deletion] deleteUser error:', deleteErr.message);
-      return json(500, { ok: false, error: 'Failed to delete account. Please contact hanushh@gmail.com' });
+      return json(500, {
+        ok: false,
+        error: 'Failed to delete account. Please contact hanushh@gmail.com',
+      });
     }
 
     await supabase.from('deletion_requests').delete().eq('id', request.id);
@@ -91,14 +109,20 @@ Deno.serve(async (req: Request) => {
   // ── POST → request deletion email ────────────────────────────────────────
   if (req.method === 'POST') {
     if (isRateLimited(ip)) {
-      return json(429, { ok: false, error: 'Too many requests. Please try again later.' });
+      return json(429, {
+        ok: false,
+        error: 'Too many requests. Please try again later.',
+      });
     }
 
     const body = await req.json().catch(() => ({}));
     const email: string | null = body.email ?? null;
 
     if (!email || !email.includes('@')) {
-      return json(400, { ok: false, error: 'A valid email address is required.' });
+      return json(400, {
+        ok: false,
+        error: 'A valid email address is required.',
+      });
     }
 
     const user = await getUserByEmail(supabaseUrl, serviceKey, email);
@@ -119,14 +143,19 @@ Deno.serve(async (req: Request) => {
 
     if (insertErr || !request) {
       console.error('[account-deletion] insert error:', insertErr?.message);
-      return json(500, { ok: false, error: 'Server error. Please try again later.' });
+      return json(500, {
+        ok: false,
+        error: 'Server error. Please try again later.',
+      });
     }
 
-    const deletionPageUrl = Deno.env.get('DELETION_PAGE_URL') ?? `${url.origin}${url.pathname}`;
+    const deletionPageUrl =
+      Deno.env.get('DELETION_PAGE_URL') ?? `${url.origin}${url.pathname}`;
     const confirmUrl = `${deletionPageUrl}?token=${request.token}`;
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const FROM_ADDRESS = Deno.env.get('EMAIL_FROM') ?? 'PaySplit <no-reply@paysplit.app>';
+    const FROM_ADDRESS =
+      Deno.env.get('EMAIL_FROM') ?? 'PaySplit <no-reply@paysplit.app>';
 
     if (RESEND_API_KEY) {
       await fetch('https://api.resend.com/emails', {
@@ -161,7 +190,10 @@ Deno.serve(async (req: Request) => {
         }),
       }).catch((err) => console.error('[account-deletion] Resend error:', err));
     } else {
-      console.warn('[account-deletion] RESEND_API_KEY not set — confirm URL:', confirmUrl);
+      console.warn(
+        '[account-deletion] RESEND_API_KEY not set — confirm URL:',
+        confirmUrl,
+      );
     }
 
     return json(200, { ok: true });

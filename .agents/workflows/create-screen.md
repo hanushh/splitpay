@@ -1,6 +1,7 @@
 ---
 description: Create a new screen in the app
 ---
+
 # Create a New Screen
 
 When asked to create a new screen or view for the SplitPay application, follow these steps:

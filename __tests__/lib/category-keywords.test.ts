@@ -7,7 +7,7 @@ import {
 describe('extractKeywords', () => {
   it('lowercases and splits on whitespace', () => {
     expect(extractKeywords('Dinner at Zomato')).toEqual(
-      expect.arrayContaining(['dinner', 'zomato'])
+      expect.arrayContaining(['dinner', 'zomato']),
     );
   });
 

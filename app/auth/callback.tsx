@@ -9,7 +9,11 @@ import { supabase } from '@/lib/supabase';
  * before this screen is reached, but this serves as a fallback for edge cases.
  */
 export default function AuthCallbackScreen() {
-  const params = useLocalSearchParams<{ code?: string; error?: string; error_description?: string }>();
+  const params = useLocalSearchParams<{
+    code?: string;
+    error?: string;
+    error_description?: string;
+  }>();
 
   useEffect(() => {
     const handleCallback = async () => {

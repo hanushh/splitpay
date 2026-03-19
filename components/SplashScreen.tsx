@@ -9,7 +9,9 @@ interface SplashScreenProps {
   loadingText?: string;
 }
 
-export default function SplashScreen({ loadingText = 'Loading…' }: SplashScreenProps) {
+export default function SplashScreen({
+  loadingText = 'Loading…',
+}: SplashScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>

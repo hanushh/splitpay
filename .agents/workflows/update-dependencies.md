@@ -38,4 +38,3 @@ When asked to update dependencies for Splitpay, follow these steps:
    ```
 
 5. Fix any issues introduced by the dependency updates before merging the changes.
-

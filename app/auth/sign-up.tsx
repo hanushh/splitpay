@@ -47,7 +47,9 @@ export default function SignUpScreen() {
     }
     const normalizedPhone = normalizePhone(phone.trim());
     if (!normalizedPhone) {
-      setError('Enter a valid phone number with country code (e.g. +1 555 000 1234).');
+      setError(
+        'Enter a valid phone number with country code (e.g. +1 555 000 1234).',
+      );
       return;
     }
     if (password !== confirmPassword) {
@@ -79,17 +81,26 @@ export default function SignUpScreen() {
 
   if (success) {
     return (
-      <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View
+        style={[
+          s.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
         <View style={s.inner}>
           <View style={s.logoMark}>
             <Text style={s.logoText}>✓</Text>
           </View>
           <Text style={s.title}>Check your email</Text>
           <Text style={s.subtitle}>
-            We sent a confirmation link to {email}. Click it to activate your account.
+            We sent a confirmation link to {email}. Click it to activate your
+            account.
           </Text>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, pressed && s.btnPressed]}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.signUpBtn,
+              pressed && s.btnPressed,
+            ]}
             onPress={() => router.replace('/auth/sign-in')}
           >
             <Text style={s.signUpBtnText}>Back to Sign In</Text>
@@ -102,20 +113,28 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      style={[
+        s.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={s.inner}>
         <View style={s.logoMark}>
           <Text style={s.logoText}>S</Text>
         </View>
         <Text style={s.title}>Create account</Text>
-        <Text style={s.subtitle}>Join {APP_DISPLAY_NAME} to split expenses</Text>
+        <Text style={s.subtitle}>
+          Join {APP_DISPLAY_NAME} to split expenses
+        </Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.googleBtn,
+            (googleLoading || pressed) && s.btnPressed,
+          ]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -173,7 +192,10 @@ export default function SignUpScreen() {
         />
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.signUpBtn,
+            (loading || pressed) && s.btnPressed,
+          ]}
           onPress={handleSignUp}
           disabled={loading || googleLoading}
           testID="sign-up-button"
@@ -187,7 +209,9 @@ export default function SignUpScreen() {
 
         <View style={s.footer}>
           <Text style={s.footerText}>Already have an account? </Text>
-          <Link href="/auth/sign-in" style={s.link}>Sign In</Link>
+          <Link href="/auth/sign-in" style={s.link}>
+            Sign In
+          </Link>
         </View>
       </View>
     </KeyboardAvoidingView>

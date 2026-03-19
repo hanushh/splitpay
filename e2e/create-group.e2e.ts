@@ -9,14 +9,22 @@ const CREATE_GROUP_SCROLL_ID = 'create-group-scroll';
 let activeEmail = TEST_EMAIL;
 let activePassword = TEST_PASSWORD;
 
-async function trySignIn(email: string, password: string, timeoutMs = 15000): Promise<boolean> {
-  await waitFor(element(by.id('email-input'))).toBeVisible().withTimeout(12000);
+async function trySignIn(
+  email: string,
+  password: string,
+  timeoutMs = 15000,
+): Promise<boolean> {
+  await waitFor(element(by.id('email-input')))
+    .toBeVisible()
+    .withTimeout(12000);
   await element(by.id('email-input')).replaceText(email);
   await element(by.id('password-input')).replaceText(password);
   await device.disableSynchronization();
   await element(by.id('sign-in-button')).tap();
   try {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(timeoutMs);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(timeoutMs);
     return true;
   } catch {
     return false;
@@ -30,10 +38,14 @@ async function signUpAndSignIn() {
   activePassword = `E2E_${Date.now()}!aA1`;
 
   try {
-    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(2000);
+    await waitFor(element(by.text('Create account')))
+      .toBeVisible()
+      .withTimeout(2000);
   } catch {
     await element(by.text('Sign Up')).tap();
-    await waitFor(element(by.text('Create account'))).toBeVisible().withTimeout(8000);
+    await waitFor(element(by.text('Create account')))
+      .toBeVisible()
+      .withTimeout(8000);
   }
 
   await element(by.id('email-input')).replaceText(activeEmail);
@@ -45,7 +57,9 @@ async function signUpAndSignIn() {
   await device.enableSynchronization();
 
   try {
-    await waitFor(element(by.text('Back to Sign In'))).toBeVisible().withTimeout(12000);
+    await waitFor(element(by.text('Back to Sign In')))
+      .toBeVisible()
+      .withTimeout(12000);
     await element(by.text('Back to Sign In')).tap();
   } catch {
     try {
@@ -63,7 +77,9 @@ async function signUpAndSignIn() {
 
 async function ensureSignedIn() {
   try {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(3000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(3000);
     return;
   } catch {
     const signedIn = await trySignIn(activeEmail, activePassword, 20000);
@@ -118,13 +134,19 @@ describe('Create Group', () => {
 
   it('types a group name and enables Create button', async () => {
     await element(by.id('group-name-input')).replaceText(GROUP_NAME);
-    await detoxExpect(element(by.id('group-name-input'))).toHaveText(GROUP_NAME);
+    await detoxExpect(element(by.id('group-name-input'))).toHaveText(
+      GROUP_NAME,
+    );
   });
 
   it('types a description', async () => {
-    await element(by.id('group-description-input')).replaceText(GROUP_DESCRIPTION);
+    await element(by.id('group-description-input')).replaceText(
+      GROUP_DESCRIPTION,
+    );
     await dismissKeyboardIfVisible();
-    await detoxExpect(element(by.id('group-description-input'))).toHaveText(GROUP_DESCRIPTION);
+    await detoxExpect(element(by.id('group-description-input'))).toHaveText(
+      GROUP_DESCRIPTION,
+    );
   });
 
   it('shows error for invalid email in member invite', async () => {
@@ -133,7 +155,9 @@ describe('Create Group', () => {
     await element(by.id('member-email-input')).replaceText('not-an-email');
     await dismissKeyboardIfVisible();
     await element(by.id('add-member-button')).tap();
-    await detoxExpect(element(by.id('member-email-input'))).toHaveText('not-an-email');
+    await detoxExpect(element(by.id('member-email-input'))).toHaveText(
+      'not-an-email',
+    );
     await detoxExpect(element(by.id('create-group-screen'))).toBeVisible();
   });
 
@@ -154,7 +178,9 @@ describe('Create Group', () => {
     await element(by.id('member-email-input')).replaceText(INVITE_EMAIL);
     await dismissKeyboardIfVisible();
     await element(by.id('add-member-button')).tap();
-    await detoxExpect(element(by.id('member-email-input'))).toHaveText(INVITE_EMAIL);
+    await detoxExpect(element(by.id('member-email-input'))).toHaveText(
+      INVITE_EMAIL,
+    );
     await element(by.id('member-email-input')).replaceText('');
     await dismissKeyboardIfVisible();
   });
@@ -176,10 +202,16 @@ describe('Create Group — cancel flow', () => {
   });
 
   it('can open and cancel the create group flow', async () => {
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(15000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(15000);
     await element(by.id('create-group-header-btn')).tap();
-    await waitFor(element(by.id('create-group-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('create-group-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
     await element(by.id('cancel-button')).tap();
-    await waitFor(element(by.id('groups-screen'))).toBeVisible().withTimeout(5000);
+    await waitFor(element(by.id('groups-screen')))
+      .toBeVisible()
+      .withTimeout(5000);
   });
 });

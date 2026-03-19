@@ -15,11 +15,13 @@ The `android/app/build.gradle` `release` signing config reads from `android/keys
 If `keystore.properties` is missing (e.g. after a fresh clone):
 
 1. Copy the example:
+
    ```bash
    cp android/keystore.properties.example android/keystore.properties
    ```
 
 2. Fill in your passwords:
+
    ```properties
    storeFile=my-upload-key.keystore
    storePassword=YOUR_STORE_PASSWORD
@@ -42,11 +44,11 @@ Then fill in `android/keystore.properties` with the passwords you chose.
 
 ## Summary
 
-| Item | Location | Commit? |
-|------|----------|--------|
-| Keystore file | `android/app/my-upload-key.keystore` | No |
-| Passwords / config | `android/keystore.properties` | No |
-| Example config | `android/keystore.properties.example` | Yes |
+| Item               | Location                              | Commit? |
+| ------------------ | ------------------------------------- | ------- |
+| Keystore file      | `android/app/my-upload-key.keystore`  | No      |
+| Passwords / config | `android/keystore.properties`         | No      |
+| Example config     | `android/keystore.properties.example` | Yes     |
 
 > **Back up your keystore and passwords.** If you lose them you cannot publish updates to the same Play Store listing.
 

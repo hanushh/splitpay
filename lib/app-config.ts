@@ -37,7 +37,8 @@ export const INVITE_WEB_LINK_BASE = SUPABASE_URL
  * Google Play Store URL for the app. Included in all outbound share/invite
  * messages so recipients can tap a clickable link to download the app.
  */
-export const APP_STORE_URL = 'https://play.google.com/store/apps/details?id=com.hanushh.paysplit';
+export const APP_STORE_URL =
+  'https://play.google.com/store/apps/details?id=com.hanushh.paysplit';
 
 /**
  * Default country code for phone normalization (E.164).

@@ -62,10 +62,14 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-    return json(500, { error: 'Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY' });
+    return json(500, {
+      error:
+        'Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY',
+    });
   }
 
-  const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization') ?? '';
+  const authHeader =
+    req.headers.get('Authorization') ?? req.headers.get('authorization') ?? '';
   const accessToken = authHeader.toLowerCase().startsWith('bearer ')
     ? authHeader.slice(7).trim()
     : '';
@@ -122,18 +126,28 @@ Deno.serve(async (req) => {
 
     if (tokenError) {
       failed += 1;
-      await markNotificationFailed(admin, notification, `Token lookup failed: ${tokenError.message}`);
+      await markNotificationFailed(
+        admin,
+        notification,
+        `Token lookup failed: ${tokenError.message}`,
+      );
       continue;
     }
 
     const tokens = (tokenRows ?? []) as PushTokenRow[];
     if (tokens.length === 0) {
       skipped += 1;
-      await markNotificationFailed(admin, notification, 'No active push tokens');
+      await markNotificationFailed(
+        admin,
+        notification,
+        'No active push tokens',
+      );
       continue;
     }
 
-    const metadata = isObjectRecord(notification.metadata) ? notification.metadata : {};
+    const metadata = isObjectRecord(notification.metadata)
+      ? notification.metadata
+      : {};
     const messages = tokens.map((tokenRow) => ({
       to: tokenRow.token,
       title: notification.title,
@@ -157,7 +171,9 @@ Deno.serve(async (req) => {
         body: JSON.stringify(messages),
       });
 
-      const body = (await expoResponse.json().catch(() => ({}))) as { data?: ExpoTicket[] };
+      const body = (await expoResponse.json().catch(() => ({}))) as {
+        data?: ExpoTicket[];
+      };
       const tickets = Array.isArray(body.data) ? body.data : [];
 
       if (!expoResponse.ok || tickets.length === 0) {
@@ -165,7 +181,9 @@ Deno.serve(async (req) => {
         await markNotificationFailed(
           admin,
           notification,
-          expoResponse.ok ? 'Expo push returned no tickets' : `Expo push HTTP ${expoResponse.status}`,
+          expoResponse.ok
+            ? 'Expo push returned no tickets'
+            : `Expo push HTTP ${expoResponse.status}`,
         );
         continue;
       }
@@ -217,7 +235,8 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       failed += 1;
-      const message = error instanceof Error ? error.message : 'Unknown push dispatch error';
+      const message =
+        error instanceof Error ? error.message : 'Unknown push dispatch error';
       await markNotificationFailed(admin, notification, message);
     }
   }

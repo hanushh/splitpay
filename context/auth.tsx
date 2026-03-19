@@ -5,7 +5,12 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { AUTH_CALLBACK_PATH, AUTH_CALLBACK_URL, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import {
+  AUTH_CALLBACK_PATH,
+  AUTH_CALLBACK_URL,
+  INVITE_LINK_PREFIX,
+  INVITE_WEB_LINK_BASE,
+} from '@/lib/app-config';
 import { normalizePhone } from '@/lib/phone';
 import {
   registerPushTokenForCurrentUser,
@@ -24,8 +29,15 @@ type AuthContextType = {
   loading: boolean;
   phoneComplete: boolean;
   contactsPermissionGranted: boolean;
-  signIn: (emailOrPhone: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, phone: string) => Promise<{ error: string | null }>;
+  signIn: (
+    emailOrPhone: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    phone: string,
+  ) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshPhoneComplete: () => Promise<void>;
@@ -51,7 +63,11 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 async function fetchPhoneComplete(userId: string): Promise<boolean> {
-  const { data } = await supabase.from('profiles').select('phone').eq('id', userId).single();
+  const { data } = await supabase
+    .from('profiles')
+    .select('phone')
+    .eq('id', userId)
+    .single();
   return !!(data?.phone as string | null)?.trim();
 }
 
@@ -59,7 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [phoneComplete, setPhoneComplete] = useState(true);
-  const [contactsPermissionGranted, setContactsPermissionGranted] = useState(false);
+  const [contactsPermissionGranted, setContactsPermissionGranted] =
+    useState(false);
   const activePushToken = useRef<string | null>(null);
   const handlingOAuthCallback = useRef(false);
 
@@ -70,25 +87,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }, 12000); // If getSession doesn't resolve in 12s (e.g. no network), show sign-in
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled) return;
-      setSession(session);
-      if (session?.user?.id) {
-        const [complete, { status }] = await Promise.all([
-          fetchPhoneComplete(session.user.id),
-          Contacts.getPermissionsAsync(),
-        ]);
-        if (!cancelled) {
-          setPhoneComplete(complete);
-          setContactsPermissionGranted(status === Contacts.PermissionStatus.GRANTED);
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        if (cancelled) return;
+        setSession(session);
+        if (session?.user?.id) {
+          const [complete, { status }] = await Promise.all([
+            fetchPhoneComplete(session.user.id),
+            Contacts.getPermissionsAsync(),
+          ]);
+          if (!cancelled) {
+            setPhoneComplete(complete);
+            setContactsPermissionGranted(
+              status === Contacts.PermissionStatus.GRANTED,
+            );
+          }
         }
-      }
-      if (!cancelled) setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+        if (!cancelled) setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -106,7 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Invite: paysplit://invite?token=xxx  OR  https://<domain>/invite?token=xxx
       // Store the token for redemption after the user authenticates.
       const isInviteDeepLink = url.startsWith(INVITE_LINK_PREFIX);
-      const isInviteWebLink = INVITE_WEB_LINK_BASE !== '' && url.startsWith(INVITE_WEB_LINK_BASE);
+      const isInviteWebLink =
+        INVITE_WEB_LINK_BASE !== '' && url.startsWith(INVITE_WEB_LINK_BASE);
       if (isInviteDeepLink || isInviteWebLink) {
         try {
           const parsed = new URL(url);
@@ -120,7 +145,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Match both the production scheme (paysplit://) and Expo Go (exp://).
       const callbackPath = AUTH_CALLBACK_PATH; // 'auth/callback'
       const isOAuthCallback =
-        url.startsWith(AUTH_CALLBACK_URL) || url.includes(`/--/${callbackPath}`);
+        url.startsWith(AUTH_CALLBACK_URL) ||
+        url.includes(`/--/${callbackPath}`);
       if (!isOAuthCallback) return;
       // signInWithGoogle handles the callback itself via openAuthSessionAsync;
       // skip here to avoid exchanging the one-time PKCE code twice on Android.
@@ -134,18 +160,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // PKCE flow: exchange code for session
         const code = parsed.searchParams.get('code');
         if (code) {
-          const { data: codeData } = await supabase.auth.exchangeCodeForSession(code);
+          const { data: codeData } =
+            await supabase.auth.exchangeCodeForSession(code);
           if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
           return;
         }
 
         // Implicit flow fallback: parse tokens from hash
-        const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+        const hash = parsed.hash.startsWith('#')
+          ? parsed.hash.slice(1)
+          : parsed.hash;
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
         if (accessToken && refreshToken) {
-          const { data: sessionData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          const { data: sessionData } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
           if (sessionData.user?.id) await navigatePostAuth(sessionData.user.id);
         }
       } catch (err) {
@@ -153,7 +185,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    Linking.getInitialURL().then((url) => { if (url) handleDeepLink({ url }); });
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
   }, []);
@@ -194,17 +228,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (cancelled || profile?.email_hash) return;
 
-        const { digestStringAsync, CryptoDigestAlgorithm } = await import('expo-crypto');
-        const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256, email.toLowerCase().trim());
+        const { digestStringAsync, CryptoDigestAlgorithm } =
+          await import('expo-crypto');
+        const hash = await digestStringAsync(
+          CryptoDigestAlgorithm.SHA256,
+          email.toLowerCase().trim(),
+        );
         if (!cancelled) {
-          await supabase.from('profiles').update({ email_hash: hash }).eq('id', userId);
+          await supabase
+            .from('profiles')
+            .update({ email_hash: hash })
+            .eq('id', userId);
         }
       } catch {
         // Non-fatal: hash will be set on next session load
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [session?.user?.id, session?.user?.email]);
 
   const navigatePostAuth = async (userId: string) => {
@@ -242,12 +285,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!email.includes('@')) {
       const normalized = normalizePhone(email);
       if (!normalized) return { error: 'Enter a valid email or phone number.' };
-      const { data: lookedUpEmail, error: lookupErr } = await supabase.rpc('get_email_by_phone', { p_phone: normalized });
+      const { data: lookedUpEmail, error: lookupErr } = await supabase.rpc(
+        'get_email_by_phone',
+        { p_phone: normalized },
+      );
       if (lookupErr) return { error: lookupErr.message };
-      if (!lookedUpEmail) return { error: 'No account found with that phone number.' };
+      if (!lookedUpEmail)
+        return { error: 'No account found with that phone number.' };
       email = lookedUpEmail as string;
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) return { error: error.message };
     if (data.user?.id) await navigatePostAuth(data.user.id);
     return { error: null };
@@ -285,7 +335,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     console.log('[Auth] openAuthSessionAsync result type:', result.type);
     if (result.type !== 'success' || !result.url) {
-      console.log('[Auth] Browser dismissed or failed - relying on deep link handler');
+      console.log(
+        '[Auth] Browser dismissed or failed - relying on deep link handler',
+      );
       handlingOAuthCallback.current = false;
       return { error: null };
     }
@@ -295,9 +347,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parsed = new URL(result.url);
       const code = parsed.searchParams.get('code');
       if (code) {
-        const { data: codeData, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+        const { data: codeData, error: exchangeErr } =
+          await supabase.auth.exchangeCodeForSession(code);
         if (exchangeErr) {
-          console.error('[Auth] exchangeCodeForSession error:', exchangeErr.message);
+          console.error(
+            '[Auth] exchangeCodeForSession error:',
+            exchangeErr.message,
+          );
           return { error: exchangeErr.message };
         }
         handlingOAuthCallback.current = false;
@@ -305,15 +361,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
       }
 
-      const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+      const hash = parsed.hash.startsWith('#')
+        ? parsed.hash.slice(1)
+        : parsed.hash;
       const params = new URLSearchParams(hash);
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
       if (accessToken && refreshToken) {
-        const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
+        const { data: sessionData, error: sessionErr } =
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
         if (sessionErr) return { error: sessionErr.message };
         handlingOAuthCallback.current = false;
         if (sessionData.user?.id) await navigatePostAuth(sessionData.user.id);
@@ -326,7 +385,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     handlingOAuthCallback.current = false;
-    return { error: 'Google sign-in callback did not include auth credentials.' };
+    return {
+      error: 'Google sign-in callback did not include auth credentials.',
+    };
   };
 
   const signOut = async () => {
@@ -336,11 +397,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const getPendingInviteToken = async () => SecureStore.getItemAsync(INVITE_TOKEN_KEY);
-  const clearPendingInviteToken = async () => SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+  const getPendingInviteToken = async () =>
+    SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+  const clearPendingInviteToken = async () =>
+    SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, phoneComplete, contactsPermissionGranted, signIn, signUp, signInWithGoogle, signOut, refreshPhoneComplete, refreshContactsPermission, getPendingInviteToken, clearPendingInviteToken }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user: session?.user ?? null,
+        loading,
+        phoneComplete,
+        contactsPermissionGranted,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        signOut,
+        refreshPhoneComplete,
+        refreshContactsPermission,
+        getPendingInviteToken,
+        clearPendingInviteToken,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

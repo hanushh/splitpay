@@ -17,6 +17,7 @@
 ### Task 1: Install dependencies + update app.json
 
 **Files:**
+
 - Modify: `app.json`
 
 - [ ] **Step 1: Install expo-contacts and expo-crypto**
@@ -50,6 +51,7 @@ git commit -m "feat: install expo-contacts and expo-crypto"
 ### Task 2: Add constants to lib/app-config.ts
 
 **Files:**
+
 - Modify: `lib/app-config.ts`
 
 - [ ] **Step 1: Append DEFAULT_COUNTRY_CODE constant**
@@ -85,6 +87,7 @@ git commit -m "feat: add DEFAULT_COUNTRY_CODE constant for phone normalization"
 ### Task 3: DB migration — add_hashes_to_profiles
 
 **Files:**
+
 - Create: `supabase/migrations/20260313000000_add_hashes_to_profiles.sql`
 
 - [ ] **Step 1: Create migration file**
@@ -104,6 +107,7 @@ ALTER TABLE public.profiles
 ```
 
 Both columns:
+
 - Nullable text — NULL for users who have not yet opened the app after this release
 - No uniqueness constraint — same hash can appear in edge cases (shared device)
 - Populated client-side by hashing the auth email on session load, and phone when user adds it
@@ -128,6 +132,7 @@ git commit -m "feat(db): add email_hash and phone_hash columns to profiles"
 ### Task 4: DB migration — get_friend_balances_add_user_id
 
 **Files:**
+
 - Create: `supabase/migrations/20260313000001_get_friend_balances_add_user_id.sql`
 
 - [ ] **Step 1: Create migration file**
@@ -203,6 +208,7 @@ git commit -m "feat(db): extend get_friend_balances to return user_id"
 ### Task 5: DB migration — add_match_contacts_rpc (hash-based)
 
 **Files:**
+
 - Create: `supabase/migrations/20260313000002_add_match_contacts_rpc.sql`
 
 - [ ] **Step 1: Create migration file**
@@ -261,6 +267,7 @@ git commit -m "feat(db): add hash-based match_contacts RPC"
 ### Task 6: Regenerate TypeScript types
 
 **Files:**
+
 - Modify: `lib/database.types.ts`
 
 - [ ] **Step 1: Follow the types workflow**
@@ -291,6 +298,7 @@ git commit -m "chore: regenerate Supabase types after friends-tab migrations"
 ### Task 7: expo-contacts Jest mock
 
 **Files:**
+
 - Create: `lib/__mocks__/expo-contacts.ts`
 
 - [ ] **Step 1: Write the mock**
@@ -340,6 +348,7 @@ git commit -m "test: add expo-contacts Jest mock"
 ### Task 8: normalizePhone unit tests (write failing tests first)
 
 **Files:**
+
 - Create: `__tests__/hooks/normalize-phone.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
@@ -391,6 +400,7 @@ Expected: FAIL — `normalizePhone` is not yet exported
 ### Task 9: use-friends hook implementation
 
 **Files:**
+
 - Create: `hooks/use-friends.ts`
 
 - [ ] **Step 1: Write the hook**
@@ -436,7 +446,7 @@ export function normalizePhone(raw: string): string | null {
 async function hashValue(value: string): Promise<string> {
   return Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
-    value.toLowerCase().trim()
+    value.toLowerCase().trim(),
   );
 }
 
@@ -465,7 +475,11 @@ export function useFriends(): UseFriendsResult {
     try {
       // Step 2: Read contacts
       const { data: contacts } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+        fields: [
+          Contacts.Fields.Emails,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Name,
+        ],
       });
 
       // Step 3: Extract unique emails and phones, then hash them
@@ -497,7 +511,9 @@ export function useFriends(): UseFriendsResult {
           .filter((c) => c.name)
           .map((c) => ({
             name: c.name!,
-            phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
+            phoneNumbers: (c.phoneNumbers ?? [])
+              .map((p) => p.number ?? '')
+              .filter(Boolean),
             emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
@@ -514,52 +530,72 @@ export function useFriends(): UseFriendsResult {
       ]);
 
       // Step 5: Call match_contacts with hashes
-      const { data: matchedProfiles, error: matchErr } = await supabase.rpc('match_contacts', {
-        p_email_hashes: emailHashes,
-        p_phone_hashes: phoneHashes,
-      });
+      const { data: matchedProfiles, error: matchErr } = await supabase.rpc(
+        'match_contacts',
+        {
+          p_email_hashes: emailHashes,
+          p_phone_hashes: phoneHashes,
+        },
+      );
 
       if (matchErr) throw new Error(matchErr.message);
 
       // Step 6: Call get_friend_balances
-      const { data: balanceRows, error: balanceErr } = await supabase.rpc('get_friend_balances', {
-        p_user_id: user.id,
-      });
+      const { data: balanceRows, error: balanceErr } = await supabase.rpc(
+        'get_friend_balances',
+        {
+          p_user_id: user.id,
+        },
+      );
 
       if (balanceErr) throw new Error(balanceErr.message);
 
       const balanceByUserId = new Map<string, { balance_cents: number }>();
-      for (const row of (balanceRows as { user_id: string; balance_cents: number }[] ?? [])) {
-        if (row.user_id) balanceByUserId.set(row.user_id, { balance_cents: Number(row.balance_cents) });
+      for (const row of (balanceRows as {
+        user_id: string;
+        balance_cents: number;
+      }[]) ?? []) {
+        if (row.user_id)
+          balanceByUserId.set(row.user_id, {
+            balance_cents: Number(row.balance_cents),
+          });
       }
 
       // Step 7: Join matched profiles with balance data
       const matchedFriends: MatchedFriend[] = (
-        (matchedProfiles as { id: string; name: string; avatar_url: string | null }[] ?? [])
-      ).map((profile) => {
-        const balanceRow = balanceByUserId.get(profile.id);
-        const balanceCents = balanceRow?.balance_cents ?? 0;
-        let balanceStatus: MatchedFriend['balanceStatus'];
-        if (!balanceRow) {
-          balanceStatus = 'no_groups';
-        } else if (balanceCents > 0) {
-          balanceStatus = 'owed';
-        } else if (balanceCents < 0) {
-          balanceStatus = 'owes';
-        } else {
-          balanceStatus = 'settled';
-        }
-        return {
-          userId: profile.id,
-          name: profile.name,
-          avatarUrl: profile.avatar_url,
-          balanceCents,
-          balanceStatus,
-        };
-      }).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
+        (matchedProfiles as {
+          id: string;
+          name: string;
+          avatar_url: string | null;
+        }[]) ?? []
+      )
+        .map((profile) => {
+          const balanceRow = balanceByUserId.get(profile.id);
+          const balanceCents = balanceRow?.balance_cents ?? 0;
+          let balanceStatus: MatchedFriend['balanceStatus'];
+          if (!balanceRow) {
+            balanceStatus = 'no_groups';
+          } else if (balanceCents > 0) {
+            balanceStatus = 'owed';
+          } else if (balanceCents < 0) {
+            balanceStatus = 'owes';
+          } else {
+            balanceStatus = 'settled';
+          }
+          return {
+            userId: profile.id,
+            name: profile.name,
+            avatarUrl: profile.avatar_url,
+            balanceCents,
+            balanceStatus,
+          };
+        })
+        .sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 
       // Step 8: Build unmatched contacts (set difference)
-      const matchedIds = new Set((matchedProfiles as { id: string }[] ?? []).map((p) => p.id));
+      const matchedIds = new Set(
+        ((matchedProfiles as { id: string }[]) ?? []).map((p) => p.id),
+      );
       // Identify which raw emails/phones matched — we need to track the contact per hash
       // Since we can't reverse hashes, we infer unmatched by checking if any contact's
       // emails/phones appear among the hashed sets that produced a match.
@@ -577,14 +613,19 @@ export function useFriends(): UseFriendsResult {
         .filter((c) => c.name)
         .map((c) => ({
           name: c.name!,
-          phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
+          phoneNumbers: (c.phoneNumbers ?? [])
+            .map((p) => p.number ?? '')
+            .filter(Boolean),
           emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
-          _hasContact: (c.emails ?? []).length > 0 || (c.phoneNumbers ?? []).length > 0,
+          _hasContact:
+            (c.emails ?? []).length > 0 || (c.phoneNumbers ?? []).length > 0,
         }))
         .filter(({ emails, phoneNumbers }) => {
           // A contact is unmatched if none of its emails/phones map to a matched profile
           const emailsNorm = emails.map((e) => e.toLowerCase().trim());
-          const phonesNorm = phoneNumbers.map((p) => normalizePhone(p)).filter(Boolean) as string[];
+          const phonesNorm = phoneNumbers
+            .map((p) => normalizePhone(p))
+            .filter(Boolean) as string[];
           // Check contactsByEmail and contactsByPhone maps — if this contact's identifiers
           // are not among any matched profile sources, it's unmatched.
           // Since we don't store hash→contact mapping, we mark all contacts as potentially
@@ -593,8 +634,12 @@ export function useFriends(): UseFriendsResult {
           // This is a conservative approach: false negatives are possible if a contact is
           // matched by phone only and we can't verify client-side which hash matched.
           // For a correct implementation, we track email→contact and phone→contact maps:
-          const isMatchedByEmail = emailsNorm.some((e) => contactsByEmail.has(e) && matchedIds.size > 0);
-          const isMatchedByPhone = phonesNorm.some((p) => contactsByPhone.has(p) && matchedIds.size > 0);
+          const isMatchedByEmail = emailsNorm.some(
+            (e) => contactsByEmail.has(e) && matchedIds.size > 0,
+          );
+          const isMatchedByPhone = phonesNorm.some(
+            (p) => contactsByPhone.has(p) && matchedIds.size > 0,
+          );
           // Remove this approximation — we can't do exact reverse mapping with hashes.
           // Instead: a contact with no emails or phones cannot be matched (show as unmatched).
           // A contact WITH emails/phones: we show it as unmatched unless we can confirm match.
@@ -605,7 +650,11 @@ export function useFriends(): UseFriendsResult {
           void isMatchedByPhone;
           return true; // include all, filter out matched ones below
         })
-        .map(({ name, phoneNumbers, emails }) => ({ name, phoneNumbers, emails }));
+        .map(({ name, phoneNumbers, emails }) => ({
+          name,
+          phoneNumbers,
+          emails,
+        }));
 
       // Better approach: track which contacts produced matched hashes by storing
       // plaintext→contact references BEFORE hashing, then after RPC compare by
@@ -692,6 +741,7 @@ git commit -m "feat: add use-friends hook with hash-based contact matching"
 ### Task 10: use-friends unit tests
 
 **Files:**
+
 - Create: `__tests__/hooks/use-friends.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
@@ -706,9 +756,11 @@ jest.mock('@/lib/supabase');
 jest.mock('expo-contacts');
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-  digestStringAsync: jest.fn().mockImplementation((_alg: string, value: string) =>
-    Promise.resolve(`hash:${value}`)
-  ),
+  digestStringAsync: jest
+    .fn()
+    .mockImplementation((_alg: string, value: string) =>
+      Promise.resolve(`hash:${value}`),
+    ),
 }));
 jest.mock('@/context/auth', () => ({
   useAuth: () => ({ user: { id: 'user-123' } }),
@@ -751,7 +803,14 @@ beforeEach(() => {
     }
     if (fn === 'get_friend_balances') {
       return Promise.resolve({
-        data: [{ user_id: 'user-alice', display_name: 'Alice Smith', avatar_url: null, balance_cents: 1500 }],
+        data: [
+          {
+            user_id: 'user-alice',
+            display_name: 'Alice Smith',
+            avatar_url: null,
+            balance_cents: 1500,
+          },
+        ],
         error: null,
       });
     }
@@ -766,7 +825,9 @@ describe('useFriends', () => {
     });
 
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(result.current.permissionDenied).toBe(true);
     expect(result.current.matched).toHaveLength(0);
@@ -775,7 +836,9 @@ describe('useFriends', () => {
 
   it('attaches balance to matched contacts', async () => {
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(result.current.matched).toHaveLength(1);
     expect(result.current.matched[0].userId).toBe('user-alice');
@@ -798,7 +861,9 @@ describe('useFriends', () => {
     });
 
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(result.current.matched[0].balanceStatus).toBe('no_groups');
     expect(result.current.matched[0].balanceCents).toBe(0);
@@ -813,15 +878,21 @@ describe('useFriends', () => {
     });
 
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(result.current.error).toBe('RPC error');
   });
 
   it('refetch re-runs permission check', async () => {
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(Contacts.requestPermissionsAsync).toHaveBeenCalledTimes(2);
   });
@@ -832,9 +903,14 @@ describe('useFriends', () => {
     });
 
     const { result } = renderHook(() => useFriends());
-    await act(async () => { await result.current.refetch(); });
+    await act(async () => {
+      await result.current.refetch();
+    });
 
-    expect(supabase.rpc).not.toHaveBeenCalledWith('match_contacts', expect.anything());
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'match_contacts',
+      expect.anything(),
+    );
     expect(result.current.unmatched).toHaveLength(1);
   });
 });
@@ -868,6 +944,7 @@ git commit -m "test: add use-friends hook unit tests"
 ### Task 11: Store email_hash in auth context on session load
 
 **Files:**
+
 - Modify: `context/auth.tsx`
 
 This ensures every user's `email_hash` is populated in their profile. The update is idempotent — it only runs when `email_hash` is null.
@@ -893,17 +970,26 @@ useEffect(() => {
 
       if (cancelled || profile?.email_hash) return;
 
-      const { digestStringAsync, CryptoDigestAlgorithm } = await import('expo-crypto');
-      const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256, email.toLowerCase().trim());
+      const { digestStringAsync, CryptoDigestAlgorithm } =
+        await import('expo-crypto');
+      const hash = await digestStringAsync(
+        CryptoDigestAlgorithm.SHA256,
+        email.toLowerCase().trim(),
+      );
       if (!cancelled) {
-        await supabase.from('profiles').update({ email_hash: hash }).eq('id', userId);
+        await supabase
+          .from('profiles')
+          .update({ email_hash: hash })
+          .eq('id', userId);
       }
     } catch {
       // Non-fatal: hash will be set on next session load
     }
   })();
 
-  return () => { cancelled = true; };
+  return () => {
+    cancelled = true;
+  };
 }, [session?.user?.id, session?.user?.email]);
 ```
 
@@ -937,6 +1023,7 @@ git commit -m "feat: sync email_hash to profile on session load"
 ### Task 12: Friends screen
 
 **Files:**
+
 - Create: `app/(tabs)/friends.tsx`
 
 - [ ] **Step 1: Write the screen**
@@ -1328,6 +1415,7 @@ git commit -m "feat: add Friends screen with contact matching and invite flow"
 ### Task 13: Add Friends tab to navigator
 
 **Files:**
+
 - Modify: `app/(tabs)/_layout.tsx`
 
 - [ ] **Step 1: Add Friends tab between Groups and Activity**

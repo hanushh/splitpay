@@ -31,11 +31,10 @@ export interface UseFriendsResult {
   refetch: () => Promise<void>;
 }
 
-
 async function hashValue(value: string): Promise<string> {
   return Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
-    value.toLowerCase().trim()
+    value.toLowerCase().trim(),
   );
 }
 
@@ -79,7 +78,11 @@ export function useFriends(): UseFriendsResult {
 
     try {
       const { data: contacts } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+        fields: [
+          Contacts.Fields.Emails,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Name,
+        ],
       });
 
       const emailToContactKeys = new Map<string, Set<string>>();
@@ -90,14 +93,16 @@ export function useFriends(): UseFriendsResult {
         for (const e of contact.emails ?? []) {
           const norm = e.email?.toLowerCase().trim();
           if (norm) {
-            if (!emailToContactKeys.has(norm)) emailToContactKeys.set(norm, new Set());
+            if (!emailToContactKeys.has(norm))
+              emailToContactKeys.set(norm, new Set());
             emailToContactKeys.get(norm)!.add(ck);
           }
         }
         for (const p of contact.phoneNumbers ?? []) {
           const norm = normalizePhone(p.number ?? '');
           if (norm) {
-            if (!phoneToContactKeys.has(norm)) phoneToContactKeys.set(norm, new Set());
+            if (!phoneToContactKeys.has(norm))
+              phoneToContactKeys.set(norm, new Set());
             phoneToContactKeys.get(norm)!.add(ck);
           }
         }
@@ -109,7 +114,9 @@ export function useFriends(): UseFriendsResult {
           .map((c) => ({
             contactKey: deriveContactKey(c),
             name: c.name!,
-            phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
+            phoneNumbers: (c.phoneNumbers ?? [])
+              .map((p) => p.number ?? '')
+              .filter(Boolean),
             emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
@@ -129,21 +136,26 @@ export function useFriends(): UseFriendsResult {
       }
       const plainPhones = Array.from(phoneToContactKeys.keys());
 
-      const { data: matchedProfiles, error: matchErr } = await supabase.rpc('match_contacts', {
-        p_email_hashes: emailHashes,
-        p_phone_hashes: [],   // phone_hash column no longer used
-        p_phones: plainPhones,
-      });
+      const { data: matchedProfiles, error: matchErr } = await supabase.rpc(
+        'match_contacts',
+        {
+          p_email_hashes: emailHashes,
+          p_phone_hashes: [], // phone_hash column no longer used
+          p_phones: plainPhones,
+        },
+      );
 
       if (matchErr) throw new Error(matchErr.message);
 
       // Build set of contactKeys that are matched via identifier, not name
       const matchedContactKeys = new Set<string>();
-      for (const profile of (matchedProfiles ?? [])) {
+      for (const profile of matchedProfiles ?? []) {
         const mid = profile.matched_identifier;
         if (!mid) continue;
         const emailForHash = emailHashToEmail.get(mid);
-        const contactKeysForEmail = emailForHash ? emailToContactKeys.get(emailForHash) : undefined;
+        const contactKeysForEmail = emailForHash
+          ? emailToContactKeys.get(emailForHash)
+          : undefined;
         const contactKeysForPhone = phoneToContactKeys.get(mid);
         for (const ck of contactKeysForEmail ?? []) matchedContactKeys.add(ck);
         for (const ck of contactKeysForPhone ?? []) matchedContactKeys.add(ck);
@@ -161,7 +173,10 @@ export function useFriends(): UseFriendsResult {
       if (groupFriendErr) throw new Error(groupFriendErr.message);
 
       const balanceByUserId = new Map<string, { balance_cents: number }>();
-      for (const row of (balanceRows as { user_id: string; balance_cents: number }[] ?? [])) {
+      for (const row of (balanceRows as {
+        user_id: string;
+        balance_cents: number;
+      }[]) ?? []) {
         if (!row.user_id) continue;
         const prev = balanceByUserId.get(row.user_id);
         balanceByUserId.set(row.user_id, {
@@ -170,31 +185,50 @@ export function useFriends(): UseFriendsResult {
       }
 
       // Start with contact-matched profiles, then merge in group co-members not already present
-      const profileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>();
-      for (const p of (matchedProfiles ?? [])) {
+      const profileMap = new Map<
+        string,
+        { id: string; name: string; avatar_url: string | null }
+      >();
+      for (const p of matchedProfiles ?? []) {
         profileMap.set(p.id, p);
       }
-      for (const gf of (groupFriendRows as { user_id: string; name: string; avatar_url: string | null }[] ?? [])) {
+      for (const gf of (groupFriendRows as {
+        user_id: string;
+        name: string;
+        avatar_url: string | null;
+      }[]) ?? []) {
         if (gf.user_id && !profileMap.has(gf.user_id)) {
-          profileMap.set(gf.user_id, { id: gf.user_id, name: gf.name, avatar_url: gf.avatar_url });
+          profileMap.set(gf.user_id, {
+            id: gf.user_id,
+            name: gf.name,
+            avatar_url: gf.avatar_url,
+          });
         }
       }
 
-      const matchedFriends: MatchedFriend[] = Array.from(profileMap.values()).map((profile) => {
-        const balanceRow = balanceByUserId.get(profile.id);
-        const balanceCents = balanceRow?.balance_cents ?? 0;
-        let balanceStatus: MatchedFriend['balanceStatus'];
-        if (!balanceRow) {
-          balanceStatus = 'no_groups';
-        } else if (balanceCents > 0) {
-          balanceStatus = 'owed';
-        } else if (balanceCents < 0) {
-          balanceStatus = 'owes';
-        } else {
-          balanceStatus = 'settled';
-        }
-        return { userId: profile.id, name: profile.name, avatarUrl: profile.avatar_url, balanceCents, balanceStatus };
-      }).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
+      const matchedFriends: MatchedFriend[] = Array.from(profileMap.values())
+        .map((profile) => {
+          const balanceRow = balanceByUserId.get(profile.id);
+          const balanceCents = balanceRow?.balance_cents ?? 0;
+          let balanceStatus: MatchedFriend['balanceStatus'];
+          if (!balanceRow) {
+            balanceStatus = 'no_groups';
+          } else if (balanceCents > 0) {
+            balanceStatus = 'owed';
+          } else if (balanceCents < 0) {
+            balanceStatus = 'owes';
+          } else {
+            balanceStatus = 'settled';
+          }
+          return {
+            userId: profile.id,
+            name: profile.name,
+            avatarUrl: profile.avatar_url,
+            balanceCents,
+            balanceStatus,
+          };
+        })
+        .sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 
       const finalUnmatched: UnmatchedContact[] = contacts
         .filter((c) => {
@@ -204,7 +238,9 @@ export function useFriends(): UseFriendsResult {
         .map((c) => ({
           contactKey: deriveContactKey(c),
           name: c.name!,
-          phoneNumbers: (c.phoneNumbers ?? []).map((p) => p.number ?? '').filter(Boolean),
+          phoneNumbers: (c.phoneNumbers ?? [])
+            .map((p) => p.number ?? '')
+            .filter(Boolean),
           emails: (c.emails ?? []).map((e) => e.email ?? '').filter(Boolean),
         }))
         .sort((a, b) => a.name.localeCompare(b.name));

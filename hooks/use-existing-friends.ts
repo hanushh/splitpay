@@ -57,15 +57,19 @@ export function useExistingFriends() {
         }
       }
 
-      setFriends(Array.from(seen.values()).sort((a, b) =>
-        a.displayName.localeCompare(b.displayName)
-      ));
+      setFriends(
+        Array.from(seen.values()).sort((a, b) =>
+          a.displayName.localeCompare(b.displayName),
+        ),
+      );
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
 
   return { friends, loading };
 }

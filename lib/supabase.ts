@@ -10,8 +10,11 @@ if (typeof global.crypto === 'undefined') {
   // @ts-expect-error – attaching to global
   global.crypto = {
     getRandomValues: <T extends ArrayBufferView>(array: T): T =>
-      ExpoCrypto.getRandomValues(array as unknown as Uint8Array) as unknown as T,
-    randomUUID: () => ExpoCrypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`,
+      ExpoCrypto.getRandomValues(
+        array as unknown as Uint8Array,
+      ) as unknown as T,
+    randomUUID: () =>
+      ExpoCrypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`,
   };
 }
 
@@ -43,13 +46,17 @@ const ExpoSecureStoreAdapter = {
       if (stale !== null) {
         const n = parseInt(stale, 10);
         await SecureStore.deleteItemAsync(`${key}__n`);
-        for (let i = 0; i < n; i++) await SecureStore.deleteItemAsync(`${key}__${i}`);
+        for (let i = 0; i < n; i++)
+          await SecureStore.deleteItemAsync(`${key}__${i}`);
       }
     } else {
       const n = Math.ceil(value.length / CHUNK_SIZE);
       await SecureStore.setItemAsync(`${key}__n`, String(n));
       for (let i = 0; i < n; i++) {
-        await SecureStore.setItemAsync(`${key}__${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+        await SecureStore.setItemAsync(
+          `${key}__${i}`,
+          value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+        );
       }
       // Remove the plain key in case a small value was stored there before
       await SecureStore.deleteItemAsync(key);
@@ -61,7 +68,8 @@ const ExpoSecureStoreAdapter = {
     if (numChunksStr !== null) {
       const n = parseInt(numChunksStr, 10);
       await SecureStore.deleteItemAsync(`${key}__n`);
-      for (let i = 0; i < n; i++) await SecureStore.deleteItemAsync(`${key}__${i}`);
+      for (let i = 0; i < n; i++)
+        await SecureStore.deleteItemAsync(`${key}__${i}`);
     }
   },
 };

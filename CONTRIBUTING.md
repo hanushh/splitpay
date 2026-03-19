@@ -26,9 +26,9 @@ Expo automatically loads `.env.development` when running `pnpm dev`, and `.env` 
 
 ### Supabase environments
 
-| Environment | Project | Used when |
-|---|---|---|
-| **Staging** | `gfmbrytpmmbtpumxwile` | Feature branches, local dev |
+| Environment    | Project                | Used when                     |
+| -------------- | ---------------------- | ----------------------------- |
+| **Staging**    | `gfmbrytpmmbtpumxwile` | Feature branches, local dev   |
 | **Production** | `yapfqffhgcncqxovjcsr` | `main` branch only, via CI/CD |
 
 **Running migrations on a feature branch** — always target staging, never prod:
@@ -105,4 +105,3 @@ These workflows describe expected locations, patterns, and styling for new UI.
   - `.agents/workflows/*`
 
 Always ensure AI-generated changes pass the same checks listed above.
-

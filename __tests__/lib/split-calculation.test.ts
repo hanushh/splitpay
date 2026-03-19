@@ -57,7 +57,12 @@ describe('Split calculation (equally)', () => {
 });
 
 /** Mirrors canSave logic in add-expense.tsx */
-function canSave(description: string, amount: string, groupId: string, selectedCount: number) {
+function canSave(
+  description: string,
+  amount: string,
+  groupId: string,
+  selectedCount: number,
+) {
   return !!description && !!amount && !!groupId && selectedCount > 0;
 }
 

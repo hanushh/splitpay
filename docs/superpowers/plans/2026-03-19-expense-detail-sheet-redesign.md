@@ -14,12 +14,12 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|---|---|---|
-| `components/ExpenseDetailSheet.tsx` | **Create** | Purely-presentational sheet: header, hero, skeleton/splits, actions |
-| `app/group/[id].tsx` | **Modify** | Add `splits`/`splitsLoading` state + `useEffect`; replace inline sheet JSX with `<ExpenseDetailSheet>` |
-| `__tests__/components/ExpenseDetailSheet.test.tsx` | **Create** | Unit tests for the new component |
-| `__tests__/screens/group-detail-delete.test.tsx` | **Modify** | Make `supabase.from` mock table-aware so `expense_splits` resolves |
+| File                                               | Action     | Responsibility                                                                                         |
+| -------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `components/ExpenseDetailSheet.tsx`                | **Create** | Purely-presentational sheet: header, hero, skeleton/splits, actions                                    |
+| `app/group/[id].tsx`                               | **Modify** | Add `splits`/`splitsLoading` state + `useEffect`; replace inline sheet JSX with `<ExpenseDetailSheet>` |
+| `__tests__/components/ExpenseDetailSheet.test.tsx` | **Create** | Unit tests for the new component                                                                       |
+| `__tests__/screens/group-detail-delete.test.tsx`   | **Modify** | Make `supabase.from` mock table-aware so `expense_splits` resolves                                     |
 
 ---
 
@@ -28,6 +28,7 @@
 ### Task 1: Create the failing tests for ExpenseDetailSheet
 
 **Files:**
+
 - Create: `__tests__/components/ExpenseDetailSheet.test.tsx`
 
 - [ ] **Step 1.1: Create the test file**
@@ -52,7 +53,7 @@ const mockExpense = {
 };
 
 const mockMembers = [
-  { id: 'mem-1', display_name: 'You',   avatar_url: null, user_id: 'user-1' },
+  { id: 'mem-1', display_name: 'You', avatar_url: null, user_id: 'user-1' },
   { id: 'mem-2', display_name: 'Arjun', avatar_url: null, user_id: 'user-2' },
 ];
 
@@ -82,7 +83,9 @@ jest.mock('react-native-safe-area-context', () => ({
 // ── tests ────────────────────────────────────────────────────────────────────
 
 test('renders nothing when expense is null', () => {
-  const { queryByText } = render(<ExpenseDetailSheet {...baseProps} expense={null} />);
+  const { queryByText } = render(
+    <ExpenseDetailSheet {...baseProps} expense={null} />,
+  );
   expect(queryByText('Dinner at Locavore')).toBeNull();
 });
 
@@ -95,27 +98,31 @@ test('renders expense title, total, and paid-by name', () => {
 
 test('renders skeleton rows when splitsLoading is true', () => {
   const { getAllByTestId } = render(
-    <ExpenseDetailSheet {...baseProps} splits={[]} splitsLoading={true} />
+    <ExpenseDetailSheet {...baseProps} splits={[]} splitsLoading={true} />,
   );
   expect(getAllByTestId('split-skeleton').length).toBe(3);
 });
 
 test('renders member rows with correct amounts when splits are provided', () => {
-  const { getByText, getAllByText } = render(<ExpenseDetailSheet {...baseProps} />);
+  const { getByText, getAllByText } = render(
+    <ExpenseDetailSheet {...baseProps} />,
+  );
   expect(getByText('Arjun')).toBeTruthy();
   // Both members have $60.00
   expect(getAllByText('$60.00').length).toBeGreaterThanOrEqual(1);
 });
 
 test('hides Edit and Delete actions when isArchived is true', () => {
-  const { queryByText } = render(<ExpenseDetailSheet {...baseProps} isArchived={true} />);
+  const { queryByText } = render(
+    <ExpenseDetailSheet {...baseProps} isArchived={true} />,
+  );
   expect(queryByText('Edit')).toBeNull();
   expect(queryByText('Delete')).toBeNull();
 });
 
 test('shows ActivityIndicator on Delete when deletingExpense is true', () => {
   const { queryByText, getByTestId } = render(
-    <ExpenseDetailSheet {...baseProps} deletingExpense={true} />
+    <ExpenseDetailSheet {...baseProps} deletingExpense={true} />,
   );
   expect(queryByText('Delete')).toBeNull();
   expect(getByTestId('delete-loading')).toBeTruthy();
@@ -123,14 +130,18 @@ test('shows ActivityIndicator on Delete when deletingExpense is true', () => {
 
 test('calls onEdit when Edit is pressed', () => {
   const onEdit = jest.fn();
-  const { getByText } = render(<ExpenseDetailSheet {...baseProps} onEdit={onEdit} />);
+  const { getByText } = render(
+    <ExpenseDetailSheet {...baseProps} onEdit={onEdit} />,
+  );
   fireEvent.press(getByText('Edit'));
   expect(onEdit).toHaveBeenCalledTimes(1);
 });
 
 test('calls onDelete when Delete is pressed', () => {
   const onDelete = jest.fn();
-  const { getByText } = render(<ExpenseDetailSheet {...baseProps} onDelete={onDelete} />);
+  const { getByText } = render(
+    <ExpenseDetailSheet {...baseProps} onDelete={onDelete} />,
+  );
   fireEvent.press(getByText('Delete'));
   expect(onDelete).toHaveBeenCalledTimes(1);
 });
@@ -140,7 +151,9 @@ test('shows "Unknown" for a split whose member_id is not in members array', () =
     { member_id: 'mem-1', amount_cents: 6000 },
     { member_id: 'mem-999', amount_cents: 6000 }, // not in mockMembers
   ];
-  const { getByText } = render(<ExpenseDetailSheet {...baseProps} splits={splitsWithUnknown} />);
+  const { getByText } = render(
+    <ExpenseDetailSheet {...baseProps} splits={splitsWithUnknown} />,
+  );
   expect(getByText('Unknown')).toBeTruthy();
 });
 ```
@@ -158,6 +171,7 @@ Expected: All tests fail with "Cannot find module '@/components/ExpenseDetailShe
 ### Task 2: Create ExpenseDetailSheet component
 
 **Files:**
+
 - Create: `components/ExpenseDetailSheet.tsx`
 
 - [ ] **Step 2.1: Create the component**
@@ -223,24 +237,39 @@ export interface ExpenseDetailSheetProps {
 
 // ── colour palette (matches app/group/[id].tsx) ───────────────────────────────
 const C = {
-  primary:   '#17e86b',
-  orange:    '#f97316',
-  danger:    '#ff5252',
-  bg:        '#112117',
-  surface:   '#1a3324',
+  primary: '#17e86b',
+  orange: '#f97316',
+  danger: '#ff5252',
+  bg: '#112117',
+  surface: '#1a3324',
   surfaceHL: '#244732',
-  slate400:  '#94a3b8',
-  slate500:  '#64748b',
-  white:     '#ffffff',
+  slate400: '#94a3b8',
+  slate500: '#64748b',
+  white: '#ffffff',
 };
 
 // ── category icon map (matches app/group/[id].tsx CATEGORY_ICONS) ─────────────
-const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
-  restaurant: { icon: 'restaurant',              bg: 'rgba(249,115,22,0.15)',  color: '#f97316' },
-  hotel:      { icon: 'hotel',                   bg: 'rgba(99,102,241,0.15)', color: '#818cf8' },
-  train:      { icon: 'train',                   bg: 'rgba(20,184,166,0.15)', color: '#2dd4bf' },
-  store:      { icon: 'local-convenience-store', bg: 'rgba(234,179,8,0.15)',  color: '#eab308' },
-  receipt:    { icon: 'receipt-long',            bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
+const CATEGORY_ICONS: Record<
+  string,
+  { icon: string; bg: string; color: string }
+> = {
+  restaurant: {
+    icon: 'restaurant',
+    bg: 'rgba(249,115,22,0.15)',
+    color: '#f97316',
+  },
+  hotel: { icon: 'hotel', bg: 'rgba(99,102,241,0.15)', color: '#818cf8' },
+  train: { icon: 'train', bg: 'rgba(20,184,166,0.15)', color: '#2dd4bf' },
+  store: {
+    icon: 'local-convenience-store',
+    bg: 'rgba(234,179,8,0.15)',
+    color: '#eab308',
+  },
+  receipt: {
+    icon: 'receipt-long',
+    bg: 'rgba(23,232,107,0.15)',
+    color: '#17e86b',
+  },
 };
 
 // ── skeleton row ──────────────────────────────────────────────────────────────
@@ -250,8 +279,16 @@ function SkeletonRow() {
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.8, duration: 600, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 600,
+          useNativeDriver: true,
+        }),
       ]),
     );
     anim.start();
@@ -286,9 +323,12 @@ export default function ExpenseDetailSheet({
   if (!expense) return null;
 
   const catMeta = CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.receipt;
-  const categoryLabel = expense.category.charAt(0).toUpperCase() + expense.category.slice(1);
+  const categoryLabel =
+    expense.category.charAt(0).toUpperCase() + expense.category.slice(1);
   const dateLabel = new Date(expense.created_at).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
   });
 
   // ── resolve member name/initials helper ──────────────────────────────────
@@ -306,7 +346,9 @@ export default function ExpenseDetailSheet({
     const bResolved = resolveMember(b.member_id);
     if (aResolved.isCurrentUser) return -1;
     if (bResolved.isCurrentUser) return 1;
-    return (aResolved.name ?? 'Unknown').localeCompare(bResolved.name ?? 'Unknown');
+    return (aResolved.name ?? 'Unknown').localeCompare(
+      bResolved.name ?? 'Unknown',
+    );
   });
 
   return (
@@ -318,7 +360,10 @@ export default function ExpenseDetailSheet({
     >
       {/* Backdrop */}
       <Pressable
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: 'rgba(0,0,0,0.6)' },
+        ]}
         onPress={onClose}
       />
 
@@ -328,11 +373,19 @@ export default function ExpenseDetailSheet({
         {/* ① Header */}
         <View style={s.header}>
           <View style={[s.catIcon, { backgroundColor: catMeta.bg }]}>
-            <MaterialIcons name={catMeta.icon as any} size={22} color={catMeta.color} />
+            <MaterialIcons
+              name={catMeta.icon as any}
+              size={22}
+              color={catMeta.color}
+            />
           </View>
           <View style={s.headerText}>
-            <Text style={s.title} numberOfLines={2}>{expense.description}</Text>
-            <Text style={s.subtitle}>{dateLabel} · {categoryLabel}</Text>
+            <Text style={s.title} numberOfLines={2}>
+              {expense.description}
+            </Text>
+            <Text style={s.subtitle}>
+              {dateLabel} · {categoryLabel}
+            </Text>
           </View>
         </View>
 
@@ -340,15 +393,26 @@ export default function ExpenseDetailSheet({
         <View style={s.hero}>
           <Text style={s.heroAmount}>{format(expense.total_amount_cents)}</Text>
           <View style={s.payerRow}>
-            <View style={[
-              s.payerAvatar,
-              { backgroundColor: expense.paid_by_is_user ? 'rgba(23,232,107,0.15)' : 'rgba(249,115,22,0.15)' },
-            ]}>
-              <Text style={[
-                s.payerAvatarText,
-                { color: expense.paid_by_is_user ? C.primary : C.orange },
-              ]}>
-                {(expense.paid_by_is_user ? 'Y' : expense.paid_by_name.charAt(0)).toUpperCase()}
+            <View
+              style={[
+                s.payerAvatar,
+                {
+                  backgroundColor: expense.paid_by_is_user
+                    ? 'rgba(23,232,107,0.15)'
+                    : 'rgba(249,115,22,0.15)',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  s.payerAvatarText,
+                  { color: expense.paid_by_is_user ? C.primary : C.orange },
+                ]}
+              >
+                {(expense.paid_by_is_user
+                  ? 'Y'
+                  : expense.paid_by_name.charAt(0)
+                ).toUpperCase()}
               </Text>
             </View>
             <Text style={s.payerLabel}>Paid by </Text>
@@ -370,22 +434,31 @@ export default function ExpenseDetailSheet({
             </>
           ) : (
             sortedSplits.map((split) => {
-              const { name, initials, isCurrentUser } = resolveMember(split.member_id);
+              const { name, initials, isCurrentUser } = resolveMember(
+                split.member_id,
+              );
               const isPayer = expense.paid_by_is_user
                 ? isCurrentUser
                 : name === expense.paid_by_name;
-              const barWidth = expense.total_amount_cents > 0
-                ? (split.amount_cents / expense.total_amount_cents) * 100
-                : 0;
+              const barWidth =
+                expense.total_amount_cents > 0
+                  ? (split.amount_cents / expense.total_amount_cents) * 100
+                  : 0;
               const amountColor = isCurrentUser ? C.primary : C.orange;
-              const avatarBg = isCurrentUser ? 'rgba(23,232,107,0.15)' : C.surfaceHL;
+              const avatarBg = isCurrentUser
+                ? 'rgba(23,232,107,0.15)'
+                : C.surfaceHL;
               const avatarColor = isCurrentUser ? C.primary : C.slate400;
 
               return (
                 <View key={split.member_id} style={s.splitRow}>
                   <View style={s.splitTop}>
-                    <View style={[s.splitAvatar, { backgroundColor: avatarBg }]}>
-                      <Text style={[s.splitAvatarText, { color: avatarColor }]}>{initials}</Text>
+                    <View
+                      style={[s.splitAvatar, { backgroundColor: avatarBg }]}
+                    >
+                      <Text style={[s.splitAvatarText, { color: avatarColor }]}>
+                        {initials}
+                      </Text>
                     </View>
                     <Text style={s.splitName}>{name}</Text>
                     {isPayer && (
@@ -398,7 +471,15 @@ export default function ExpenseDetailSheet({
                     </Text>
                   </View>
                   <View style={s.barTrack}>
-                    <View style={[s.barFill, { width: `${barWidth}%` as any, backgroundColor: amountColor }]} />
+                    <View
+                      style={[
+                        s.barFill,
+                        {
+                          width: `${barWidth}%` as any,
+                          backgroundColor: amountColor,
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
               );
@@ -417,15 +498,26 @@ export default function ExpenseDetailSheet({
               <Text style={s.editBtnText}>Edit</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.8 }]}
+              style={({ pressed }) => [
+                s.deleteBtn,
+                pressed && { opacity: 0.8 },
+              ]}
               onPress={onDelete}
               disabled={deletingExpense}
             >
               {deletingExpense ? (
-                <ActivityIndicator testID="delete-loading" size="small" color={C.danger} />
+                <ActivityIndicator
+                  testID="delete-loading"
+                  size="small"
+                  color={C.danger}
+                />
               ) : (
                 <>
-                  <MaterialIcons name="delete-outline" size={18} color={C.danger} />
+                  <MaterialIcons
+                    name="delete-outline"
+                    size={18}
+                    color={C.danger}
+                  />
                   <Text style={s.deleteBtnText}>Delete</Text>
                 </>
               )}
@@ -441,94 +533,162 @@ export default function ExpenseDetailSheet({
 const s = StyleSheet.create({
   sheet: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: C.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 8,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: C.surfaceHL,
     alignSelf: 'center',
     marginBottom: 12,
   },
   // header
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: C.surfaceHL,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
   },
   catIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerText: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '700', color: C.white, marginBottom: 2, lineHeight: 20 },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: C.white,
+    marginBottom: 2,
+    lineHeight: 20,
+  },
   subtitle: { fontSize: 12, color: C.slate400 },
   // hero
   hero: {
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: C.surfaceHL,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
     backgroundColor: C.bg,
   },
-  heroAmount: { fontSize: 30, fontWeight: '800', color: C.white, marginBottom: 8 },
+  heroAmount: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: C.white,
+    marginBottom: 8,
+  },
   payerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   payerAvatar: {
-    width: 24, height: 24, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   payerAvatarText: { fontSize: 11, fontWeight: '700' },
   payerLabel: { fontSize: 13, color: C.slate400 },
-  payerName:  { fontSize: 13, color: C.white, fontWeight: '600' },
+  payerName: { fontSize: 13, color: C.white, fontWeight: '600' },
   // splits
   splitsSection: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 },
   splitsLabel: {
-    fontSize: 10, fontWeight: '700',
-    textTransform: 'uppercase', letterSpacing: 0.8,
-    color: C.slate500, marginBottom: 12,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: C.slate500,
+    marginBottom: 12,
   },
   splitRow: { marginBottom: 12 },
-  splitTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
+  splitTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 5,
+  },
   splitAvatar: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   splitAvatarText: { fontSize: 12, fontWeight: '700' },
   splitName: { flex: 1, fontSize: 13, color: C.white },
   paidBadge: {
     backgroundColor: 'rgba(23,232,107,0.15)',
-    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   paidBadgeText: { fontSize: 10, color: C.primary, fontWeight: '600' },
   splitAmount: { fontSize: 13, fontWeight: '700' },
   barTrack: {
-    height: 3, backgroundColor: C.surfaceHL, borderRadius: 2,
-    marginLeft: 36, overflow: 'hidden',
+    height: 3,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 2,
+    marginLeft: 36,
+    overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: 2 },
   // skeleton
-  skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  skeletonCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.surfaceHL },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  skeletonCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.surfaceHL,
+  },
   skeletonLine: { height: 10, borderRadius: 5, backgroundColor: C.surfaceHL },
   // actions
   actions: {
-    flexDirection: 'row', gap: 12,
-    paddingHorizontal: 20, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: C.surfaceHL,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: C.surfaceHL,
   },
   editBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 14,
-    backgroundColor: 'rgba(23,232,107,0.1)', borderRadius: 14,
-    borderWidth: 1, borderColor: 'rgba(23,232,107,0.3)',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(23,232,107,0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(23,232,107,0.3)',
   },
   editBtnText: { color: C.primary, fontSize: 15, fontWeight: '700' },
   deleteBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 14,
-    backgroundColor: 'rgba(255,82,82,0.08)', borderRadius: 14,
-    borderWidth: 1, borderColor: 'rgba(255,82,82,0.3)',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(255,82,82,0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,82,82,0.3)',
   },
   deleteBtnText: { color: C.danger, fontSize: 15, fontWeight: '700' },
 });
@@ -569,6 +729,7 @@ EOF
 ### Task 3: Update group-detail-delete tests first (TDD — update the test harness before touching the screen)
 
 **Files:**
+
 - Modify: `__tests__/screens/group-detail-delete.test.tsx:37-51`
 
 The `supabase.from` mock must become table-aware so the new `expense_splits` query resolves without breaking the existing `.single()` / `.maybeSingle()` chains used by other tables.
@@ -588,7 +749,9 @@ Replace the existing `supabase.from` mock block (lines 43–48) with:
   return {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    maybeSingle: jest.fn().mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
+    maybeSingle: jest
+      .fn()
+      .mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
     single: jest.fn().mockResolvedValue({ data: mockGroup, error: null }),
   };
 });
@@ -607,6 +770,7 @@ Expected: 4 tests pass (mock update is backward-compatible because `expense_spli
 ### Task 4: Wire ExpenseDetailSheet into GroupDetailScreen
 
 **Files:**
+
 - Modify: `app/group/[id].tsx`
 
 - [ ] **Step 4.1: Add the `ExpenseSplit` interface and two new state fields**
@@ -630,10 +794,13 @@ const [splitsLoading, setSplitsLoading] = useState(false);
 - [ ] **Step 4.2a: Add `useEffect` to the React import (line 3)**
 
 Change line 3 from:
+
 ```ts
 import React, { useCallback, useState } from 'react';
 ```
+
 to:
+
 ```ts
 import React, { useCallback, useEffect, useState } from 'react';
 ```
@@ -666,7 +833,9 @@ useEffect(() => {
   };
 
   fetchSplits();
-  return () => { cancelled = true; };
+  return () => {
+    cancelled = true;
+  };
 }, [selectedExpense?.expense_id]);
 ```
 
@@ -683,7 +852,9 @@ import ExpenseDetailSheet from '@/components/ExpenseDetailSheet';
 Remove the entire inline expense detail `Modal` block (lines 482–555):
 
 ```tsx
-{/* ── Expense detail sheet ─────────────────────────── */}
+{
+  /* ── Expense detail sheet ─────────────────────────── */
+}
 <Modal
   visible={!!selectedExpense}
   transparent
@@ -691,28 +862,32 @@ Remove the entire inline expense detail `Modal` block (lines 482–555):
   onRequestClose={() => setSelectedExpense(null)}
 >
   ...
-</Modal>
+</Modal>;
 ```
 
 Replace it with:
 
 ```tsx
-{/* ── Expense detail sheet ─────────────────────────── */}
-{selectedExpense && (
-  <ExpenseDetailSheet
-    expense={selectedExpense}
-    splits={splits}
-    splitsLoading={splitsLoading}
-    deletingExpense={deletingExpense}
-    members={members}
-    currentUserId={user?.id ?? ''}
-    isArchived={group?.archived ?? false}
-    onClose={() => setSelectedExpense(null)}
-    onEdit={handleEditExpense}
-    onDelete={handleDeleteExpense}
-    format={format}
-  />
-)}
+{
+  /* ── Expense detail sheet ─────────────────────────── */
+}
+{
+  selectedExpense && (
+    <ExpenseDetailSheet
+      expense={selectedExpense}
+      splits={splits}
+      splitsLoading={splitsLoading}
+      deletingExpense={deletingExpense}
+      members={members}
+      currentUserId={user?.id ?? ''}
+      isArchived={group?.archived ?? false}
+      onClose={() => setSelectedExpense(null)}
+      onEdit={handleEditExpense}
+      onDelete={handleDeleteExpense}
+      format={format}
+    />
+  );
+}
 ```
 
 - [ ] **Step 4.5: Remove now-unused styles from `[id].tsx`**

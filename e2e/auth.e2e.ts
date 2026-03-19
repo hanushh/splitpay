@@ -4,24 +4,35 @@ const TEST_EMAIL = `e2e_${Date.now()}@paysplit.test`;
 const TEST_PASSWORD = 'TestPass123!';
 
 async function waitForAnyText(texts: string[], timeoutMs = 10000) {
-  const eachTimeout = Math.max(1000, Math.floor(timeoutMs / Math.max(1, texts.length)));
+  const eachTimeout = Math.max(
+    1000,
+    Math.floor(timeoutMs / Math.max(1, texts.length)),
+  );
   for (const text of texts) {
     try {
-      await waitFor(element(by.text(text))).toBeVisible().withTimeout(eachTimeout);
+      await waitFor(element(by.text(text)))
+        .toBeVisible()
+        .withTimeout(eachTimeout);
       return;
     } catch {
       // try next option
     }
   }
-  throw new Error(`None of the expected texts were visible: ${texts.join(', ')}`);
+  throw new Error(
+    `None of the expected texts were visible: ${texts.join(', ')}`,
+  );
 }
 
 async function waitForSignUpResult() {
   try {
-    await waitFor(element(by.text('Check your email'))).toBeVisible().withTimeout(30000);
+    await waitFor(element(by.text('Check your email')))
+      .toBeVisible()
+      .withTimeout(30000);
     return;
   } catch {
-    await waitFor(element(by.id('sign-up-button'))).toBeVisible().withTimeout(30000);
+    await waitFor(element(by.id('sign-up-button')))
+      .toBeVisible()
+      .withTimeout(30000);
   }
 }
 
@@ -58,10 +69,15 @@ describe('Authentication flow', () => {
   it('shows error when passwords do not match', async () => {
     await element(by.id('email-input')).replaceText(TEST_EMAIL);
     await element(by.id('password-input')).replaceText(TEST_PASSWORD);
-    await element(by.id('confirm-password-input')).replaceText('DifferentPass!');
+    await element(by.id('confirm-password-input')).replaceText(
+      'DifferentPass!',
+    );
     await element(by.text('Create account')).tap();
     await element(by.id('sign-up-button')).tap();
-    await waitForAnyText(['Passwords do not match.', 'Please fill in all fields.'], 9000);
+    await waitForAnyText(
+      ['Passwords do not match.', 'Please fill in all fields.'],
+      9000,
+    );
   });
 
   it('submits the sign-up form and gets a response', async () => {
@@ -91,7 +107,9 @@ describe('Authentication flow', () => {
   });
 
   it('shows error for invalid credentials', async () => {
-    await waitFor(element(by.id('email-input'))).toBeVisible().withTimeout(10000);
+    await waitFor(element(by.id('email-input')))
+      .toBeVisible()
+      .withTimeout(10000);
     await element(by.id('email-input')).replaceText('invalid@example.com');
     await element(by.id('password-input')).replaceText('wrongpassword');
     await device.disableSynchronization();

@@ -30,11 +30,13 @@ export function useArchivedGroups() {
 
       const { data: groupRows, error: groupsErr } = await supabase
         .from('groups')
-        .select(`
+        .select(
+          `
           id, name, description, image_url, icon_name, archived,
           group_balances!left ( balance_cents ),
           group_members ( id, display_name, avatar_url, user_id )
-        `)
+        `,
+        )
         .in('id', memberGroupIds)
         .eq('archived', true)
         .order('created_at', { ascending: false });
@@ -54,27 +56,41 @@ export function useArchivedGroups() {
       const userIdsNeedingProfile = [
         ...new Set(
           allRawMembers
-            .filter((m) => m.user_id && !m.display_name && m.user_id !== user.id)
+            .filter(
+              (m) => m.user_id && !m.display_name && m.user_id !== user.id,
+            )
             .map((m) => m.user_id!),
         ),
       ];
 
-      let profileMap: Record<string, { name: string; avatar_url: string | null }> = {};
+      let profileMap: Record<
+        string,
+        { name: string; avatar_url: string | null }
+      > = {};
       if (userIdsNeedingProfile.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, name, avatar_url')
           .in('id', userIdsNeedingProfile);
         profileMap = (profiles ?? []).reduce(
-          (acc, p) => ({ ...acc, [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url } }),
+          (acc, p) => ({
+            ...acc,
+            [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url },
+          }),
           {} as Record<string, { name: string; avatar_url: string | null }>,
         );
       }
 
       const mapped: Group[] = (groupRows ?? []).map((row) => {
         const balance_cents: number =
-          (row.group_balances as { balance_cents: number }[] | null)?.[0]?.balance_cents ?? 0;
-        const status = balance_cents > 0 ? 'owed' : balance_cents < 0 ? 'owes' : ('settled' as const);
+          (row.group_balances as { balance_cents: number }[] | null)?.[0]
+            ?.balance_cents ?? 0;
+        const status =
+          balance_cents > 0
+            ? 'owed'
+            : balance_cents < 0
+              ? 'owes'
+              : ('settled' as const);
 
         const members: GroupMember[] = (
           (row.group_members as RawMember[]) ?? []
@@ -88,7 +104,11 @@ export function useArchivedGroups() {
                 avatar_url: m.avatar_url ?? profileMap[m.user_id].avatar_url,
               };
             }
-            return { id: m.id, display_name: m.display_name, avatar_url: m.avatar_url };
+            return {
+              id: m.id,
+              display_name: m.display_name,
+              avatar_url: m.avatar_url,
+            };
           });
 
         return {
@@ -106,7 +126,9 @@ export function useArchivedGroups() {
 
       setGroups(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load archived groups');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load archived groups',
+      );
     } finally {
       setLoading(false);
     }

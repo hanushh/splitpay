@@ -22,9 +22,12 @@ pnpm add expo-contacts
 Add the plugin to `app.json` plugins array:
 
 ```json
-["expo-contacts", {
-  "contactsPermission": "Allow PaySplit to access your contacts to find friends on the app."
-}]
+[
+  "expo-contacts",
+  {
+    "contactsPermission": "Allow PaySplit to access your contacts to find friends on the app."
+  }
+]
 ```
 
 This adds the `NSContactsUsageDescription` key on iOS and the `READ_CONTACTS` permission on Android automatically.
@@ -204,10 +207,10 @@ Pure function, exported for independent unit testing:
 ```typescript
 export function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
-  if (digits.length === 10) return `+1${digits}`;           // US 10-digit
-  if (digits.length === 11 && digits[0] === '1') return `+${digits}`;  // US with leading 1
-  if (digits.length > 6) return `+${digits}`;               // assume already has country code
-  return null;                                               // too short, discard
+  if (digits.length === 10) return `+1${digits}`; // US 10-digit
+  if (digits.length === 11 && digits[0] === '1') return `+${digits}`; // US with leading 1
+  if (digits.length > 6) return `+${digits}`; // assume already has country code
+  return null; // too short, discard
 }
 ```
 
@@ -224,6 +227,7 @@ export function normalizePhone(raw: string): string | null {
 ### Permission Denied State
 
 Centred layout:
+
 - Lock icon (`MaterialIcons "lock"`)
 - Title: "Contacts Access Required"
 - Body: "PaySplit needs access to your contacts to show which friends are already on the app."
@@ -241,6 +245,7 @@ Centred `ActivityIndicator` (primary green, `size="large"`).
 **Section 1 — "On PaySplit" (`matched`)**
 
 Each row:
+
 - Avatar circle: user's `avatarUrl` if set, else initials on `C.surfaceHL` background
 - Name (bold)
 - Balance chip (right-aligned):
@@ -257,6 +262,7 @@ Empty state for this section: "None of your contacts are on PaySplit yet."
 **Section 2 — "Invite to PaySplit" (`unmatched`)**
 
 Each row:
+
 - Initials avatar on `C.surfaceHL` background
 - Name
 - "Invite" button → triggers `Share.share()` from `react-native` with:

@@ -1,7 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { extractKeywords, scoreDescription, KEYWORD_DICT } from '@/lib/category-keywords';
+import {
+  extractKeywords,
+  scoreDescription,
+  KEYWORD_DICT,
+} from '@/lib/category-keywords';
 
 const CACHE_KEY = '@category_cache_v1';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -32,7 +36,9 @@ async function writeCache(mappings: Record<string, Record<string, number>>) {
   } catch {}
 }
 
-async function fetchFromSupabase(): Promise<Record<string, Record<string, number>>> {
+async function fetchFromSupabase(): Promise<
+  Record<string, Record<string, number>>
+> {
   const { data, error } = await supabase
     .from('category_keyword_mappings')
     .select('keyword, category, usage_count')
@@ -42,7 +48,11 @@ async function fetchFromSupabase(): Promise<Record<string, Record<string, number
   if (error || !data) return {};
 
   const mappings: Record<string, Record<string, number>> = {};
-  for (const row of data as { keyword: string; category: string; usage_count: number }[]) {
+  for (const row of data as {
+    keyword: string;
+    category: string;
+    usage_count: number;
+  }[]) {
     if (!mappings[row.keyword]) mappings[row.keyword] = {};
     mappings[row.keyword][row.category] = row.usage_count;
   }
@@ -54,8 +64,12 @@ export function useCategoryCache() {
   const initialized = useRef(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setUserId(data.session?.user?.id ?? null));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, session) => {
       setUserId(session?.user?.id ?? null);
     });
     return () => subscription.unsubscribe();
@@ -69,7 +83,10 @@ export function useCategoryCache() {
       const cached = await loadCache();
       // fetchedAt === 0 means never fetched in this app session (e.g. fresh launch or after logout)
       const sessionNeverFetched = fetchedAt === 0;
-      const isStale = !cached || sessionNeverFetched || Date.now() - cached.fetched_at > CACHE_TTL_MS;
+      const isStale =
+        !cached ||
+        sessionNeverFetched ||
+        Date.now() - cached.fetched_at > CACHE_TTL_MS;
 
       if (!isStale && cached) {
         inMemory = cached.mappings;
@@ -88,70 +105,86 @@ export function useCategoryCache() {
    * Synchronous — reads from in-memory cache. Zero latency.
    * Triggers a background re-fetch if cache is stale (>24h).
    */
-  const detect = useCallback((description: string): string => {
-    // Background re-fetch if stale — does not block the synchronous return
-    if (userId && Date.now() - fetchedAt > CACHE_TTL_MS) {
-      fetchFromSupabase().then((fresh) => {
-        inMemory = fresh;
-        fetchedAt = Date.now();
-        writeCache(fresh);
-      }).catch(() => {});
-    }
-    const keywords = extractKeywords(description);
-    return scoreDescription(keywords, inMemory);
-  }, [userId]);
+  const detect = useCallback(
+    (description: string): string => {
+      // Background re-fetch if stale — does not block the synchronous return
+      if (userId && Date.now() - fetchedAt > CACHE_TTL_MS) {
+        fetchFromSupabase()
+          .then((fresh) => {
+            inMemory = fresh;
+            fetchedAt = Date.now();
+            writeCache(fresh);
+          })
+          .catch(() => {});
+      }
+      const keywords = extractKeywords(description);
+      return scoreDescription(keywords, inMemory);
+    },
+    [userId],
+  );
 
   /**
    * Called when user manually enters a custom category for "other".
    * Atomically increments usage_count server-side; updates in-memory cache.
    */
-  const saveMapping = useCallback(async (description: string, category: string) => {
-    const keywords = extractKeywords(description);
-    if (keywords.length === 0) return;
+  const saveMapping = useCallback(
+    async (description: string, category: string) => {
+      const keywords = extractKeywords(description);
+      if (keywords.length === 0) return;
 
-    // Atomic server-side upsert+increment — avoids race conditions
-    const { error } = await supabase.rpc('increment_keyword_usage', {
-      p_keywords: keywords,
-      p_category: category,
-    });
-    if (error) {
-      console.warn('[CategoryCache] saveMapping RPC error:', error.message);
-      return;
-    }
+      // Atomic server-side upsert+increment — avoids race conditions
+      const { error } = await supabase.rpc('increment_keyword_usage', {
+        p_keywords: keywords,
+        p_category: category,
+      });
+      if (error) {
+        console.warn('[CategoryCache] saveMapping RPC error:', error.message);
+        return;
+      }
 
-    // Merge into in-memory cache optimistically
-    for (const keyword of keywords) {
-      if (!inMemory[keyword]) inMemory[keyword] = {};
-      inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
-    }
-  }, []);
+      // Merge into in-memory cache optimistically
+      for (const keyword of keywords) {
+        if (!inMemory[keyword]) inMemory[keyword] = {};
+        inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
+      }
+    },
+    [],
+  );
 
   /**
    * Called when auto-detection succeeds and user saves the expense.
    * Reinforces all keywords that contributed to this category (built-in or learned).
    */
-  const reinforceMapping = useCallback(async (description: string, category: string) => {
-    const keywords = extractKeywords(description).filter(
-      (kw) => KEYWORD_DICT[kw] === category || inMemory[kw]?.[category] !== undefined,
-    );
-    if (keywords.length === 0) return;
+  const reinforceMapping = useCallback(
+    async (description: string, category: string) => {
+      const keywords = extractKeywords(description).filter(
+        (kw) =>
+          KEYWORD_DICT[kw] === category ||
+          inMemory[kw]?.[category] !== undefined,
+      );
+      if (keywords.length === 0) return;
 
-    // Atomic server-side increment
-    const { error } = await supabase.rpc('increment_keyword_usage', {
-      p_keywords: keywords,
-      p_category: category,
-    });
-    if (error) {
-      console.warn('[CategoryCache] reinforceMapping RPC error:', error.message);
-      return;
-    }
+      // Atomic server-side increment
+      const { error } = await supabase.rpc('increment_keyword_usage', {
+        p_keywords: keywords,
+        p_category: category,
+      });
+      if (error) {
+        console.warn(
+          '[CategoryCache] reinforceMapping RPC error:',
+          error.message,
+        );
+        return;
+      }
 
-    // Update in-memory cache optimistically
-    for (const keyword of keywords) {
-      if (!inMemory[keyword]) inMemory[keyword] = {};
-      inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
-    }
-  }, []);
+      // Update in-memory cache optimistically
+      for (const keyword of keywords) {
+        if (!inMemory[keyword]) inMemory[keyword] = {};
+        inMemory[keyword][category] = (inMemory[keyword][category] ?? 0) + 1;
+      }
+    },
+    [],
+  );
 
   return { detect, saveMapping, reinforceMapping };
 }

@@ -1,4 +1,5 @@
 # Auto Category Detection — Design Spec
+
 **Date:** 2026-03-10
 **Status:** Approved
 
@@ -53,7 +54,9 @@ CREATE POLICY "authenticated users can update count" ON public.category_keyword_
 ## Detection Algorithm
 
 ### Keyword Extraction
+
 Input: raw description string
+
 1. Lowercase
 2. Split on `/[\s\.,\-\(\)\'\"]+/`
 3. Remove stop words: `a, an, the, to, for, in, at, on, with, and, or, by, of, from`
@@ -62,18 +65,20 @@ Input: raw description string
 Example: `"Dinner at McDonald's with friends"` → `["dinner", "mcdonalds", "friends"]`
 
 ### Two-Tier Scoring
+
 For each extracted keyword, score against two sources:
 
-| Source | Score contribution |
-|---|---|
-| Built-in keyword dict (`lib/category-keywords.ts`) | +10 per match |
-| Learned Supabase mappings (cached) | +usage_count per match |
+| Source                                             | Score contribution     |
+| -------------------------------------------------- | ---------------------- |
+| Built-in keyword dict (`lib/category-keywords.ts`) | +10 per match          |
+| Learned Supabase mappings (cached)                 | +usage_count per match |
 
 Accumulate scores per category across all keywords. Winner = highest total score.
 Tie-break: built-in category wins over learned.
 No matches → `"other"`.
 
 ### Auto-reinforcement
+
 When auto-detection picks a non-other category and the user saves the expense, increment `usage_count` for each matched (keyword, category) pair in Supabase.
 
 ---
@@ -85,22 +90,49 @@ A flat `Record<string, string>` mapping keyword → category key:
 ```ts
 export const KEYWORD_DICT: Record<string, string> = {
   // Food & Drink
-  dinner: 'restaurant', lunch: 'restaurant', breakfast: 'restaurant',
-  coffee: 'restaurant', cafe: 'restaurant', zomato: 'restaurant',
-  swiggy: 'restaurant', mcdonalds: 'restaurant', restaurant: 'restaurant',
-  food: 'restaurant', pizza: 'restaurant', burger: 'restaurant',
+  dinner: 'restaurant',
+  lunch: 'restaurant',
+  breakfast: 'restaurant',
+  coffee: 'restaurant',
+  cafe: 'restaurant',
+  zomato: 'restaurant',
+  swiggy: 'restaurant',
+  mcdonalds: 'restaurant',
+  restaurant: 'restaurant',
+  food: 'restaurant',
+  pizza: 'restaurant',
+  burger: 'restaurant',
   // Transport
-  uber: 'train', ola: 'train', taxi: 'train', metro: 'train',
-  bus: 'train', train: 'train', flight: 'train', fuel: 'train',
-  petrol: 'train', toll: 'train',
+  uber: 'train',
+  ola: 'train',
+  taxi: 'train',
+  metro: 'train',
+  bus: 'train',
+  train: 'train',
+  flight: 'train',
+  fuel: 'train',
+  petrol: 'train',
+  toll: 'train',
   // Accommodation
-  hotel: 'hotel', airbnb: 'hotel', hostel: 'hotel', rent: 'hotel',
+  hotel: 'hotel',
+  airbnb: 'hotel',
+  hostel: 'hotel',
+  rent: 'hotel',
   // Entertainment
-  netflix: 'movie', movie: 'movie', cinema: 'movie', concert: 'movie',
-  spotify: 'movie', ticket: 'movie',
+  netflix: 'movie',
+  movie: 'movie',
+  cinema: 'movie',
+  concert: 'movie',
+  spotify: 'movie',
+  ticket: 'movie',
   // Shopping
-  amazon: 'store', flipkart: 'store', grocery: 'store', groceries: 'store',
-  walmart: 'store', mall: 'store', shopping: 'store',
+  amazon: 'store',
+  flipkart: 'store',
+  grocery: 'store',
+  groceries: 'store',
+  walmart: 'store',
+  mall: 'store',
+  shopping: 'store',
   // Other (explicit fallback keywords)
 };
 ```
@@ -110,6 +142,7 @@ export const KEYWORD_DICT: Record<string, string> = {
 ## Cache Layer (`hooks/use-category-cache.ts`)
 
 ### AsyncStorage structure
+
 ```ts
 // key: '@category_cache_v1'
 {
@@ -120,15 +153,16 @@ export const KEYWORD_DICT: Record<string, string> = {
 
 ### Lifecycle
 
-| Event | Action |
-|---|---|
-| App startup (authenticated) | Fetch top 3000 rows `ORDER BY usage_count DESC` from Supabase → write to AsyncStorage + in-memory |
-| Cache age > 24h | Re-fetch from Supabase on next `detect()` call |
-| User saves custom category | Upsert to Supabase + merge into in-memory cache immediately |
-| Auto-detection fires a match | Increment `usage_count` in Supabase + update in-memory count |
-| User logout | Delete AsyncStorage key + clear in-memory cache |
+| Event                        | Action                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| App startup (authenticated)  | Fetch top 3000 rows `ORDER BY usage_count DESC` from Supabase → write to AsyncStorage + in-memory |
+| Cache age > 24h              | Re-fetch from Supabase on next `detect()` call                                                    |
+| User saves custom category   | Upsert to Supabase + merge into in-memory cache immediately                                       |
+| Auto-detection fires a match | Increment `usage_count` in Supabase + update in-memory count                                      |
+| User logout                  | Delete AsyncStorage key + clear in-memory cache                                                   |
 
 ### Hook API
+
 ```ts
 export function useCategoryCache() {
   return {
@@ -146,17 +180,20 @@ export function useCategoryCache() {
 ## UI Changes (`app/add-expense.tsx`)
 
 ### Removed
+
 - The `CATEGORIES` constant and the entire 6-button category grid section
 
 ### Added
 
 **1. Category chip** (shown whenever a category is detected, including "other"):
+
 ```
 [ 🍽 Food & Drink ]   ← green chip, read-only
 Auto-detected from description
 ```
 
 **2. Custom category text input** (shown only when detected category is `"other"`):
+
 ```
 [ e.g. Health & Wellness            ]
   Saved for future auto-detection
@@ -165,6 +202,7 @@ Auto-detected from description
 **Detection trigger:** `useEffect` on `description` with 300ms debounce — calls `detect(description)` and updates local `category` state.
 
 **On save (handleSave):**
+
 - If category was auto-detected (non-other): call `reinforceMapping(description, category)`
 - If user typed a custom category: call `saveMapping(description, customCategory)`, use custom category as the expense's `category` field
 
@@ -172,12 +210,12 @@ Auto-detected from description
 
 ## Files Changed / Created
 
-| File | Change |
-|---|---|
-| `supabase/migrations/YYYYMMDD_create_category_keyword_mappings.sql` | New migration |
-| `lib/category-keywords.ts` | New — built-in keyword dict |
-| `hooks/use-category-cache.ts` | New — cache + detect + save logic |
-| `app/add-expense.tsx` | Remove category grid, add chip + text input, wire up hook |
+| File                                                                | Change                                                    |
+| ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `supabase/migrations/YYYYMMDD_create_category_keyword_mappings.sql` | New migration                                             |
+| `lib/category-keywords.ts`                                          | New — built-in keyword dict                               |
+| `hooks/use-category-cache.ts`                                       | New — cache + detect + save logic                         |
+| `app/add-expense.tsx`                                               | Remove category grid, add chip + text input, wire up hook |
 
 ---
 

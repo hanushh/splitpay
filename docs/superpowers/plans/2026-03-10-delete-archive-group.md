@@ -12,12 +12,12 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|---|---|---|
-| `supabase/migrations/20260310120000_group_archive_delete_policies.sql` | Create | RLS UPDATE + DELETE policies; pg_cron auto-archive |
-| `hooks/use-groups.ts` | Modify | Filter `archived = false` from query |
-| `__tests__/hooks/use-groups.test.tsx` | Modify | Update mock chain; add archived-filter test |
-| `app/group/[id].tsx` | Modify | Add `created_by` to query; settings sheet; archive flow; type-to-confirm delete |
+| File                                                                   | Action | Responsibility                                                                  |
+| ---------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| `supabase/migrations/20260310120000_group_archive_delete_policies.sql` | Create | RLS UPDATE + DELETE policies; pg_cron auto-archive                              |
+| `hooks/use-groups.ts`                                                  | Modify | Filter `archived = false` from query                                            |
+| `__tests__/hooks/use-groups.test.tsx`                                  | Modify | Update mock chain; add archived-filter test                                     |
+| `app/group/[id].tsx`                                                   | Modify | Add `created_by` to query; settings sheet; archive flow; type-to-confirm delete |
 
 ---
 
@@ -26,6 +26,7 @@
 ### Task 1: RLS policies + pg_cron auto-archive migration
 
 **Files:**
+
 - Create: `supabase/migrations/20260310120000_group_archive_delete_policies.sql`
 
 - [ ] **Step 1: Create the migration file**
@@ -94,11 +95,13 @@ Use `mcp__claude_ai_Supabase__apply_migration` with the SQL above.
 - [ ] **Step 3: Verify policies exist**
 
 Run via Supabase SQL editor or MCP `execute_sql`:
+
 ```sql
 SELECT policyname, cmd FROM pg_policies
 WHERE tablename = 'groups'
 ORDER BY policyname;
 ```
+
 Expected: rows for `groups_update_creator` and `groups_delete_creator`.
 
 - [ ] **Step 4: Commit**
@@ -115,6 +118,7 @@ git commit -m "feat: add RLS policies for group archive/delete + pg_cron auto-ar
 ### Task 2: Add `archived = false` filter + update tests
 
 **Files:**
+
 - Modify: `hooks/use-groups.ts:40-48`
 - Modify: `__tests__/hooks/use-groups.test.tsx`
 
@@ -164,6 +168,7 @@ it('excludes archived groups from results', async () => {
 ```bash
 npm test -- --testPathPattern="use-groups" --verbose
 ```
+
 Expected: FAIL — "Expected: 1, Received: 2" (hook returns both groups since filter not implemented yet)
 
 - [ ] **Step 3: Update existing mocks to include `eq` in the chain**
@@ -188,6 +193,7 @@ with:
 There are 5 such overrides in the file — apply to all of them.
 
 Also update the `beforeEach` mock at the top of the describe block:
+
 ```typescript
 beforeEach(() => {
   (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
@@ -206,11 +212,13 @@ In `hooks/use-groups.ts`, update the query chain (lines 40–48):
 ```typescript
 const { data: groupRows, error: groupsErr } = await supabase
   .from('groups')
-  .select(`
+  .select(
+    `
     id, name, description, image_url, bg_color, icon_name, archived,
     group_balances!left ( balance_cents ),
     group_members!inner ( id, display_name, avatar_url, user_id )
-  `)
+  `,
+  )
   .eq('archived', false)
   .order('created_at', { ascending: true });
 ```
@@ -220,6 +228,7 @@ const { data: groupRows, error: groupsErr } = await supabase
 ```bash
 npm test -- --testPathPattern="use-groups" --verbose
 ```
+
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
@@ -236,6 +245,7 @@ git commit -m "feat: filter archived groups from useGroups hook"
 ### Task 3: Add `created_by` to group query + settings bottom sheet + archive flow
 
 **Files:**
+
 - Modify: `app/group/[id].tsx`
 
 - [ ] **Step 1: Add `created_by` to `GroupDetail` interface and fetch query**
@@ -243,6 +253,7 @@ git commit -m "feat: filter archived groups from useGroups hook"
 In `app/group/[id].tsx`:
 
 Update the `GroupDetail` interface (line 42):
+
 ```typescript
 interface GroupDetail {
   id: string;
@@ -256,6 +267,7 @@ interface GroupDetail {
 ```
 
 Update the select string in `fetchGroup` (line 87):
+
 ```typescript
 supabase.from('groups').select('id, name, description, image_url, bg_color, created_by').eq('id', id).single(),
 ```
@@ -263,6 +275,7 @@ supabase.from('groups').select('id, name, description, image_url, bg_color, crea
 - [ ] **Step 2: Add `Modal` and `TextInput` to imports**
 
 Update the React Native import (line 4–12):
+
 ```typescript
 import {
   ActivityIndicator,
@@ -280,6 +293,7 @@ import {
 - [ ] **Step 3: Add state variables for settings sheet and delete modal**
 
 Inside `GroupDetailScreen`, after existing state declarations (after line 82):
+
 ```typescript
 const [showSettings, setShowSettings] = useState(false);
 const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -289,6 +303,7 @@ const [actionError, setActionError] = useState<string | null>(null);
 ```
 
 Also add a derived constant after the `grouped` constant (after line 144):
+
 ```typescript
 const isCreator = user?.id === group.created_by;
 ```
@@ -296,6 +311,7 @@ const isCreator = user?.id === group.created_by;
 - [ ] **Step 4: Make the settings icon interactive for creators**
 
 Replace the placeholder settings `Pressable` (lines 154–156):
+
 ```typescript
 <Pressable
   style={s.backBtn}
@@ -313,6 +329,7 @@ Replace the placeholder settings `Pressable` (lines 154–156):
 - [ ] **Step 5: Implement the archive handler**
 
 Add this function inside `GroupDetailScreen`, before the `return` statement:
+
 ```typescript
 const handleArchive = async () => {
   if (!group) return;
@@ -337,7 +354,9 @@ const handleArchive = async () => {
 Add this JSX just before the closing `</View>` of the main container (before line 271):
 
 ```tsx
-{/* Settings bottom sheet */}
+{
+  /* Settings bottom sheet */
+}
 <Modal
   visible={showSettings}
   transparent
@@ -349,16 +368,16 @@ Add this JSX just before the closing `</View>` of the main container (before lin
     <View style={s.sheetHandle} />
     <Text style={s.sheetTitle}>Group Settings</Text>
 
-    {actionError ? (
-      <Text style={s.errorText}>{actionError}</Text>
-    ) : null}
+    {actionError ? <Text style={s.errorText}>{actionError}</Text> : null}
 
     <Pressable
       style={({ pressed }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
       onPress={handleArchive}
       disabled={actionLoading}
     >
-      <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+      <View
+        style={[s.sheetIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}
+      >
         <MaterialIcons name="inventory" size={20} color={C.orange} />
       </View>
       <Text style={s.sheetRowText}>Archive Group</Text>
@@ -366,21 +385,27 @@ Add this JSX just before the closing `</View>` of the main container (before lin
 
     <Pressable
       style={({ pressed }) => [s.sheetRow, pressed && { opacity: 0.7 }]}
-      onPress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+      onPress={() => {
+        setShowSettings(false);
+        setShowDeleteModal(true);
+      }}
       disabled={actionLoading}
     >
-      <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
+      <View
+        style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)' }]}
+      >
         <MaterialIcons name="delete-forever" size={20} color="#ff5252" />
       </View>
       <Text style={[s.sheetRowText, { color: '#ff5252' }]}>Delete Group</Text>
     </Pressable>
   </View>
-</Modal>
+</Modal>;
 ```
 
 - [ ] **Step 7: Add new styles for the bottom sheet**
 
 Append to `StyleSheet.create(...)` at the bottom of the file:
+
 ```typescript
 modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
 bottomSheet: {
@@ -418,6 +443,7 @@ errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
 ```bash
 npm run lint && npm run typecheck
 ```
+
 Expected: No errors
 
 - [ ] **Step 9: Commit**
@@ -434,20 +460,19 @@ git commit -m "feat: add settings sheet with archive action to group detail"
 ### Task 4: Delete handler + type-to-confirm modal UI
 
 **Files:**
+
 - Modify: `app/group/[id].tsx`
 
 - [ ] **Step 1: Implement the delete handler**
 
 Add this function inside `GroupDetailScreen`, after `handleArchive`:
+
 ```typescript
 const handleDelete = async () => {
   if (!group || deleteInput !== group.name) return;
   setActionLoading(true);
   setActionError(null);
-  const { error } = await supabase
-    .from('groups')
-    .delete()
-    .eq('id', group.id);
+  const { error } = await supabase.from('groups').delete().eq('id', group.id);
   setActionLoading(false);
   if (error) {
     setActionError(error.message);
@@ -463,26 +488,47 @@ const handleDelete = async () => {
 Add this JSX after the settings bottom sheet Modal (still inside the main container `</View>`):
 
 ```tsx
-{/* Type-to-confirm delete modal */}
+{
+  /* Type-to-confirm delete modal */
+}
 <Modal
   visible={showDeleteModal}
   transparent
   animationType="fade"
-  onRequestClose={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+  onRequestClose={() => {
+    setShowDeleteModal(false);
+    setDeleteInput('');
+    setActionError(null);
+  }}
 >
   <View style={s.deleteOverlay}>
     <View style={s.deleteCard}>
-      <View style={[s.sheetIconWrap, { backgroundColor: 'rgba(255,82,82,0.12)', alignSelf: 'center', marginBottom: 16 }]}>
+      <View
+        style={[
+          s.sheetIconWrap,
+          {
+            backgroundColor: 'rgba(255,82,82,0.12)',
+            alignSelf: 'center',
+            marginBottom: 16,
+          },
+        ]}
+      >
         <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
       </View>
       <Text style={s.deleteTitle}>Delete Group</Text>
       <Text style={s.deleteWarning}>
         This will permanently delete{' '}
-        <Text style={{ fontWeight: '700', color: '#ffffff' }}>{group?.name}</Text>
-        {' '}and all its expenses. This cannot be undone.
+        <Text style={{ fontWeight: '700', color: '#ffffff' }}>
+          {group?.name}
+        </Text>{' '}
+        and all its expenses. This cannot be undone.
       </Text>
       <Text style={s.deleteLabel}>
-        Type <Text style={{ fontWeight: '700', color: '#ffffff' }}>{group?.name}</Text> to confirm
+        Type{' '}
+        <Text style={{ fontWeight: '700', color: '#ffffff' }}>
+          {group?.name}
+        </Text>{' '}
+        to confirm
       </Text>
       <TextInput
         style={s.deleteInput}
@@ -510,19 +556,27 @@ Add this JSX after the settings bottom sheet Modal (still inside the main contai
         </Text>
       </Pressable>
       <Pressable
-        style={({ pressed }) => [s.deleteCancelBtn, pressed && { opacity: 0.7 }]}
-        onPress={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+        style={({ pressed }) => [
+          s.deleteCancelBtn,
+          pressed && { opacity: 0.7 },
+        ]}
+        onPress={() => {
+          setShowDeleteModal(false);
+          setDeleteInput('');
+          setActionError(null);
+        }}
       >
         <Text style={s.deleteCancelBtnText}>Cancel</Text>
       </Pressable>
     </View>
   </View>
-</Modal>
+</Modal>;
 ```
 
 - [ ] **Step 3: Add delete modal styles**
 
 Append to `StyleSheet.create(...)`:
+
 ```typescript
 deleteOverlay: {
   flex: 1,
@@ -572,6 +626,7 @@ deleteCancelBtnText: { color: '#94a3b8', fontWeight: '600', fontSize: 15 },
 ```bash
 npm run lint && npm run typecheck
 ```
+
 Expected: No errors
 
 - [ ] **Step 5: Run all tests**
@@ -579,6 +634,7 @@ Expected: No errors
 ```bash
 npm test
 ```
+
 Expected: All tests pass
 
 - [ ] **Step 6: Commit**
@@ -599,6 +655,7 @@ git commit -m "feat: add type-to-confirm delete modal to group detail"
 3. **Non-creator:** As a non-creator member, open a group → ⚙ icon is grey and non-interactive (no bottom sheet opens).
 
 4. **Auto-archive test (manual):** In Supabase SQL editor:
+
    ```sql
    -- Temporarily backdate a settled group to simulate 7+ days
    UPDATE groups SET updated_at = NOW() - INTERVAL '8 days'
@@ -614,6 +671,7 @@ git commit -m "feat: add type-to-confirm delete modal to group detail"
    -- Verify
    SELECT id, name, archived FROM groups WHERE id = '<group id>';
    ```
+
    Expected: `archived = true`.
 
 5. **Home screen:** Archived groups do not appear in the groups list.

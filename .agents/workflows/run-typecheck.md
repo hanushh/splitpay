@@ -19,4 +19,3 @@ When asked to run TypeScript type checking for Splitpay, follow these steps:
    ```
 
 3. Fix any reported type errors in the relevant files, keeping TypeScript strictness and project conventions in mind.
-

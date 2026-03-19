@@ -1,6 +1,7 @@
 ---
 description: Update Supabase TypeScript types
 ---
+
 # Update Supabase Types
 
 When the database schema changes, the local TypeScript definitions need to be updated. Follow these steps:

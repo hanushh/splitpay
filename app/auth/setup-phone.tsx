@@ -58,14 +58,19 @@ export default function SetupPhoneScreen() {
     await refreshPhoneComplete();
     const { status } = await Contacts.getPermissionsAsync();
     router.replace(
-      status === Contacts.PermissionStatus.GRANTED ? '/(tabs)' : '/auth/setup-contacts'
+      status === Contacts.PermissionStatus.GRANTED
+        ? '/(tabs)'
+        : '/auth/setup-contacts',
     );
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      style={[
+        s.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={s.inner}>
         <View style={s.logoMark}>
@@ -73,7 +78,8 @@ export default function SetupPhoneScreen() {
         </View>
         <Text style={s.title}>Add your phone number</Text>
         <Text style={s.subtitle}>
-          Your phone number helps friends find you on PaySplit. This is required to continue.
+          Your phone number helps friends find you on PaySplit. This is required
+          to continue.
         </Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
@@ -87,7 +93,10 @@ export default function SetupPhoneScreen() {
         />
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.saveBtn, (saving || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.saveBtn,
+            (saving || pressed) && s.btnPressed,
+          ]}
           onPress={handleSave}
           disabled={saving}
         >

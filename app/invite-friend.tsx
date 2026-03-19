@@ -15,9 +15,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MemberSearchPicker, type MemberSelection } from '@/components/MemberSearchPicker';
+import {
+  MemberSearchPicker,
+  type MemberSelection,
+} from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
-import { APP_DISPLAY_NAME, INVITE_LINK_PREFIX, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import {
+  APP_DISPLAY_NAME,
+  INVITE_LINK_PREFIX,
+  INVITE_WEB_LINK_BASE,
+} from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
@@ -49,26 +56,42 @@ export default function InviteFriendScreen() {
     groupName: paramGroupName,
     userId: paramUserId,
     name: paramName,
-  } = useLocalSearchParams<{ groupId?: string; groupName?: string; userId?: string; name?: string }>();
+  } = useLocalSearchParams<{
+    groupId?: string;
+    groupName?: string;
+    userId?: string;
+    name?: string;
+  }>();
 
   // Active group (from params or user-selected)
-  const [activeGroupId, setActiveGroupId] = useState<string>(paramGroupId ?? '');
-  const [activeGroupName, setActiveGroupName] = useState<string>(paramGroupName ?? '');
+  const [activeGroupId, setActiveGroupId] = useState<string>(
+    paramGroupId ?? '',
+  );
+  const [activeGroupName, setActiveGroupName] = useState<string>(
+    paramGroupName ?? '',
+  );
 
   // Group picker (shown when no groupId is provided via params)
   const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
 
   const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
-  const [existingContactNames, setExistingContactNames] = useState<string[]>([]);
+  const [existingContactNames, setExistingContactNames] = useState<string[]>(
+    [],
+  );
 
   // When coming from Friends tab with a pre-selected user, seed memberSelection
-  const [memberSelection, setMemberSelection] = useState<MemberSelection>(() => {
-    if (paramUserId && paramName) {
-      return { appUsers: [{ userId: paramUserId, name: paramName, avatarUrl: null }], contacts: [] };
-    }
-    return { appUsers: [], contacts: [] };
-  });
+  const [memberSelection, setMemberSelection] = useState<MemberSelection>(
+    () => {
+      if (paramUserId && paramName) {
+        return {
+          appUsers: [{ userId: paramUserId, name: paramName, avatarUrl: null }],
+          contacts: [],
+        };
+      }
+      return { appUsers: [], contacts: [] };
+    },
+  );
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +99,9 @@ export default function InviteFriendScreen() {
   // Success state
   const [sent, setSent] = useState(false);
   const [addedUsersCount, setAddedUsersCount] = useState(0);
-  const [pendingInvites, setPendingInvites] = useState<{ contactName: string; shareUrl: string }[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<
+    { contactName: string; shareUrl: string }[]
+  >([]);
 
   // Fetch user's groups when no groupId param (for the picker)
   useEffect(() => {
@@ -86,7 +111,10 @@ export default function InviteFriendScreen() {
       .select('groups!inner(id, name)')
       .eq('user_id', user.id)
       .then(({ data, error: groupsErr }) => {
-        if (groupsErr) { setError(groupsErr.message ?? 'Failed to load your groups.'); return; }
+        if (groupsErr) {
+          setError(groupsErr.message ?? 'Failed to load your groups.');
+          return;
+        }
         const seen = new Set<string>();
         const list = (data ?? [])
           .map((row: any) => row.groups as GroupOption)
@@ -106,14 +134,23 @@ export default function InviteFriendScreen() {
       .from('group_members')
       .select('user_id, display_name')
       .eq('group_id', gid);
-    const rows = (data ?? []) as { user_id: string | null; display_name: string | null }[];
-    setExistingMemberIds(rows.map((r) => r.user_id).filter(Boolean) as string[]);
+    const rows = (data ?? []) as {
+      user_id: string | null;
+      display_name: string | null;
+    }[];
+    setExistingMemberIds(
+      rows.map((r) => r.user_id).filter(Boolean) as string[],
+    );
     setExistingContactNames(
-      rows.filter((r) => !r.user_id && r.display_name).map((r) => r.display_name!),
+      rows
+        .filter((r) => !r.user_id && r.display_name)
+        .map((r) => r.display_name!),
     );
   }, []);
 
-  useEffect(() => { loadExistingMembers(activeGroupId); }, [activeGroupId, loadExistingMembers]);
+  useEffect(() => {
+    loadExistingMembers(activeGroupId);
+  }, [activeGroupId, loadExistingMembers]);
 
   const handleSelectGroup = useCallback((group: GroupOption) => {
     setActiveGroupId(group.id);
@@ -121,7 +158,10 @@ export default function InviteFriendScreen() {
     setGroupPickerOpen(false);
   }, []);
 
-  const canSend = (memberSelection.appUsers.length > 0 || memberSelection.contacts.length > 0) && !!activeGroupId;
+  const canSend =
+    (memberSelection.appUsers.length > 0 ||
+      memberSelection.contacts.length > 0) &&
+    !!activeGroupId;
 
   const handleSend = async () => {
     if (!canSend || !user || !activeGroupId) return;
@@ -132,10 +172,13 @@ export default function InviteFriendScreen() {
 
     // Add app users directly
     if (memberSelection.appUsers.length > 0) {
-      const { data: addData, error: addErr } = await supabase.rpc('add_group_members_by_ids', {
-        p_group_id: activeGroupId,
-        p_user_ids: memberSelection.appUsers.map((u) => u.userId),
-      });
+      const { data: addData, error: addErr } = await supabase.rpc(
+        'add_group_members_by_ids',
+        {
+          p_group_id: activeGroupId,
+          p_user_ids: memberSelection.appUsers.map((u) => u.userId),
+        },
+      );
       if (addErr) {
         setError(addErr.message ?? 'Failed to add selected users.');
         setSending(false);
@@ -196,7 +239,9 @@ export default function InviteFriendScreen() {
           message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
         });
       } else {
-        const links = pendingInvites.map((p) => `${p.contactName}: ${p.shareUrl}`).join('\n');
+        const links = pendingInvites
+          .map((p) => `${p.contactName}: ${p.shareUrl}`)
+          .join('\n');
         await Share.share({
           message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n${links}`,
         });
@@ -214,9 +259,10 @@ export default function InviteFriendScreen() {
     return `Invite link${pendingInvites.length === 1 ? '' : 's'} created for ${pendingInvites.map((p) => p.contactName).join(', ')}`;
   })();
 
-  const sentSub = pendingInvites.length > 0
-    ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${activeGroupName}".`
-    : `They've been added to "${activeGroupName}".`;
+  const sentSub =
+    pendingInvites.length > 0
+      ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${activeGroupName}".`
+      : `They've been added to "${activeGroupName}".`;
 
   if (sent) {
     return (
@@ -239,11 +285,16 @@ export default function InviteFriendScreen() {
           <Text style={s.sentSub}>{sentSub}</Text>
           {pendingInvites.length > 0 && (
             <Pressable
-              style={({ pressed }: { pressed: boolean }) => [s.shareBtn, pressed && { opacity: 0.85 }]}
+              style={({ pressed }: { pressed: boolean }) => [
+                s.shareBtn,
+                pressed && { opacity: 0.85 },
+              ]}
               onPress={handleShare}
             >
               <MaterialIcons name="share" size={20} color={C.bg} />
-              <Text style={s.shareBtnText}>Share invite link{pendingInvites.length === 1 ? '' : 's'}</Text>
+              <Text style={s.shareBtnText}>
+                Share invite link{pendingInvites.length === 1 ? '' : 's'}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -287,7 +338,12 @@ export default function InviteFriendScreen() {
           <Text style={s.groupBadgePlaceholder}>Select a group…</Text>
         )}
         {!paramGroupId && (
-          <MaterialIcons name="arrow-drop-down" size={18} color={C.slate400} style={s.groupDropdownIcon} />
+          <MaterialIcons
+            name="arrow-drop-down"
+            size={18}
+            color={C.slate400}
+            style={s.groupDropdownIcon}
+          />
         )}
       </Pressable>
 
@@ -304,7 +360,10 @@ export default function InviteFriendScreen() {
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          s.scroll,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Only show member search picker when no pre-selected friend */}
@@ -343,7 +402,11 @@ export default function InviteFriendScreen() {
             <ActivityIndicator color={C.bg} />
           ) : (
             <>
-              <MaterialIcons name="person-add" size={20} color={canSend ? C.bg : C.slate500} />
+              <MaterialIcons
+                name="person-add"
+                size={20}
+                color={canSend ? C.bg : C.slate500}
+              />
               <Text style={[s.sendBtnText, !canSend && { color: C.slate500 }]}>
                 {!activeGroupId
                   ? 'Select a group above'
@@ -363,7 +426,10 @@ export default function InviteFriendScreen() {
         animationType="slide"
         onRequestClose={() => setGroupPickerOpen(false)}
       >
-        <Pressable style={s.modalOverlay} onPress={() => setGroupPickerOpen(false)} />
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setGroupPickerOpen(false)}
+        />
         <View style={[s.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={s.modalHandle} />
           <Text style={s.modalTitle}>Select Group</Text>
@@ -383,7 +449,12 @@ export default function InviteFriendScreen() {
                   size={20}
                   color={g.id === activeGroupId ? C.primary : C.slate400}
                 />
-                <Text style={[s.groupRowText, g.id === activeGroupId && { color: C.primary }]}>
+                <Text
+                  style={[
+                    s.groupRowText,
+                    g.id === activeGroupId && { color: C.primary },
+                  ]}
+                >
                   {g.name}
                 </Text>
                 {g.id === activeGroupId && (
@@ -392,7 +463,9 @@ export default function InviteFriendScreen() {
               </Pressable>
             ))}
             {userGroups.length === 0 && (
-              <Text style={s.noGroupsText}>{"You haven't joined any groups yet."}</Text>
+              <Text style={s.noGroupsText}>
+                {"You haven't joined any groups yet."}
+              </Text>
             )}
           </ScrollView>
         </View>
@@ -415,7 +488,12 @@ const s = StyleSheet.create({
   headerBtn: { padding: 4, minWidth: 56 },
   headerTitle: { color: C.white, fontWeight: '700', fontSize: 17 },
   cancelText: { color: C.slate400, fontSize: 16 },
-  sendText: { color: C.primary, fontSize: 16, fontWeight: '700', textAlign: 'right' },
+  sendText: {
+    color: C.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
   groupBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -425,7 +503,12 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.surfaceHL,
   },
-  groupBadgeText: { color: C.primary, fontSize: 13, fontWeight: '600', flex: 1 },
+  groupBadgeText: {
+    color: C.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
   groupBadgePlaceholder: { color: C.slate400, fontSize: 13, flex: 1 },
   groupDropdownIcon: { marginLeft: 'auto' },
   preselectedRow: {
@@ -447,7 +530,12 @@ const s = StyleSheet.create({
   },
   preselectedChipText: { color: C.primary, fontSize: 11, fontWeight: '700' },
   scroll: { paddingHorizontal: 20, paddingTop: 16 },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+  },
   errorText: { color: C.orange, fontSize: 13 },
   sendBtn: {
     flexDirection: 'row',
@@ -461,10 +549,26 @@ const s = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: C.surfaceHL },
   sendBtnText: { color: C.bg, fontWeight: '700', fontSize: 16 },
-  sentBody: { flex: 1, paddingHorizontal: 24, paddingTop: 48, alignItems: 'center' },
+  sentBody: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    alignItems: 'center',
+  },
   sentIcon: { marginBottom: 24 },
-  sentTitle: { color: C.white, fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  sentSub: { color: C.slate400, fontSize: 14, textAlign: 'center', marginBottom: 32 },
+  sentTitle: {
+    color: C.white,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  sentSub: {
+    color: C.slate400,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -493,7 +597,12 @@ const s = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  modalTitle: { color: C.white, fontWeight: '700', fontSize: 16, marginBottom: 12 },
+  modalTitle: {
+    color: C.white,
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 12,
+  },
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -504,5 +613,10 @@ const s = StyleSheet.create({
   },
   groupRowSelected: { backgroundColor: 'transparent' },
   groupRowText: { flex: 1, color: C.white, fontSize: 15, fontWeight: '500' },
-  noGroupsText: { color: C.slate400, fontSize: 14, paddingVertical: 20, textAlign: 'center' },
+  noGroupsText: {
+    color: C.slate400,
+    fontSize: 14,
+    paddingVertical: 20,
+    textAlign: 'center',
+  },
 });

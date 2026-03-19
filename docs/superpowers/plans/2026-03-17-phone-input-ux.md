@@ -17,6 +17,7 @@
 ### Task 1: Write PhoneInput unit tests (red)
 
 **Files:**
+
 - Create: `__tests__/components/ui/PhoneInput.test.tsx`
 
 - [ ] **Step 1: Create test file**
@@ -31,7 +32,7 @@ describe('PhoneInput', () => {
   it('calls onChange on every digit with dialCode prefix', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={onChange} testID="phone-input" />
+      <PhoneInput value="" onChange={onChange} testID="phone-input" />,
     );
     fireEvent.changeText(getByTestId('phone-input'), '9876543210');
     expect(onChange).toHaveBeenCalled();
@@ -41,21 +42,33 @@ describe('PhoneInput', () => {
 
   it('formats +91 digits as XXXXX XXXXX', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('98765 43210');
   });
 
   it('formats +1 digits as XXX XXX XXXX', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+14155551234" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+14155551234"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('415 555 1234');
   });
 
   it('formats unknown dial code as space-every-4', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+6112345678" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+6112345678"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('1234 5678');
   });
@@ -63,7 +76,7 @@ describe('PhoneInput', () => {
   it('enforces max digits for +91 (10)', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={onChange} testID="phone-input" />
+      <PhoneInput value="" onChange={onChange} testID="phone-input" />,
     );
     // Type 11 digits — only first 10 should be kept
     fireEvent.changeText(getByTestId('phone-input'), '98765432101');
@@ -74,7 +87,11 @@ describe('PhoneInput', () => {
   it('calls onChange("") when country changes', async () => {
     const onChange = jest.fn();
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={onChange} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={onChange}
+        testID="phone-input"
+      />,
     );
     // Open picker and select UAE (+971)
     fireEvent.press(getByTestId('phone-pill'));
@@ -84,7 +101,11 @@ describe('PhoneInput', () => {
 
   it('parses E.164 value on mount — +91', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-input').props.value).toBe('98765 43210');
     expect(getByTestId('phone-pill-text').props.children).toContain('+91');
@@ -92,14 +113,18 @@ describe('PhoneInput', () => {
 
   it('parses E.164 value on mount — +1 shows US flag', () => {
     const { getByTestId } = render(
-      <PhoneInput value="+14155551234" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput
+        value="+14155551234"
+        onChange={jest.fn()}
+        testID="phone-input"
+      />,
     );
     expect(getByTestId('phone-pill-text').props.children).toContain('+1');
   });
 
   it('opens and closes country picker', () => {
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />
+      <PhoneInput value="" onChange={jest.fn()} testID="phone-input" />,
     );
     expect(queryByTestId('country-picker-modal')).toBeNull();
     fireEvent.press(getByTestId('phone-pill'));
@@ -110,7 +135,12 @@ describe('PhoneInput', () => {
 
   it('does not open picker when editable=false', () => {
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} editable={false} testID="phone-input" />
+      <PhoneInput
+        value=""
+        onChange={jest.fn()}
+        editable={false}
+        testID="phone-input"
+      />,
     );
     fireEvent.press(getByTestId('phone-pill'));
     expect(queryByTestId('country-picker-modal')).toBeNull();
@@ -119,7 +149,11 @@ describe('PhoneInput', () => {
   it('overlay dismiss closes picker without changing country', () => {
     const onChange = jest.fn();
     const { getByTestId, queryByTestId } = render(
-      <PhoneInput value="+919876543210" onChange={onChange} testID="phone-input" />
+      <PhoneInput
+        value="+919876543210"
+        onChange={onChange}
+        testID="phone-input"
+      />,
     );
     fireEvent.press(getByTestId('phone-pill'));
     expect(getByTestId('country-picker-modal')).toBeTruthy();
@@ -132,7 +166,7 @@ describe('PhoneInput', () => {
 
   it('testID is on the digit TextInput', () => {
     const { getByTestId } = render(
-      <PhoneInput value="" onChange={jest.fn()} testID="my-phone" />
+      <PhoneInput value="" onChange={jest.fn()} testID="my-phone" />,
     );
     // getByTestId finds the TextInput directly
     expect(getByTestId('my-phone').type).toBe('TextInput');
@@ -145,6 +179,7 @@ describe('PhoneInput', () => {
 ```bash
 pnpm test -- --testPathPattern="PhoneInput" --no-coverage
 ```
+
 Expected: all tests FAIL with "Cannot find module '@/components/ui/PhoneInput'"
 
 ---
@@ -152,6 +187,7 @@ Expected: all tests FAIL with "Cannot find module '@/components/ui/PhoneInput'"
 ### Task 2: Implement PhoneInput component (green)
 
 **Files:**
+
 - Create: `components/ui/PhoneInput.tsx`
 
 - [ ] **Step 3: Create the component**
@@ -173,7 +209,7 @@ import {
 // ─── Country list ────────────────────────────────────────────────────────────
 
 interface Country {
-  code: string;   // ISO-2 used as test key
+  code: string; // ISO-2 used as test key
   flag: string;
   name: string;
   dial: string;
@@ -206,18 +242,21 @@ const COUNTRIES: Country[] = [
 // Ordered by dial-code prefix length descending so we match the longest prefix first
 const ALL_COUNTRIES: Country[] = [PINNED, ...COUNTRIES];
 const PARSE_ORDER: Country[] = [...ALL_COUNTRIES].sort(
-  (a, b) => b.dial.length - a.dial.length
+  (a, b) => b.dial.length - a.dial.length,
 );
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
 
-interface FormatRule { pattern: number[]; max: number }
+interface FormatRule {
+  pattern: number[];
+  max: number;
+}
 
 const FORMAT_RULES: Record<string, FormatRule> = {
-  '+91':  { pattern: [5, 5],    max: 10 },
-  '+1':   { pattern: [3, 3, 4], max: 10 },
-  '+44':  { pattern: [5, 5],    max: 10 },
-  '+971': { pattern: [2, 3, 4], max: 9  },
+  '+91': { pattern: [5, 5], max: 10 },
+  '+1': { pattern: [3, 3, 4], max: 10 },
+  '+44': { pattern: [5, 5], max: 10 },
+  '+971': { pattern: [2, 3, 4], max: 9 },
 };
 
 function formatDigits(digits: string, dial: string): string {
@@ -252,9 +291,8 @@ function parseE164(e164: string): { country: Country; localDigits: string } {
     const dialDigits = c.dial.slice(1); // remove '+'
     if (stripped.startsWith(dialDigits)) {
       // +1 collision — always show US
-      const country = c.dial === '+1'
-        ? COUNTRIES.find(x => x.code === 'US')!
-        : c;
+      const country =
+        c.dial === '+1' ? COUNTRIES.find((x) => x.code === 'US')! : c;
       return { country, localDigits: stripped.slice(dialDigits.length) };
     }
   }
@@ -294,18 +332,24 @@ export default function PhoneInput({
     setPrevValue(value);
   }
 
-  const handleDigitChange = useCallback((text: string) => {
-    const raw = text.replace(/\D/g, '').slice(0, maxDigits(country.dial));
-    setDigits(raw);
-    onChange(raw ? country.dial + raw : '');
-  }, [country, onChange]);
+  const handleDigitChange = useCallback(
+    (text: string) => {
+      const raw = text.replace(/\D/g, '').slice(0, maxDigits(country.dial));
+      setDigits(raw);
+      onChange(raw ? country.dial + raw : '');
+    },
+    [country, onChange],
+  );
 
-  const handleSelectCountry = useCallback((c: Country) => {
-    setCountry(c);
-    setDigits('');
-    onChange('');
-    setPickerVisible(false);
-  }, [onChange]);
+  const handleSelectCountry = useCallback(
+    (c: Country) => {
+      setCountry(c);
+      setDigits('');
+      onChange('');
+      setPickerVisible(false);
+    },
+    [onChange],
+  );
 
   const displayValue = formatDigits(digits, country.dial);
 
@@ -346,7 +390,11 @@ export default function PhoneInput({
         onRequestClose={() => setPickerVisible(false)}
         testID="country-picker-modal"
       >
-        <Pressable style={s.overlay} onPress={() => setPickerVisible(false)} testID="picker-overlay">
+        <Pressable
+          style={s.overlay}
+          onPress={() => setPickerVisible(false)}
+          testID="picker-overlay"
+        >
           <Pressable style={s.sheet} onPress={() => {}}>
             {/* Pinned India row */}
             <Pressable
@@ -361,10 +409,13 @@ export default function PhoneInput({
             <View style={s.separator} />
             <FlatList
               data={COUNTRIES}
-              keyExtractor={item => item.code}
+              keyExtractor={(item) => item.code}
               renderItem={({ item }) => (
                 <Pressable
-                  style={({ pressed }) => [s.countryRow, pressed && s.rowPressed]}
+                  style={({ pressed }) => [
+                    s.countryRow,
+                    pressed && s.rowPressed,
+                  ]}
                   onPress={() => handleSelectCountry(item)}
                   testID={`country-${item.name.replace(/\s/g, '')}`}
                 >
@@ -384,13 +435,13 @@ export default function PhoneInput({
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const C = {
-  surface:   '#1a3324',
+  surface: '#1a3324',
   surfaceHL: '#244732',
-  white:     '#ffffff',
-  slate400:  '#94a3b8',
-  slate500:  '#64748b',
-  primary:   '#17e86b',
-  bg:        '#112117',
+  white: '#ffffff',
+  slate400: '#94a3b8',
+  slate500: '#64748b',
+  primary: '#17e86b',
+  bg: '#112117',
 };
 
 const s = StyleSheet.create({
@@ -465,6 +516,7 @@ const s = StyleSheet.create({
 ```bash
 pnpm test -- --testPathPattern="PhoneInput" --no-coverage
 ```
+
 Expected: all 12 tests PASS. (11 original + 1 overlay dismiss test)
 
 - [ ] **Step 5: Commit**
@@ -481,6 +533,7 @@ git commit -m "feat: add PhoneInput component with country picker and auto-forma
 ### Task 3: Update `app/auth/setup-phone.tsx`
 
 **Files:**
+
 - Modify: `app/auth/setup-phone.tsx`
 
 - [ ] **Step 1: Replace TextInput with PhoneInput**
@@ -499,7 +552,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
   autoFocus
   testID="phone-input"
   editable={!saving}
-/>
+/>;
 ```
 
 Also remove `marginBottom: 16` from the `input` style in `StyleSheet` (the component handles its own margin) and remove the `input` style entirely since it's no longer used. Remove `TextInput` from the RN import list.
@@ -509,6 +562,7 @@ Also remove `marginBottom: 16` from the `input` style in `StyleSheet` (the compo
 ```bash
 pnpm typecheck 2>&1 | tail -5
 ```
+
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
@@ -523,6 +577,7 @@ git commit -m "feat: use PhoneInput in setup-phone screen"
 ### Task 4: Update `app/auth/sign-up.tsx`
 
 **Files:**
+
 - Modify: `app/auth/sign-up.tsx`
 
 - [ ] **Step 1: Fix import and replace TextInput**
@@ -556,7 +611,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
   onChange={setPhone}
   editable={!loading && !googleLoading}
   testID="phone-input"
-/>
+/>;
 ```
 
 Note: `phone` state stays as `useState('')`. `handleSignUp` still calls `normalizePhone(phone)` — this is correct because `PhoneInput` outputs E.164.
@@ -572,6 +627,7 @@ Also: `sign-up.tsx` has other `TextInput` elements (email, password, confirm pas
 ```bash
 pnpm typecheck 2>&1 | tail -5
 ```
+
 Expected: no errors.
 
 - [ ] **Step 3: Run existing auth tests**
@@ -579,6 +635,7 @@ Expected: no errors.
 ```bash
 pnpm test -- --testPathPattern="auth" --no-coverage
 ```
+
 Expected: all PASS.
 
 - [ ] **Step 4: Commit**
@@ -593,6 +650,7 @@ git commit -m "feat: use PhoneInput in sign-up screen, fix normalizePhone import
 ### Task 5: Update `app/(tabs)/account.tsx`
 
 **Files:**
+
 - Modify: `app/(tabs)/account.tsx`
 
 - [ ] **Step 1: Replace TextInput in phone modal**
@@ -616,7 +674,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
   onChange={setPhoneInput}
   autoFocus
   editable={!phoneSaving}
-/>
+/>;
 ```
 
 `phoneInput` is already pre-populated with `savedPhone ?? ''` when the modal opens (existing `openPhoneModal` function). This means `PhoneInput` will parse the saved E.164 and pre-fill correctly.
@@ -628,6 +686,7 @@ Also remove the `<Text style={s.phoneHint}>` hint text element from the modal (t
 ```bash
 pnpm typecheck 2>&1 | tail -5 && pnpm lint 2>&1 | tail -5
 ```
+
 Expected: no errors.
 
 - [ ] **Step 3: Run full test suite**
@@ -635,6 +694,7 @@ Expected: no errors.
 ```bash
 pnpm test --no-coverage
 ```
+
 Expected: all PASS.
 
 - [ ] **Step 4: Final commit**

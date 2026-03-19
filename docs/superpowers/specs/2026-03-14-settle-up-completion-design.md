@@ -33,6 +33,7 @@ The callers of the settle-up screen (`group/balances.tsx`, `group/[id].tsx`) als
 ## Balance Sign Convention
 
 `balance_cents` is always from the **current user's perspective**:
+
 - **Positive** = counterparty owes the current user
 - **Negative** = current user owes the counterparty
 
@@ -149,12 +150,13 @@ Add a `net_settlements` CTE. The formula `COALESCE(SUM(raw_balances), 0) - COALE
 
 The outer query computes: `final_balance = raw_balance - settled_cents`
 
-| Who is payer | `settled_cents` value | Effect of `raw - settled_cents` |
-|---|---|---|
+| Who is payer | `settled_cents` value      | Effect of `raw - settled_cents`                                                          |
+| ------------ | -------------------------- | ---------------------------------------------------------------------------------------- |
 | Current user | `-amount_cents` (negative) | `balance - (-amount) = balance + amount` → balance increases toward 0 from negative side |
 | Counterparty | `+amount_cents` (positive) | `balance - (+amount) = balance - amount` → balance decreases toward 0 from positive side |
 
 **Verification:**
+
 - User owes member $100 (`balance = -100`), user pays $50: `settled_cents = -50`, `-100 - (-50) = -50` ✓
 - Member owes user $100 (`balance = +100`), member pays $50: `settled_cents = +50`, `100 - 50 = 50` ✓
 
@@ -314,7 +316,7 @@ UNIONs settlements into the expense result. Wrapped in a subquery so `ORDER BY`/
 | `paid_by_avatar` | `payer.avatar_url` | — |
 | `paid_by_is_user` | `payer.user_id = p_user_id` | `true` if current user paid |
 | `your_split_cents` | `s.amount_cents` | Full amount — activity.tsx will NOT use the "you lent/you owe" label logic for `category = 'settlement'`; see client rendering below |
-| `payee_name` *(new column)* | `payee.display_name` (via JOIN on `s.payee_member_id`) | The recipient's name — needed for "You paid [payee_name]" label. `NULL` for expense rows. |
+| `payee_name` _(new column)_ | `payee.display_name` (via JOIN on `s.payee_member_id`) | The recipient's name — needed for "You paid [payee_name]" label. `NULL` for expense rows. |
 
 **Important:** `paid_by_name` is the payer's own name. Using it in a "You paid [X]" label would render "You paid [yourself]". The `payee_name` column is added specifically to resolve this. Both UNION branches must include this column: `NULL::TEXT AS payee_name` for expenses, `payee.display_name AS payee_name` for settlements.
 
@@ -425,16 +427,18 @@ export function useSettlement() {
     setError(null);
     try {
       const { error: rpcErr } = await supabase.rpc('record_settlement', {
-        p_group_id:        params.groupId,
+        p_group_id: params.groupId,
         p_payee_member_id: params.payeeMemberId,
-        p_amount_cents:    params.amountCents,
-        p_payment_method:  params.paymentMethod,
-        p_note:            params.note ?? null,
+        p_amount_cents: params.amountCents,
+        p_payment_method: params.paymentMethod,
+        p_note: params.note ?? null,
       });
       if (rpcErr) throw rpcErr;
       return true;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to record settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to record settlement',
+      );
       return false;
     } finally {
       setLoading(false);
@@ -452,6 +456,7 @@ export function useSettlement() {
 ### `app/settle-up.tsx`
 
 **Route params** — add `friendMemberId`:
+
 ```ts
 const { groupId, groupName, friendName, amountCents, friendMemberId } =
   useLocalSearchParams<{
@@ -464,10 +469,12 @@ const { groupId, groupName, friendName, amountCents, friendMemberId } =
 ```
 
 **Amount state** — add editable `TextInput` replacing the static `Text` in the amount card:
+
 - State: `const [amountInput, setAmountInput] = useState<string>(amountCents ? (Number(amountCents) / 100).toFixed(2) : '')`
 - Replace `<Text style={s.amountValue}>{amount}</Text>` with a `TextInput` using `keyboardType="decimal-pad"`, value `amountInput`, `onChangeText={setAmountInput}`, styled identically to `s.amountValue`
 
 **Fix `saving` state:**
+
 ```ts
 // Before:
 const [saving] = useState(false);
@@ -476,6 +483,7 @@ const [saving, setSaving] = useState(false);
 ```
 
 **Validation helpers** (derived values, not state):
+
 ```ts
 const parsedCents = Math.round(parseFloat(amountInput) * 100);
 const isValidAmount = !isNaN(parsedCents) && parsedCents > 0;
@@ -488,6 +496,7 @@ const canSave = isValidAmount && !!friendMemberId && !!groupId && !saving;
 **Amber overpayment warning** — show `"This exceeds the outstanding balance"` in amber text below the amount input when `isOverpayment` is true. Save remains enabled.
 
 **Wire `handleSave`:**
+
 ```ts
 const handleSave = async () => {
   if (!canSave) return;
@@ -509,6 +518,7 @@ const handleSave = async () => {
 ### `app/group/balances.tsx`
 
 Update "Settle up" / "Pay" `router.push` call:
+
 ```ts
 router.push({
   pathname: '/settle-up',
@@ -516,17 +526,22 @@ router.push({
     groupId,
     groupName,
     friendName: m.display_name,
-    friendMemberId: m.id,       // m.id is group_members.id per the RPC return type
+    friendMemberId: m.id, // m.id is group_members.id per the RPC return type
     amountCents: String(Math.abs(m.balance_cents)),
   },
-})
+});
 ```
 
 Note: the settle button is only rendered when `m.balance_cents !== 0` (existing condition), so `amountCents` passed will always be > 0.
 
 Add `useFocusEffect` to refetch on return from settle-up:
+
 ```ts
-useFocusEffect(useCallback(() => { fetchBalances(); }, [fetchBalances]));
+useFocusEffect(
+  useCallback(() => {
+    fetchBalances();
+  }, [fetchBalances]),
+);
 ```
 
 Note: the existing `totalText` formatting bug (`-${format(totalCents)}` when `totalCents` is negative) is a pre-existing issue and is out of scope for this feature.
@@ -534,6 +549,7 @@ Note: the existing `totalText` formatting bug (`-${format(totalCents)}` when `to
 ### `app/group/[id].tsx`
 
 Change the "Settle up" button from navigating to `/settle-up` to `/group/balances` — a group-level settle has no counterparty:
+
 ```ts
 onPress={() => router.push({
   pathname: '/group/balances',
@@ -549,8 +565,8 @@ Add `'settlement'` to the category → icon mapping.
 
 ```ts
 const yourAmount = item.paid_by_is_user
-  ? item.total_amount_cents - item.your_split_cents  // net lent
-  : item.your_split_cents;                           // your share owed
+  ? item.total_amount_cents - item.your_split_cents // net lent
+  : item.your_split_cents; // your share owed
 ```
 
 For settlements `total_amount_cents === your_split_cents`, so `yourAmount = 0` when `paid_by_is_user` is true — which is wrong. The settlement branch must use `item.total_amount_cents` directly as the display amount:
@@ -581,6 +597,7 @@ Single file: `supabase/migrations/20260314100000_add_settlements.sql`
 This runs after `20260314000000_fix_recursive_rls_policies.sql` (already on this branch), which is fine — the timestamps ensure correct ordering on fresh deploys.
 
 Order of statements in the file:
+
 1. Create `settlements` table + RLS policies
 2. Create `record_settlement` RPC
 3. `CREATE OR REPLACE FUNCTION get_group_member_balances` (full replacement)
@@ -591,14 +608,14 @@ Order of statements in the file:
 
 ## Error Handling
 
-| Scenario | Handling |
-|---|---|
-| `friendMemberId` missing | Red inline message, save disabled |
-| Amount ≤ 0 or non-numeric | `canSave = false`, save disabled |
-| Amount > outstanding balance | Amber warning below input, save **enabled** |
-| User not member of group (RPC) | Error banner, no navigation |
-| RPC error (network / DB) | Error banner, no navigation |
-| Double-tap | `saving = true` disables button during flight |
+| Scenario                       | Handling                                      |
+| ------------------------------ | --------------------------------------------- |
+| `friendMemberId` missing       | Red inline message, save disabled             |
+| Amount ≤ 0 or non-numeric      | `canSave = false`, save disabled              |
+| Amount > outstanding balance   | Amber warning below input, save **enabled**   |
+| User not member of group (RPC) | Error banner, no navigation                   |
+| RPC error (network / DB)       | Error banner, no navigation                   |
+| Double-tap                     | `saving = true` disables button during flight |
 
 ---
 

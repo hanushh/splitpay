@@ -1,28 +1,78 @@
 export const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'to', 'for', 'in', 'at', 'on',
-  'with', 'and', 'or', 'by', 'of', 'from', 'my', 'our',
+  'a',
+  'an',
+  'the',
+  'to',
+  'for',
+  'in',
+  'at',
+  'on',
+  'with',
+  'and',
+  'or',
+  'by',
+  'of',
+  'from',
+  'my',
+  'our',
 ]);
 
 export const KEYWORD_DICT: Record<string, string> = {
   // Food & Drink
-  dinner: 'restaurant', lunch: 'restaurant', breakfast: 'restaurant',
-  coffee: 'restaurant', cafe: 'restaurant', zomato: 'restaurant',
-  swiggy: 'restaurant', mcdonalds: 'restaurant', restaurant: 'restaurant',
-  food: 'restaurant', pizza: 'restaurant', burger: 'restaurant',
-  biryani: 'restaurant', snack: 'restaurant', drinks: 'restaurant',
+  dinner: 'restaurant',
+  lunch: 'restaurant',
+  breakfast: 'restaurant',
+  coffee: 'restaurant',
+  cafe: 'restaurant',
+  zomato: 'restaurant',
+  swiggy: 'restaurant',
+  mcdonalds: 'restaurant',
+  restaurant: 'restaurant',
+  food: 'restaurant',
+  pizza: 'restaurant',
+  burger: 'restaurant',
+  biryani: 'restaurant',
+  snack: 'restaurant',
+  drinks: 'restaurant',
   // Transport
-  uber: 'train', ola: 'train', taxi: 'train', metro: 'train',
-  bus: 'train', train: 'train', flight: 'train', fuel: 'train',
-  petrol: 'train', toll: 'train', rapido: 'train', cab: 'train',
+  uber: 'train',
+  ola: 'train',
+  taxi: 'train',
+  metro: 'train',
+  bus: 'train',
+  train: 'train',
+  flight: 'train',
+  fuel: 'train',
+  petrol: 'train',
+  toll: 'train',
+  rapido: 'train',
+  cab: 'train',
   // Accommodation
-  hotel: 'hotel', airbnb: 'hotel', hostel: 'hotel', rent: 'hotel',
-  accommodation: 'hotel', lodge: 'hotel', stay: 'hotel',
+  hotel: 'hotel',
+  airbnb: 'hotel',
+  hostel: 'hotel',
+  rent: 'hotel',
+  accommodation: 'hotel',
+  lodge: 'hotel',
+  stay: 'hotel',
   // Entertainment
-  netflix: 'movie', movie: 'movie', cinema: 'movie', concert: 'movie',
-  spotify: 'movie', ticket: 'movie', show: 'movie', game: 'movie',
+  netflix: 'movie',
+  movie: 'movie',
+  cinema: 'movie',
+  concert: 'movie',
+  spotify: 'movie',
+  ticket: 'movie',
+  show: 'movie',
+  game: 'movie',
   // Shopping
-  amazon: 'store', flipkart: 'store', grocery: 'store', groceries: 'store',
-  walmart: 'store', mall: 'store', shopping: 'store', market: 'store',
+  amazon: 'store',
+  flipkart: 'store',
+  grocery: 'store',
+  groceries: 'store',
+  walmart: 'store',
+  mall: 'store',
+  shopping: 'store',
+  market: 'store',
   supermarket: 'store',
 };
 
@@ -76,6 +126,9 @@ export function scoreDescription(
   return entries.sort(([catA, scoreA], [catB, scoreB]) => {
     if (scoreB !== scoreA) return scoreB - scoreA;
     // Tie-break: built-in category wins over learned
-    return (builtinCategories.has(catB) ? 1 : 0) - (builtinCategories.has(catA) ? 1 : 0);
+    return (
+      (builtinCategories.has(catB) ? 1 : 0) -
+      (builtinCategories.has(catA) ? 1 : 0)
+    );
   })[0][0];
 }

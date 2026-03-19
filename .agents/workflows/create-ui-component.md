@@ -1,6 +1,7 @@
 ---
 description: Create a reusable UI component
 ---
+
 # Create a Reusable UI Component
 
 When asked to create a new reusable UI component, follow these steps:

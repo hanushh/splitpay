@@ -56,21 +56,21 @@ So external-contact balances are **always discarded** even when they exist.
 
 ```typescript
 const matchedProfileNames = new Set(
-  matchedFriends.map((f) => f.name.toLowerCase().trim())
+  matchedFriends.map((f) => f.name.toLowerCase().trim()),
 );
 const finalUnmatched = contacts.filter(
-  (c) => c.name && !matchedProfileNames.has(c.name.toLowerCase().trim())
+  (c) => c.name && !matchedProfileNames.has(c.name.toLowerCase().trim()),
 );
 ```
 
 Contacts are excluded from the unmatched list by string-comparing their name against matched friends' display names. This fails in two ways:
 
-- **False positive match:** A contact named "John Smith" is hidden from the unmatched list because a *different* registered user also named "John Smith" was matched.
+- **False positive match:** A contact named "John Smith" is hidden from the unmatched list because a _different_ registered user also named "John Smith" was matched.
 - **False negative match:** A registered friend whose app display name differs slightly from the contacts entry ("Rob" vs "Robert Taylor") won't be filtered out, so they appear in both matched and unmatched.
 
 The matched list is already keyed by `userId`, so there is no ambiguity there. The unmatched filter simply has no stable identifier to use.
 
-**Fix:** Track *which contact email/phone values* were actually matched by `match_contacts` (the RPC already uses those to find the user), and filter unmatched contacts by whether any of their emails or phones produced a match — not by name.
+**Fix:** Track _which contact email/phone values_ were actually matched by `match_contacts` (the RPC already uses those to find the user), and filter unmatched contacts by whether any of their emails or phones produced a match — not by name.
 
 ---
 
@@ -132,15 +132,15 @@ Ten-digit numbers are unconditionally prefixed with the default country code (US
 
 ## Issue Summary Table
 
-| # | Severity | Location | Effect |
-|---|----------|----------|--------|
-| 1 | **Critical** | `get_friend_balances` GROUP BY | Cross-group balances not aggregated; user appears N times (once per group) |
-| 2 | **Critical** | `get_friend_balances` WHERE | External-contact balances always discarded |
-| 3 | **Critical** | `use-friends.ts` name dedup | Name collisions hide contacts or cause false matches |
-| 4 | **High** | `get_friend_balances` HAVING | Settled friends disappear from list |
-| 5 | **High** | `match_contacts` phone_hash | Users with only old phone_hash data are unmatchable |
-| 6 | **High** | `get_group_friends` | Unregistered invitees invisible in Friends tab |
-| 7 | **Medium** | `lib/phone.ts` | Non-US numbers normalised incorrectly |
+| #   | Severity     | Location                       | Effect                                                                     |
+| --- | ------------ | ------------------------------ | -------------------------------------------------------------------------- |
+| 1   | **Critical** | `get_friend_balances` GROUP BY | Cross-group balances not aggregated; user appears N times (once per group) |
+| 2   | **Critical** | `get_friend_balances` WHERE    | External-contact balances always discarded                                 |
+| 3   | **Critical** | `use-friends.ts` name dedup    | Name collisions hide contacts or cause false matches                       |
+| 4   | **High**     | `get_friend_balances` HAVING   | Settled friends disappear from list                                        |
+| 5   | **High**     | `match_contacts` phone_hash    | Users with only old phone_hash data are unmatchable                        |
+| 6   | **High**     | `get_group_friends`            | Unregistered invitees invisible in Friends tab                             |
+| 7   | **Medium**   | `lib/phone.ts`                 | Non-US numbers normalised incorrectly                                      |
 
 ---
 

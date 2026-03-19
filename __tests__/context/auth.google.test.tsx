@@ -68,13 +68,18 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}?code=oauth-code-123`,
     });
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
-      data: { session: { access_token: 'token' }, user: { id: 'test-user-id' } },
+      data: {
+        session: { access_token: 'token' },
+        user: { id: 'test-user-id' },
+      },
       error: null,
     });
     (supabase.from as jest.Mock).mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -84,7 +89,9 @@ describe('Google auth smoke', () => {
       response = await result.current.signInWithGoogle();
     });
 
-    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith('oauth-code-123');
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+      'oauth-code-123',
+    );
     expect(response.error).toBeNull();
     expect(router.replace).toHaveBeenCalledWith('/(tabs)');
   });
@@ -149,13 +156,18 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}#access_token=my-access&refresh_token=my-refresh`,
     });
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'my-access' }, user: { id: 'test-user-id' } },
+      data: {
+        session: { access_token: 'my-access' },
+        user: { id: 'test-user-id' },
+      },
       error: null,
     });
     (supabase.from as jest.Mock).mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -207,6 +219,8 @@ describe('Google auth smoke', () => {
       response = await result.current.signInWithGoogle();
     });
 
-    expect(response.error).toBe('Google sign-in callback did not include auth credentials.');
+    expect(response.error).toBe(
+      'Google sign-in callback did not include auth credentials.',
+    );
   });
 });

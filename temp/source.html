@@ -1,206 +1,376 @@
-<!DOCTYPE html>
+<!doctype html>
 
-<html class="dark" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Dashboard - Groups View</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#17e86b",
-                        "primary-dark": "#0ea64c",
-                        "danger": "#ff5252",
-                        "background-light": "#f6f8f7",
-                        "background-dark": "#112117",
-                        "surface-light": "#ffffff",
-                        "surface-dark": "#1a3324",
-                        "surface-highlight-dark": "#244732",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-                },
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Dashboard - Groups View</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#17e86b',
+              'primary-dark': '#0ea64c',
+              danger: '#ff5252',
+              'background-light': '#f6f8f7',
+              'background-dark': '#112117',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1a3324',
+              'surface-highlight-dark': '#244732',
             },
-        }
+            fontFamily: {
+              display: ['Inter', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
     </script>
-<style>
-        /* Custom scrollbar for webkit */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #244732;
-            border-radius: 3px;
-        }
+    <style>
+      /* Custom scrollbar for webkit */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #244732;
+        border-radius: 3px;
+      }
     </style>
-<style>
-    body {
-      min-height: max(884px, 100dvh);
-    }
-  </style>
+    <style>
+      body {
+        min-height: max(884px, 100dvh);
+      }
+    </style>
   </head>
-<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col overflow-hidden relative">
-<!-- Header Section -->
-<header class="bg-surface-light dark:bg-background-dark border-b border-slate-200 dark:border-surface-highlight-dark pt-4 pb-0 px-4 sticky top-0 z-10 shadow-sm">
-<div class="flex items-center justify-between mb-4">
-<div class="flex items-center gap-3">
-<div class="h-10 w-10 rounded-full bg-slate-200 dark:bg-surface-highlight-dark bg-center bg-cover overflow-hidden relative" data-alt="User profile avatar portrait" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB6QSkGpVciQqpPwADOkhQrYtPUqTAQRRaTQYJjFvZ_0jsaMHt7V4sF_aaIDexjIoI7FckkORhTq7RXJQv2lJsfD48oAsAW9ufvBs457gLt3Mv3ArhAEvrWrr-PKp-Gy7PL7E5buXnKxxzE_nR36l-mhEitvg0XlsBok7d11aHdUDj7Pmndx6nKPXcxV6TRA5QKx8sWECuRHEpYNutAVyNS9-aiPwYdJOXsWa8CkOG340US0Xh7Wo7wrJNJIaGV531Ozk2NGxPF");'>
-</div>
-<div>
-<h1 class="text-lg font-bold leading-tight">Splitwise Clone</h1>
-</div>
-</div>
-<button class="flex items-center justify-center h-10 w-10 rounded-full hover:bg-slate-100 dark:hover:bg-surface-highlight-dark transition-colors text-slate-500 dark:text-slate-400">
-<span class="material-symbols-outlined">search</span>
-</button>
-</div>
-<!-- Total Balance Card -->
-<div class="bg-surface-dark dark:bg-surface-highlight-dark rounded-xl p-5 mb-6 shadow-md relative overflow-hidden group">
-<div class="absolute top-0 right-0 p-4 opacity-10">
-<span class="material-symbols-outlined text-6xl">account_balance_wallet</span>
-</div>
-<p class="text-slate-300 text-sm font-medium mb-1">Total Balance</p>
-<div class="flex items-end gap-2">
-<p class="text-primary text-3xl font-bold tracking-tight">You are owed $150.00</p>
-</div>
-<div class="flex items-center mt-2 text-primary/80 text-sm font-medium">
-<span class="material-symbols-outlined text-sm mr-1">trending_up</span>
-<span>+15% from last month</span>
-</div>
-</div>
-<!-- Tabs -->
-<div class="flex w-full relative">
-<a class="flex-1 pb-3 text-center border-b-[3px] border-transparent text-slate-500 dark:text-slate-400 font-medium text-sm hover:text-slate-700 dark:hover:text-slate-200 transition-colors" href="#">
-                Friends
-            </a>
-<a class="flex-1 pb-3 text-center border-b-[3px] border-primary text-primary font-bold text-sm" href="#">
-                Groups
-            </a>
-</div>
-</header>
-<!-- Main Content List -->
-<main class="flex-1 overflow-y-auto pb-24 px-4 pt-4 space-y-3">
-<div class="flex items-center justify-between py-2">
-<h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Your Groups</h2>
-<button class="text-primary text-sm font-medium hover:underline flex items-center">
-<span class="material-symbols-outlined text-sm mr-1">filter_list</span> Filter
-            </button>
-</div>
-<!-- Group Item 1 -->
-<div class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer">
-<div class="h-14 w-14 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0 overflow-hidden relative">
-<img alt="Apartment Group" class="w-full h-full object-cover" data-alt="Group of friends working together" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaVe0J75WacxfUitSLQPIny_86ZeNqQ1BvbqFKEdXaTgTfQqse_LWiyaZT_0L1o-KV6y23WF3RGF3MKA_C-tJV_x83Urv_L-gCRjloczovDaumuGRa_lmMeu8BLT1dP5P2R-4QOIFoB29pcfXwOEIGuS7mveGhrN-0uNWfXYHYSz5_fCPZJ4WWqWJoXgqkAr9I1LJ4JoJJY3ZFkcE2EJQUL6DdKLnkuc2TQ1b03z6mrZksLE3PKAT-RL-q1whW3rkVBw-cob4_"/>
-</div>
-<div class="flex-1 min-w-0">
-<h3 class="font-bold text-slate-900 dark:text-white truncate">Apartment 4B</h3>
-<div class="flex items-center gap-1 mt-1">
-<div class="flex -space-x-2 mr-2">
-<img alt="Member" class="w-5 h-5 rounded-full border border-white dark:border-surface-dark" data-alt="Portrait of a smiling man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbozyyKXpfYUS8iRfCQj1YA-ppeegXfwG9PlEYofqA6sAei6K-H25H3_Ung5VUDewO5L0iZQ7mpN3Pkq6-NDQv6aDbIqib-hJCSvatjbXofGYJV0POrKUjHWEQifx3qo3b1gmgF5v-962hx-tTqzk_yFySOdX-HMulOkVWDEx7r927xr0H4iHqpbojCNDvxRBdD2TC9o1a4-KJcTELY3QqcCVVISkWfDAIWhYu18Ndpd9F1lkWd9064CKhQIHuqbt-u6iVfIiO"/>
-<img alt="Member" class="w-5 h-5 rounded-full border border-white dark:border-surface-dark" data-alt="Portrait of a smiling woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuRSoGuNppS0_mKdiJKXAoalEiCEvFygOaN8pYFVbtCdMQYLRMWXlnAVuiioZvR8T3Zpat-90n-NlwIX93hPHizLFrfdLPttCwfEh40p4gtZxngHzwiYvd7Wi3pGTia6UyXevqt46KIas-RFzM5ObQ4I2-4TSxvOpQb-iOkUE0I8SXELrapkEEByJDl9uyaphA0pNRCxsb0J7mxiAY4ezUPuzdVvBPzGAUrXDfJ2Q-o4-x-V3X7jPtk-das_y3gTr1csrzdBsk"/>
-</div>
-<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Rent, Utilities, Internet</p>
-</div>
-</div>
-<div class="text-right shrink-0">
-<p class="text-primary font-bold text-sm">you are owed</p>
-<p class="text-primary font-bold text-lg">$45.00</p>
-</div>
-<span class="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-</div>
-<!-- Group Item 2 -->
-<div class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer">
-<div class="h-14 w-14 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center shrink-0 overflow-hidden relative">
-<img alt="Japan Trip" class="w-full h-full object-cover" data-alt="Plate of delicious sushi rolls" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeNFvu-lmsAYh2alL1RHDq3ENJkD0OsHRZ4LAfvpcddou-B1eAPBKmGiW_aiO68nHYPXc_JGbZ8YAPlGWdB6H-4X0xgwI7Kn75mtYzqljsX9suq05_Aa9yYsE1lIgjwaAXH8QWvK5Y9Vzr6U7lcCUAv2VLi8r0bCC7m0qLVUjNLvM7Ae7a3aLA3sw9D73TeKEGf4f0vDnABz6E05ViCb61LujKYJbjwBOa57BQjJiyXD-nFxtgIsQl0kEbT02eul24J1nqBDyR"/>
-</div>
-<div class="flex-1 min-w-0">
-<h3 class="font-bold text-slate-900 dark:text-white truncate">Japan Trip 🇯🇵</h3>
-<div class="flex items-center gap-1 mt-1">
-<p class="text-xs text-slate-500 dark:text-slate-400 truncate">No expenses yet this month</p>
-</div>
-</div>
-<div class="text-right shrink-0">
-<p class="text-slate-400 dark:text-slate-500 font-medium text-sm">settled up</p>
-</div>
-<span class="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-</div>
-<!-- Group Item 3 -->
-<div class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer">
-<div class="h-14 w-14 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 overflow-hidden relative">
-<img alt="Dinner Party" class="w-full h-full object-cover" data-alt="Cozy dinner party table setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxv-tnrynEJwjGgz3y4UneASWLtRcKSNQWMTUJiIRnVUqgBbAonyJT1ViNSaKjwCYht7sWcJ8svSbEJb7f5UATHN-XvEteVrdTMYmTIKO5t641LCVCfOSH85FVuoKCz4y2PShhHStdlYnms440kPEfKNwiU71duuru1vvT-CNJ4c19BRVg1IGK5kdfIiGp707loLaDD91owecDMv_zdiIK24L67hWAzzYy66yDDAV_CU_E7qmaKYPa3dQK74QieZRldzrz79_t"/>
-</div>
-<div class="flex-1 min-w-0">
-<h3 class="font-bold text-slate-900 dark:text-white truncate">Weekly Dinner</h3>
-<div class="flex items-center gap-1 mt-1">
-<div class="flex -space-x-2 mr-2">
-<img alt="Member" class="w-5 h-5 rounded-full border border-white dark:border-surface-dark" data-alt="Portrait of a man with glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1EX9gzM9spJnmRDBX_8ddVCRuV8DnrNcpxMpFeNOJlFWDkjfNW3k80AOCg9vReJNhtYgmQwDOxy0FGTSezjdPtXLW1uNnPNuoIQgW31enjN8t-8Xwkk0oCLo6YUNEpe1QXT-xRi7cXqTFs0r3rG34yzj6aILtUXRWOu3kAVP6NLm9fhV0WKoIthC4jA9gdlQRGxgxFLav1xHgnlgIYG5hW4qVc268y0tB5jGSzNSvVDU37DtAhp3-G7EAAg_OXsi72OQE0r62"/>
-<img alt="Member" class="w-5 h-5 rounded-full border border-white dark:border-surface-dark" data-alt="Portrait of a serious woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjsKyzrgtP0ldQtNH5uCr78j1gcIXz3Qa5PVPWWvkjXlb7wu58l0YnDJo3qoQ2kt9zQnZe3FYy2Q2Z9e4GbCjQYn36c-8zhO6VuRkM8DF4f4bqBocwmbZMSFnOR2zyRuCc2F2KSluw89YzV4uS5k1C0pjklR4pKXbHfdQqw38AOI8fv6K2FZnVS2IwZmh3CU_PhSXdTvhC-oRy6YkJgyrlwGIJ69eTBeoTMbTPLB9uutvRC60mvTu0bA3_lN1pQHV4qmC_QQAn"/>
-<img alt="Member" class="w-5 h-5 rounded-full border border-white dark:border-surface-dark" data-alt="Portrait of a man looking away" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeGh1ZnfR_vpXVsc1-PNjmGUECxZg4RwFXtmKj6qyCIXzbmIR3UzNEBvCKNgcCgiAjLDt3I_GcqAnGRkBgXDW9P_FYOYRlVUpFfjBGEuX7m-ZwA4OFPcIC9Tx9Fbz0u1mZ4buKAW7qY6NrPYWOKyKnYWFBeIZY_lqhgdDRlUsUgWo8lqtnANWyzgQ4QlhJBnqFqhHRndf7p2lCBS5T7ZLzcJpyGr1BWDP70Prot2F7KZC0To4Ydg4lFHzXXA15HElXxoa9A48w"/>
-</div>
-</div>
-</div>
-<div class="text-right shrink-0">
-<p class="text-orange-500 font-bold text-sm">you owe</p>
-<p class="text-orange-500 font-bold text-lg">$22.50</p>
-</div>
-<span class="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-</div>
-<!-- Group Item 4 -->
-<div class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer opacity-75">
-<div class="h-14 w-14 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0 overflow-hidden relative">
-<div class="absolute inset-0 bg-gradient-to-br from-teal-400 to-blue-500 opacity-20"></div>
-<span class="material-symbols-outlined text-teal-600 dark:text-teal-400">downhill_skiing</span>
-</div>
-<div class="flex-1 min-w-0">
-<h3 class="font-bold text-slate-900 dark:text-white truncate">Tahoe Ski Trip</h3>
-<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Archived</p>
-</div>
-<div class="text-right shrink-0">
-<p class="text-slate-400 dark:text-slate-500 font-medium text-sm">settled up</p>
-</div>
-<span class="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-</div>
-<div class="h-4"></div>
-<div class="flex justify-center">
-<button class="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2 py-2 px-4 rounded-full hover:bg-slate-100 dark:hover:bg-surface-highlight-dark transition-colors">
-<span class="material-symbols-outlined text-lg">add_circle</span>
-                Start a new group
-            </button>
-</div>
-</main>
-<!-- Floating Action Button -->
-<div class="absolute bottom-20 right-4 z-20">
-<button class="h-14 w-14 bg-primary hover:bg-primary-dark text-slate-900 rounded-full shadow-lg shadow-primary/30 flex items-center justify-center transition-all active:scale-95">
-<span class="material-symbols-outlined" style="font-size: 32px;">add</span>
-</button>
-</div>
-<!-- Bottom Navigation -->
-<nav class="bg-surface-light dark:bg-surface-dark border-t border-slate-200 dark:border-surface-highlight-dark flex justify-between px-6 pb-6 pt-3 absolute bottom-0 w-full z-10">
-<a class="flex flex-col items-center gap-1 group" href="#">
-<span class="material-symbols-outlined text-primary group-hover:text-primary-dark transition-colors filled">groups</span>
-<span class="text-xs font-medium text-primary">Groups</span>
-</a>
-<a class="flex flex-col items-center gap-1 group" href="#">
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors">person</span>
-<span class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">Friends</span>
-</a>
-<a class="flex flex-col items-center gap-1 group" href="#">
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors">history</span>
-<span class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">Activity</span>
-</a>
-<a class="flex flex-col items-center gap-1 group" href="#">
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors">account_circle</span>
-<span class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">Account</span>
-</a>
-</nav>
-</body></html>
+  <body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col overflow-hidden relative"
+  >
+    <!-- Header Section -->
+    <header
+      class="bg-surface-light dark:bg-background-dark border-b border-slate-200 dark:border-surface-highlight-dark pt-4 pb-0 px-4 sticky top-0 z-10 shadow-sm"
+    >
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div
+            class="h-10 w-10 rounded-full bg-slate-200 dark:bg-surface-highlight-dark bg-center bg-cover overflow-hidden relative"
+            data-alt="User profile avatar portrait"
+            style="
+              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6QSkGpVciQqpPwADOkhQrYtPUqTAQRRaTQYJjFvZ_0jsaMHt7V4sF_aaIDexjIoI7FckkORhTq7RXJQv2lJsfD48oAsAW9ufvBs457gLt3Mv3ArhAEvrWrr-PKp-Gy7PL7E5buXnKxxzE_nR36l-mhEitvg0XlsBok7d11aHdUDj7Pmndx6nKPXcxV6TRA5QKx8sWECuRHEpYNutAVyNS9-aiPwYdJOXsWa8CkOG340US0Xh7Wo7wrJNJIaGV531Ozk2NGxPF');
+            "
+          ></div>
+          <div>
+            <h1 class="text-lg font-bold leading-tight">Splitwise Clone</h1>
+          </div>
+        </div>
+        <button
+          class="flex items-center justify-center h-10 w-10 rounded-full hover:bg-slate-100 dark:hover:bg-surface-highlight-dark transition-colors text-slate-500 dark:text-slate-400"
+        >
+          <span class="material-symbols-outlined">search</span>
+        </button>
+      </div>
+      <!-- Total Balance Card -->
+      <div
+        class="bg-surface-dark dark:bg-surface-highlight-dark rounded-xl p-5 mb-6 shadow-md relative overflow-hidden group"
+      >
+        <div class="absolute top-0 right-0 p-4 opacity-10">
+          <span class="material-symbols-outlined text-6xl"
+            >account_balance_wallet</span
+          >
+        </div>
+        <p class="text-slate-300 text-sm font-medium mb-1">Total Balance</p>
+        <div class="flex items-end gap-2">
+          <p class="text-primary text-3xl font-bold tracking-tight">
+            You are owed $150.00
+          </p>
+        </div>
+        <div class="flex items-center mt-2 text-primary/80 text-sm font-medium">
+          <span class="material-symbols-outlined text-sm mr-1"
+            >trending_up</span
+          >
+          <span>+15% from last month</span>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="flex w-full relative">
+        <a
+          class="flex-1 pb-3 text-center border-b-[3px] border-transparent text-slate-500 dark:text-slate-400 font-medium text-sm hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          href="#"
+        >
+          Friends
+        </a>
+        <a
+          class="flex-1 pb-3 text-center border-b-[3px] border-primary text-primary font-bold text-sm"
+          href="#"
+        >
+          Groups
+        </a>
+      </div>
+    </header>
+    <!-- Main Content List -->
+    <main class="flex-1 overflow-y-auto pb-24 px-4 pt-4 space-y-3">
+      <div class="flex items-center justify-between py-2">
+        <h2
+          class="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+        >
+          Your Groups
+        </h2>
+        <button
+          class="text-primary text-sm font-medium hover:underline flex items-center"
+        >
+          <span class="material-symbols-outlined text-sm mr-1"
+            >filter_list</span
+          >
+          Filter
+        </button>
+      </div>
+      <!-- Group Item 1 -->
+      <div
+        class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer"
+      >
+        <div
+          class="h-14 w-14 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0 overflow-hidden relative"
+        >
+          <img
+            alt="Apartment Group"
+            class="w-full h-full object-cover"
+            data-alt="Group of friends working together"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaVe0J75WacxfUitSLQPIny_86ZeNqQ1BvbqFKEdXaTgTfQqse_LWiyaZT_0L1o-KV6y23WF3RGF3MKA_C-tJV_x83Urv_L-gCRjloczovDaumuGRa_lmMeu8BLT1dP5P2R-4QOIFoB29pcfXwOEIGuS7mveGhrN-0uNWfXYHYSz5_fCPZJ4WWqWJoXgqkAr9I1LJ4JoJJY3ZFkcE2EJQUL6DdKLnkuc2TQ1b03z6mrZksLE3PKAT-RL-q1whW3rkVBw-cob4_"
+          />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-slate-900 dark:text-white truncate">
+            Apartment 4B
+          </h3>
+          <div class="flex items-center gap-1 mt-1">
+            <div class="flex -space-x-2 mr-2">
+              <img
+                alt="Member"
+                class="w-5 h-5 rounded-full border border-white dark:border-surface-dark"
+                data-alt="Portrait of a smiling man"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbozyyKXpfYUS8iRfCQj1YA-ppeegXfwG9PlEYofqA6sAei6K-H25H3_Ung5VUDewO5L0iZQ7mpN3Pkq6-NDQv6aDbIqib-hJCSvatjbXofGYJV0POrKUjHWEQifx3qo3b1gmgF5v-962hx-tTqzk_yFySOdX-HMulOkVWDEx7r927xr0H4iHqpbojCNDvxRBdD2TC9o1a4-KJcTELY3QqcCVVISkWfDAIWhYu18Ndpd9F1lkWd9064CKhQIHuqbt-u6iVfIiO"
+              />
+              <img
+                alt="Member"
+                class="w-5 h-5 rounded-full border border-white dark:border-surface-dark"
+                data-alt="Portrait of a smiling woman"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuRSoGuNppS0_mKdiJKXAoalEiCEvFygOaN8pYFVbtCdMQYLRMWXlnAVuiioZvR8T3Zpat-90n-NlwIX93hPHizLFrfdLPttCwfEh40p4gtZxngHzwiYvd7Wi3pGTia6UyXevqt46KIas-RFzM5ObQ4I2-4TSxvOpQb-iOkUE0I8SXELrapkEEByJDl9uyaphA0pNRCxsb0J7mxiAY4ezUPuzdVvBPzGAUrXDfJ2Q-o4-x-V3X7jPtk-das_y3gTr1csrzdBsk"
+              />
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+              Rent, Utilities, Internet
+            </p>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-primary font-bold text-sm">you are owed</p>
+          <p class="text-primary font-bold text-lg">$45.00</p>
+        </div>
+        <span
+          class="material-symbols-outlined text-slate-300 dark:text-slate-600"
+          >chevron_right</span
+        >
+      </div>
+      <!-- Group Item 2 -->
+      <div
+        class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer"
+      >
+        <div
+          class="h-14 w-14 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center shrink-0 overflow-hidden relative"
+        >
+          <img
+            alt="Japan Trip"
+            class="w-full h-full object-cover"
+            data-alt="Plate of delicious sushi rolls"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeNFvu-lmsAYh2alL1RHDq3ENJkD0OsHRZ4LAfvpcddou-B1eAPBKmGiW_aiO68nHYPXc_JGbZ8YAPlGWdB6H-4X0xgwI7Kn75mtYzqljsX9suq05_Aa9yYsE1lIgjwaAXH8QWvK5Y9Vzr6U7lcCUAv2VLi8r0bCC7m0qLVUjNLvM7Ae7a3aLA3sw9D73TeKEGf4f0vDnABz6E05ViCb61LujKYJbjwBOa57BQjJiyXD-nFxtgIsQl0kEbT02eul24J1nqBDyR"
+          />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-slate-900 dark:text-white truncate">
+            Japan Trip 🇯🇵
+          </h3>
+          <div class="flex items-center gap-1 mt-1">
+            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+              No expenses yet this month
+            </p>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-slate-400 dark:text-slate-500 font-medium text-sm">
+            settled up
+          </p>
+        </div>
+        <span
+          class="material-symbols-outlined text-slate-300 dark:text-slate-600"
+          >chevron_right</span
+        >
+      </div>
+      <!-- Group Item 3 -->
+      <div
+        class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer"
+      >
+        <div
+          class="h-14 w-14 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 overflow-hidden relative"
+        >
+          <img
+            alt="Dinner Party"
+            class="w-full h-full object-cover"
+            data-alt="Cozy dinner party table setting"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxv-tnrynEJwjGgz3y4UneASWLtRcKSNQWMTUJiIRnVUqgBbAonyJT1ViNSaKjwCYht7sWcJ8svSbEJb7f5UATHN-XvEteVrdTMYmTIKO5t641LCVCfOSH85FVuoKCz4y2PShhHStdlYnms440kPEfKNwiU71duuru1vvT-CNJ4c19BRVg1IGK5kdfIiGp707loLaDD91owecDMv_zdiIK24L67hWAzzYy66yDDAV_CU_E7qmaKYPa3dQK74QieZRldzrz79_t"
+          />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-slate-900 dark:text-white truncate">
+            Weekly Dinner
+          </h3>
+          <div class="flex items-center gap-1 mt-1">
+            <div class="flex -space-x-2 mr-2">
+              <img
+                alt="Member"
+                class="w-5 h-5 rounded-full border border-white dark:border-surface-dark"
+                data-alt="Portrait of a man with glasses"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1EX9gzM9spJnmRDBX_8ddVCRuV8DnrNcpxMpFeNOJlFWDkjfNW3k80AOCg9vReJNhtYgmQwDOxy0FGTSezjdPtXLW1uNnPNuoIQgW31enjN8t-8Xwkk0oCLo6YUNEpe1QXT-xRi7cXqTFs0r3rG34yzj6aILtUXRWOu3kAVP6NLm9fhV0WKoIthC4jA9gdlQRGxgxFLav1xHgnlgIYG5hW4qVc268y0tB5jGSzNSvVDU37DtAhp3-G7EAAg_OXsi72OQE0r62"
+              />
+              <img
+                alt="Member"
+                class="w-5 h-5 rounded-full border border-white dark:border-surface-dark"
+                data-alt="Portrait of a serious woman"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjsKyzrgtP0ldQtNH5uCr78j1gcIXz3Qa5PVPWWvkjXlb7wu58l0YnDJo3qoQ2kt9zQnZe3FYy2Q2Z9e4GbCjQYn36c-8zhO6VuRkM8DF4f4bqBocwmbZMSFnOR2zyRuCc2F2KSluw89YzV4uS5k1C0pjklR4pKXbHfdQqw38AOI8fv6K2FZnVS2IwZmh3CU_PhSXdTvhC-oRy6YkJgyrlwGIJ69eTBeoTMbTPLB9uutvRC60mvTu0bA3_lN1pQHV4qmC_QQAn"
+              />
+              <img
+                alt="Member"
+                class="w-5 h-5 rounded-full border border-white dark:border-surface-dark"
+                data-alt="Portrait of a man looking away"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeGh1ZnfR_vpXVsc1-PNjmGUECxZg4RwFXtmKj6qyCIXzbmIR3UzNEBvCKNgcCgiAjLDt3I_GcqAnGRkBgXDW9P_FYOYRlVUpFfjBGEuX7m-ZwA4OFPcIC9Tx9Fbz0u1mZ4buKAW7qY6NrPYWOKyKnYWFBeIZY_lqhgdDRlUsUgWo8lqtnANWyzgQ4QlhJBnqFqhHRndf7p2lCBS5T7ZLzcJpyGr1BWDP70Prot2F7KZC0To4Ydg4lFHzXXA15HElXxoa9A48w"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-orange-500 font-bold text-sm">you owe</p>
+          <p class="text-orange-500 font-bold text-lg">$22.50</p>
+        </div>
+        <span
+          class="material-symbols-outlined text-slate-300 dark:text-slate-600"
+          >chevron_right</span
+        >
+      </div>
+      <!-- Group Item 4 -->
+      <div
+        class="flex items-center gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-surface-highlight-dark active:scale-[0.99] transition-transform cursor-pointer opacity-75"
+      >
+        <div
+          class="h-14 w-14 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0 overflow-hidden relative"
+        >
+          <div
+            class="absolute inset-0 bg-gradient-to-br from-teal-400 to-blue-500 opacity-20"
+          ></div>
+          <span
+            class="material-symbols-outlined text-teal-600 dark:text-teal-400"
+            >downhill_skiing</span
+          >
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-slate-900 dark:text-white truncate">
+            Tahoe Ski Trip
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Archived
+          </p>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-slate-400 dark:text-slate-500 font-medium text-sm">
+            settled up
+          </p>
+        </div>
+        <span
+          class="material-symbols-outlined text-slate-300 dark:text-slate-600"
+          >chevron_right</span
+        >
+      </div>
+      <div class="h-4"></div>
+      <div class="flex justify-center">
+        <button
+          class="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2 py-2 px-4 rounded-full hover:bg-slate-100 dark:hover:bg-surface-highlight-dark transition-colors"
+        >
+          <span class="material-symbols-outlined text-lg">add_circle</span>
+          Start a new group
+        </button>
+      </div>
+    </main>
+    <!-- Floating Action Button -->
+    <div class="absolute bottom-20 right-4 z-20">
+      <button
+        class="h-14 w-14 bg-primary hover:bg-primary-dark text-slate-900 rounded-full shadow-lg shadow-primary/30 flex items-center justify-center transition-all active:scale-95"
+      >
+        <span class="material-symbols-outlined" style="font-size: 32px"
+          >add</span
+        >
+      </button>
+    </div>
+    <!-- Bottom Navigation -->
+    <nav
+      class="bg-surface-light dark:bg-surface-dark border-t border-slate-200 dark:border-surface-highlight-dark flex justify-between px-6 pb-6 pt-3 absolute bottom-0 w-full z-10"
+    >
+      <a class="flex flex-col items-center gap-1 group" href="#">
+        <span
+          class="material-symbols-outlined text-primary group-hover:text-primary-dark transition-colors filled"
+          >groups</span
+        >
+        <span class="text-xs font-medium text-primary">Groups</span>
+      </a>
+      <a class="flex flex-col items-center gap-1 group" href="#">
+        <span
+          class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors"
+          >person</span
+        >
+        <span
+          class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+          >Friends</span
+        >
+      </a>
+      <a class="flex flex-col items-center gap-1 group" href="#">
+        <span
+          class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors"
+          >history</span
+        >
+        <span
+          class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+          >Activity</span
+        >
+      </a>
+      <a class="flex flex-col items-center gap-1 group" href="#">
+        <span
+          class="material-symbols-outlined text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors"
+          >account_circle</span
+        >
+        <span
+          class="text-xs font-medium text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+          >Account</span
+        >
+      </a>
+    </nav>
+  </body>
+</html>
