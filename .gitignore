@@ -63,3 +63,4 @@ coverage/
 .playwright-mcp
 
 /supabase/.temp
+.claude/settings.local.json
