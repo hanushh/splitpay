@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { supabase } from '@/lib/supabase';
-import ExpenseDetailSheet from '@/components/ExpenseDetailSheet';
+import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 
 const C = {
   primary: '#17e86b',
@@ -32,22 +32,6 @@ const C = {
   white: '#ffffff',
 };
 
-interface Expense {
-  expense_id: string;
-  description: string;
-  total_amount_cents: number;
-  category: string;
-  created_at: string;
-  paid_by_name: string;
-  paid_by_is_user: boolean;
-  your_split_cents: number;
-}
-
-interface ExpenseSplit {
-  member_id: string; // matches GroupMember.id
-  amount_cents: number;
-}
-
 interface GroupDetail {
   id: string;
   name: string;
@@ -56,13 +40,6 @@ interface GroupDetail {
   balance_cents: number;
   created_by: string | null;
   archived: boolean;
-}
-
-interface GroupMember {
-  id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  user_id: string | null;
 }
 
 const CATEGORY_ICONS: Record<

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ── types (mirrored from app/group/[id].tsx — keep in sync) ──────────────────
+// ── types (exported for use in app/group/[id].tsx) ────────────────────────────
 export interface Expense {
   expense_id: string;
   description: string;
