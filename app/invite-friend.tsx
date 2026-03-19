@@ -60,6 +60,7 @@ export default function InviteFriendScreen() {
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
 
   const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
+  const [existingContactNames, setExistingContactNames] = useState<string[]>([]);
 
   // When coming from Friends tab with a pre-selected user, seed memberSelection
   const [memberSelection, setMemberSelection] = useState<MemberSelection>(() => {
@@ -103,11 +104,12 @@ export default function InviteFriendScreen() {
     if (!gid) return;
     const { data } = await supabase
       .from('group_members')
-      .select('user_id')
-      .eq('group_id', gid)
-      .not('user_id', 'is', null);
-    setExistingMemberIds(
-      ((data ?? []) as { user_id: string }[]).map((r) => r.user_id).filter(Boolean)
+      .select('user_id, display_name')
+      .eq('group_id', gid);
+    const rows = (data ?? []) as { user_id: string | null; display_name: string | null }[];
+    setExistingMemberIds(rows.map((r) => r.user_id).filter(Boolean) as string[]);
+    setExistingContactNames(
+      rows.filter((r) => !r.user_id && r.display_name).map((r) => r.display_name!),
     );
   }, []);
 
@@ -309,6 +311,7 @@ export default function InviteFriendScreen() {
         {!paramUserId && (
           <MemberSearchPicker
             excludeUserIds={existingMemberIds}
+            excludeContactNames={existingContactNames}
             onSelectionChange={setMemberSelection}
           />
         )}

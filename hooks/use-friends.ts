@@ -162,7 +162,11 @@ export function useFriends(): UseFriendsResult {
 
       const balanceByUserId = new Map<string, { balance_cents: number }>();
       for (const row of (balanceRows as { user_id: string; balance_cents: number }[] ?? [])) {
-        if (row.user_id) balanceByUserId.set(row.user_id, { balance_cents: Number(row.balance_cents) });
+        if (!row.user_id) continue;
+        const prev = balanceByUserId.get(row.user_id);
+        balanceByUserId.set(row.user_id, {
+          balance_cents: (prev?.balance_cents ?? 0) + Number(row.balance_cents),
+        });
       }
 
       // Start with contact-matched profiles, then merge in group co-members not already present
