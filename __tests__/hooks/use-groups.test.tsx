@@ -178,9 +178,12 @@ describe('useGroups', () => {
     );
     const { result } = renderHook(() => useGroups());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    // Only Alice passes both filters (different user_id AND has avatar_url)
-    expect(result.current.groups[0].members).toHaveLength(1);
-    expect(result.current.groups[0].members[0].display_name).toBe('Alice');
+    // Current user (user-123) is excluded; Alice and Bob are both included
+    // regardless of whether they have an avatar_url
+    expect(result.current.groups[0].members).toHaveLength(2);
+    expect(result.current.groups[0].members.map((m: { display_name: string | null }) => m.display_name)).toEqual(
+      expect.arrayContaining(['Alice', 'Bob']),
+    );
   });
 
   it('refetch re-fetches groups from Supabase', async () => {

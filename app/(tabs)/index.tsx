@@ -64,13 +64,23 @@ function GroupCard({ group }: { group: Group }) {
         <View style={s.groupMeta}>
           {group.members.length > 0 && (
             <View style={s.memberStack}>
-              {group.members.slice(0, 3).map((m, i) => (
-                <Image
-                  key={m.id}
-                  source={{ uri: m.avatar_url! }}
-                  style={[s.memberAvatar, { marginLeft: i === 0 ? 0 : -8 }]}
-                />
-              ))}
+              {group.members.slice(0, 3).map((m, i) => {
+                const initials = (m.display_name ?? '?')[0].toUpperCase();
+                return m.avatar_url ? (
+                  <Image
+                    key={m.id}
+                    source={{ uri: m.avatar_url }}
+                    style={[s.memberAvatar, { marginLeft: i === 0 ? 0 : -8 }]}
+                  />
+                ) : (
+                  <View
+                    key={m.id}
+                    style={[s.memberAvatar, s.memberAvatarInitials, { marginLeft: i === 0 ? 0 : -8 }]}
+                  >
+                    <Text style={s.memberAvatarInitialsText}>{initials}</Text>
+                  </View>
+                );
+              })}
             </View>
           )}
           {group.description ? (
@@ -390,6 +400,10 @@ const s = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     borderWidth: 1.5, borderColor: C.surface,
   },
+  memberAvatarInitials: {
+    backgroundColor: C.surfaceHL, alignItems: 'center', justifyContent: 'center',
+  },
+  memberAvatarInitialsText: { color: C.primary, fontSize: 8, fontWeight: '700' },
   groupSubtitle: { fontSize: 12, color: C.slate400, flexShrink: 1 },
   groupAmount: { alignItems: 'flex-end', flexShrink: 0 },
   amountLabel: { fontSize: 12, fontWeight: '700' },

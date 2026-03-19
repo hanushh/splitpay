@@ -79,7 +79,7 @@ export function useGroups() {
             user_id: string | null;
           }[]) ?? []
         )
-          .filter((m) => m.user_id !== user.id && m.avatar_url)
+          .filter((m) => m.user_id !== user.id)
           .map((m) => ({ id: m.id, display_name: m.display_name, avatar_url: m.avatar_url }));
 
         return {
