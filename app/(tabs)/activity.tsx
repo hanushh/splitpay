@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { supabase } from '@/lib/supabase';
@@ -78,13 +79,6 @@ interface Section {
 
 type FilterKey = 'all' | 'expenses' | 'settlements' | 'mine';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'expenses', label: 'Expenses' },
-  { key: 'settlements', label: 'Settlements' },
-  { key: 'mine', label: 'My activity' },
-];
-
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
@@ -112,14 +106,17 @@ function monthKey(iso: string): string {
 
 function ActivityCard({ item }: { item: ActivityRow }) {
   const { format } = useCurrency();
+  const { t } = useTranslation();
   const cat = CATEGORY_ICONS[item.category] ?? CATEGORY_ICONS.receipt;
-  const paidLabel = item.paid_by_is_user ? 'You' : item.paid_by_name;
-  const subtitle = `${paidLabel} paid ${format(item.total_amount_cents)}`;
+  const paidLabel = item.paid_by_is_user ? t('activity.you') : item.paid_by_name;
+  const subtitle = item.paid_by_is_user
+    ? t('activity.youPaid', { name: item.payee_name ?? t('activity.someone') })
+    : t('activity.paid', { name: paidLabel, amount: format(item.total_amount_cents) });
   const yourAmount = item.paid_by_is_user
     ? item.total_amount_cents - item.your_split_cents
     : item.your_split_cents;
   const amountPositive = item.paid_by_is_user;
-  const amountLabel = item.paid_by_is_user ? 'you lent' : 'you owe';
+  const amountLabel = item.paid_by_is_user ? t('activity.youLent') : t('activity.youOwe');
 
   return (
     <Pressable
@@ -172,9 +169,10 @@ function ActivityCard({ item }: { item: ActivityRow }) {
 
 function SettlementCard({ item }: { item: ActivityRow }) {
   const { format } = useCurrency();
+  const { t } = useTranslation();
   const label = item.paid_by_is_user
-    ? `You paid ${item.payee_name ?? 'someone'}`
-    : `${item.paid_by_name ?? 'Someone'} paid you`;
+    ? t('activity.youPaid', { name: item.payee_name ?? t('activity.someone') })
+    : t('activity.someonePaidYou', { name: item.paid_by_name ?? t('activity.someone') });
 
   return (
     <Pressable
@@ -196,7 +194,7 @@ function SettlementCard({ item }: { item: ActivityRow }) {
         <Text style={s.timestamp}>{relativeTime(item.created_at)}</Text>
       </View>
       <View style={s.cardRight}>
-        <Text style={[s.amountLabel, { color: '#17e86b' }]}>settled</Text>
+        <Text style={[s.amountLabel, { color: '#17e86b' }]}>{t('activity.settled')}</Text>
         <Text style={[s.cardAmount, { color: '#17e86b' }]}>
           {format(item.total_amount_cents)}
         </Text>
@@ -206,12 +204,23 @@ function SettlementCard({ item }: { item: ActivityRow }) {
 }
 
 export default function ActivityScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+
+  const filters = useMemo(
+    () => [
+      { key: 'all' as FilterKey, label: t('activity.filterAll') },
+      { key: 'expenses' as FilterKey, label: t('activity.filterExpenses') },
+      { key: 'settlements' as FilterKey, label: t('activity.filterSettlements') },
+      { key: 'mine' as FilterKey, label: t('activity.filterMine') },
+    ],
+    [t],
+  );
 
   const fetchActivity = useCallback(async () => {
     if (!user) return;
@@ -270,7 +279,7 @@ export default function ActivityScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>Activity</Text>
+        <Text style={s.headerTitle}>{t('activity.title')}</Text>
         <View style={s.headerActions}>
           <Pressable style={s.headerIcon}>
             <MaterialIcons name="search" size={22} color={C.white} />
@@ -283,7 +292,7 @@ export default function ActivityScreen() {
 
       {/* Filter pills */}
       <View style={s.pillRow}>
-        {FILTERS.map(({ key, label }) => (
+        {filters.map(({ key, label }) => (
           <Pressable
             key={key}
             style={[s.pill, activeFilter === key && s.pillActive]}
@@ -329,9 +338,9 @@ export default function ActivityScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <MaterialIcons name="history" size={48} color={C.surfaceHL} />
-              <Text style={s.emptyTitle}>No activity yet</Text>
+              <Text style={s.emptyTitle}>{t('activity.noActivityTitle')}</Text>
               <Text style={s.emptySubtitle}>
-                Add expenses to see your history here
+                {t('activity.noActivitySub')}
               </Text>
             </View>
           }

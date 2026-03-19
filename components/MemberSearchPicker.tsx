@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -72,6 +73,7 @@ export function MemberSearchPicker({
   excludeContactNames = [],
   onSelectionChange,
 }: MemberSearchPickerProps) {
+  const { t } = useTranslation();
   const {
     matched,
     unmatched,
@@ -249,7 +251,7 @@ export function MemberSearchPicker({
       {/* Search input */}
       <TextInput
         style={s.input}
-        placeholder="Search by name, phone, or email…"
+        placeholder={t('memberPicker.searchPlaceholder')}
         placeholderTextColor={C.slate500}
         value={query}
         onChangeText={handleQueryChange}
@@ -261,12 +263,12 @@ export function MemberSearchPicker({
       {loading && (
         <View style={s.centerRow}>
           <ActivityIndicator color={C.primary} size="small" />
-          <Text style={s.hint}>Loading contacts…</Text>
+          <Text style={s.hint}>{t('memberPicker.loadingContacts')}</Text>
         </View>
       )}
       {!loading && permissionDenied && (
         <Text style={s.hint}>
-          Grant contacts permission to search your address book.
+          {t('memberPicker.grantPermission')}
         </Text>
       )}
 
@@ -275,7 +277,7 @@ export function MemberSearchPicker({
         <View style={s.results}>
           {filteredAppUsers.length > 0 && (
             <>
-              <Text style={s.sectionLabel}>On PaySplit</Text>
+              <Text style={s.sectionLabel}>{t('memberPicker.onApp')}</Text>
               {filteredAppUsers.map((u) => (
                 <Pressable
                   key={u.userId}
@@ -285,10 +287,10 @@ export function MemberSearchPicker({
                   <Initials name={u.name} app />
                   <View style={s.rowInfo}>
                     <Text style={s.rowName}>{u.name}</Text>
-                    <Text style={s.rowSub}>On PaySplit</Text>
+                    <Text style={s.rowSub}>{t('memberPicker.onApp')}</Text>
                   </View>
                   <View style={s.badge}>
-                    <Text style={s.badgeText}>Add</Text>
+                    <Text style={s.badgeText}>{t('memberPicker.add')}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -303,7 +305,7 @@ export function MemberSearchPicker({
                   filteredAppUsers.length > 0 && s.sectionLabelSpaced,
                 ]}
               >
-                Invite
+                {t('memberPicker.inviteSection')}
               </Text>
               {filteredContacts.map((c) => (
                 <Pressable
@@ -315,11 +317,11 @@ export function MemberSearchPicker({
                   <View style={s.rowInfo}>
                     <Text style={s.rowName}>{c.name}</Text>
                     <Text style={s.rowSub}>
-                      {c.phoneNumbers[0] ?? c.emails[0] ?? 'Contact'}
+                      {c.phoneNumbers[0] ?? c.emails[0] ?? t('memberPicker.contact')}
                     </Text>
                   </View>
                   <View style={s.badgeInvite}>
-                    <Text style={s.badgeInviteText}>Invite</Text>
+                    <Text style={s.badgeInviteText}>{t('memberPicker.invite')}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -330,7 +332,7 @@ export function MemberSearchPicker({
             filteredAppUsers.length === 0 &&
             filteredContacts.length === 0 && (
               <Text style={s.hint}>
-                No contacts matching &quot;{debouncedQuery}&quot;
+                {t('memberPicker.noMatches', { query: debouncedQuery })}
               </Text>
             )}
         </View>

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { settlementEvents } from '@/lib/settlement-events';
@@ -41,6 +42,7 @@ export default function GroupBalancesScreen() {
     groupName: string;
   }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { format } = useCurrency();
   const [members, setMembers] = useState<MemberBalance[]>([]);
@@ -135,7 +137,7 @@ export default function GroupBalancesScreen() {
 
   const totalText =
     totalCents === 0
-      ? 'All settled up'
+      ? t('balances.allSettled')
       : totalCents > 0
         ? `+${format(totalCents)}`
         : `-${format(totalCents)}`;
@@ -168,19 +170,19 @@ export default function GroupBalancesScreen() {
           </Text>
           <Text style={s.bannerSub}>
             {totalCents > 0
-              ? 'You are owed in total'
+              ? t('balances.youAreOwedTotal')
               : totalCents < 0
-                ? 'You owe in total'
-                : 'You are all settled up'}
+                ? t('balances.youOweTotal')
+                : t('balances.allSettledTotal')}
           </Text>
         </View>
         <Pressable style={s.chartBtn}>
           <MaterialIcons name="bar-chart" size={22} color={C.primary} />
-          <Text style={s.chartBtnText}>View chart</Text>
+          <Text style={s.chartBtnText}>{t('balances.viewChart')}</Text>
         </Pressable>
       </View>
 
-      <Text style={s.sectionTitle}>GROUP MEMBERS</Text>
+      <Text style={s.sectionTitle}>{t('balances.groupMembers')}</Text>
 
       {loading ? (
         <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
@@ -236,15 +238,15 @@ export default function GroupBalancesScreen() {
                         m.isCurrentUser && { color: C.primary },
                       ]}
                     >
-                      {m.isCurrentUser ? 'ME' : m.display_name}
+                      {m.isCurrentUser ? t('balances.me') : m.display_name}
                     </Text>
-                    {m.isCurrentUser && <Text style={s.memberSub}>You</Text>}
+                    {m.isCurrentUser && <Text style={s.memberSub}>{t('balances.you')}</Text>}
                   </View>
                 </View>
 
                 <View style={s.memberRight}>
                   {m.balance_cents === 0 ? (
-                    <Text style={s.settledText}>Settled up</Text>
+                    <Text style={s.settledText}>{t('balances.settledUp')}</Text>
                   ) : (
                     <View style={s.balanceInfo}>
                       <Text
@@ -253,7 +255,7 @@ export default function GroupBalancesScreen() {
                           { color: isOwed ? C.primary : C.orange },
                         ]}
                       >
-                        {isOwed ? `owes you ${amtText}` : `you owe ${amtText}`}
+                        {isOwed ? t('balances.owesYou', { amount: amtText }) : t('balances.youOwe', { amount: amtText })}
                       </Text>
                       {!m.isCurrentUser && (!isOwed || myMemberId) && (
                         <Pressable
@@ -279,7 +281,7 @@ export default function GroupBalancesScreen() {
                           }
                         >
                           <Text style={s.settleBtnText}>
-                            {isOwed ? 'Settle up' : 'Pay'}
+                            {isOwed ? t('balances.settleUpBtn') : t('balances.pay')}
                           </Text>
                         </Pressable>
                       )}

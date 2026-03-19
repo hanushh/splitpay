@@ -87,8 +87,8 @@ test('tapping Delete shows confirmation Alert with expense name', async () => {
   await openDetailSheet(getByText);
   fireEvent.press(getByText('Delete'));
   expect(Alert.alert).toHaveBeenCalledWith(
-    'Delete expense?',
-    expect.stringContaining('Dinner at Locavore'),
+    'group.deleteExpenseTitle',
+    'group.deleteExpenseMessage',
     expect.any(Array),
   );
 });
@@ -101,7 +101,7 @@ test('confirming delete calls delete_expense rpc and then re-fetches group', asy
   // Simulate the user pressing the destructive "Delete" button in the Alert
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
-  const deleteButton = buttons.find((b) => b.text === 'Delete');
+  const deleteButton = buttons.find((b) => b.text === 'common.delete');
   await act(async () => {
     await deleteButton!.onPress!();
   });
@@ -133,15 +133,113 @@ test('delete error shows Alert and does not close the sheet', async () => {
 
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
-  const deleteButton = buttons.find((b) => b.text === 'Delete');
+  const deleteButton = buttons.find((b) => b.text === 'common.delete');
   await act(async () => {
     await deleteButton!.onPress!();
   });
 
   await waitFor(() => {
     // A second Alert should have been shown with the error message
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Permission denied');
+    expect(Alert.alert).toHaveBeenCalledWith('common.ok', 'Permission denied');
     // The sheet should still be visible (Edit/Delete buttons still rendered)
     expect(getByText('Edit')).toBeTruthy();
   });
+});
+
+// ─── Leave-group guard (non-creator) ─────────────────────────────────────────
+
+/**
+ * Set up mocks for a non-creator user (created_by: 'other-user') with the
+ * given balance. Returns the `deleteMock` so tests can assert it was never
+ * called when the guard fires.
+ */
+function setupNonCreatorMock(balanceCents: number) {
+  const nonCreatorGroup = { ...mockGroup, created_by: 'other-user' };
+  const deleteMock = jest.fn().mockReturnValue({
+    eq: jest.fn().mockReturnValue({
+      eq: jest.fn().mockResolvedValue({ error: null }),
+    }),
+  });
+
+  (supabase.from as jest.Mock).mockImplementation((table: string) => {
+    if (table === 'expense_splits') {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    }
+    if (table === 'group_members') {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        delete: deleteMock,
+      };
+    }
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest
+        .fn()
+        .mockResolvedValue({ data: { balance_cents: balanceCents }, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: nonCreatorGroup, error: null }),
+    };
+  });
+
+  return { deleteMock };
+}
+
+async function openSettingsSheet(
+  getByTestId: ReturnType<typeof render>['getByTestId'],
+  getByText: ReturnType<typeof render>['getByText'],
+) {
+  await waitFor(() => getByText('Dinner at Locavore'));
+  fireEvent.press(getByTestId('settings-button'));
+  await waitFor(() => getByTestId('leave-group-button'));
+}
+
+describe('leave-group guard (non-creator)', () => {
+  test('blocks leaving when user is owed money (balance > 0)', async () => {
+    setupNonCreatorMock(6000);
+    const { getByTestId, getByText, queryByTestId } = render(
+      <GroupDetailScreen />,
+    );
+
+    await openSettingsSheet(getByTestId, getByText);
+    fireEvent.press(getByTestId('leave-group-button'));
+
+    await waitFor(() =>
+      getByText('group.owedLeaveBlocked'),
+    );
+    // The type-to-confirm modal must NOT have opened
+    expect(queryByTestId('delete-confirm-input')).toBeNull();
+  });
+
+  test('blocks leaving when user has an outstanding debt (balance < 0)', async () => {
+    setupNonCreatorMock(-3000);
+    const { getByTestId, getByText, queryByTestId } = render(
+      <GroupDetailScreen />,
+    );
+
+    await openSettingsSheet(getByTestId, getByText);
+    fireEvent.press(getByTestId('leave-group-button'));
+
+    await waitFor(() =>
+      getByText('group.owesLeaveBlocked'),
+    );
+    expect(queryByTestId('delete-confirm-input')).toBeNull();
+  });
+
+  test('allows leaving when balance is zero', async () => {
+    setupNonCreatorMock(0);
+    const { getByTestId, getByText: _getByText } = render(<GroupDetailScreen />);
+
+    await openSettingsSheet(getByTestId, _getByText);
+    fireEvent.press(getByTestId('leave-group-button'));
+
+    // The type-to-confirm modal should open
+    await waitFor(() => getByTestId('delete-confirm-input'));
+  });
+
 });

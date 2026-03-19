@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/native';
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
 import SplashScreen from '@/components/SplashScreen';
 import { supabase } from '@/lib/supabase';
+import { initI18n } from '@/lib/i18n';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -110,6 +111,16 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    initI18n().then(() => setI18nReady(true));
+  }, []);
+
+  if (!i18nReady) {
+    return <SplashScreen />;
+  }
+
   return (
     <CurrencyProvider>
       <AuthProvider>

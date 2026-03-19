@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import {
@@ -72,6 +73,7 @@ function FriendActionSheet({
   onViewBalance,
   onAddToGroup,
 }: BottomSheetProps) {
+  const { t } = useTranslation();
   if (!friend) return null;
   const ini = initials(friend.name);
 
@@ -104,7 +106,7 @@ function FriendActionSheet({
           }}
         >
           <MaterialIcons name="group-add" size={22} color={C.primary} />
-          <Text style={s.sheetActionText}>Add to Group</Text>
+          <Text style={s.sheetActionText}>{t('friends.addToGroup')}</Text>
         </Pressable>
 
         <Pressable
@@ -134,12 +136,12 @@ function FriendActionSheet({
               friend.balanceStatus === 'no_groups' && { color: C.slate500 },
             ]}
           >
-            View Balance
+            {t('friends.viewBalance')}
           </Text>
         </Pressable>
 
         <Pressable style={s.sheetCancel} onPress={onClose}>
-          <Text style={s.sheetCancelText}>Cancel</Text>
+          <Text style={s.sheetCancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </Modal>
@@ -147,6 +149,7 @@ function FriendActionSheet({
 }
 
 export default function FriendsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { format } = useCurrency();
   const { user } = useAuth();
@@ -209,7 +212,7 @@ export default function FriendsScreen() {
         <MaterialIcons name="error-outline" size={40} color={C.danger} />
         <Text style={s.errorText}>{error}</Text>
         <Pressable style={s.retryBtn} onPress={refetch}>
-          <Text style={s.retryBtnText}>Retry</Text>
+          <Text style={s.retryBtnText}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -220,18 +223,18 @@ export default function FriendsScreen() {
       <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
         <MaterialIcons name="contacts" size={40} color={C.slate400} />
         <Text style={s.errorText}>
-          Contacts access is required to find friends.
+          {t('friends.contactsBody')}
         </Text>
         <Pressable style={s.retryBtn} onPress={refetch}>
-          <Text style={s.retryBtnText}>Grant Access</Text>
+          <Text style={s.retryBtnText}>{t('friends.allowAccess')}</Text>
         </Pressable>
       </View>
     );
   }
 
   const sections: FriendSection[] = [
-    { title: 'On PaySplit', data: filteredMatched, key: 'matched' },
-    { title: 'Invite to PaySplit', data: visibleUnmatched, key: 'unmatched' },
+    { title: t('friends.onApp'), data: filteredMatched, key: 'matched' },
+    { title: t('friends.inviteToApp'), data: visibleUnmatched, key: 'unmatched' },
   ];
 
   const renderMatchedItem = ({ item }: { item: MatchedFriend }) => {
@@ -240,15 +243,15 @@ export default function FriendsScreen() {
     let chipText = '';
     let chipColor = C.slate400;
     if (balanceStatus === 'owed') {
-      chipText = `You are owed ${format(balanceCents)}`;
+      chipText = t('friends.youAreOwed', { amount: format(balanceCents) });
       chipColor = C.primary;
     } else if (balanceStatus === 'owes') {
-      chipText = `You owe ${format(Math.abs(balanceCents))}`;
+      chipText = t('friends.youOwe', { amount: format(Math.abs(balanceCents)) });
       chipColor = C.orange;
     } else if (balanceStatus === 'settled') {
-      chipText = 'Settled up';
+      chipText = t('friends.settledUp');
     } else {
-      chipText = 'No shared groups';
+      chipText = t('friends.noSharedGroups');
     }
 
     return (
@@ -269,7 +272,7 @@ export default function FriendsScreen() {
   const renderUnmatchedItem = ({ item }: { item: UnmatchedContact }) => {
     const ini = initials(item.name);
     const inviteLink = INVITE_WEB_LINK_BASE || APP_STORE_URL;
-    const shareMessage = `Hey! I use ${APP_DISPLAY_NAME} to split bills with friends. Download it here: ${inviteLink}`;
+    const shareMessage = t('friends.inviteMessage', { appName: APP_DISPLAY_NAME, link: inviteLink });
     return (
       <View style={s.row}>
         <View style={s.avatarCircle}>
@@ -280,7 +283,7 @@ export default function FriendsScreen() {
           style={s.inviteBtn}
           onPress={() => Share.share({ message: shareMessage })}
         >
-          <Text style={s.inviteBtnText}>Invite</Text>
+          <Text style={s.inviteBtnText}>{t('friends.invite')}</Text>
         </Pressable>
       </View>
     );
@@ -288,7 +291,7 @@ export default function FriendsScreen() {
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
-      <Text style={s.screenTitle}>Friends</Text>
+      <Text style={s.screenTitle}>{t('friends.title')}</Text>
       <View style={s.searchWrap}>
         <MaterialIcons
           name="search"
@@ -298,7 +301,7 @@ export default function FriendsScreen() {
         />
         <TextInput
           style={s.searchInput}
-          placeholder="Search contacts…"
+          placeholder={t('friends.searchPlaceholder')}
           placeholderTextColor={C.slate500}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -332,8 +335,8 @@ export default function FriendsScreen() {
             return (
               <Text style={s.emptyText}>
                 {q
-                  ? 'No matches found.'
-                  : 'None of your contacts are on PaySplit yet.'}
+                  ? t('friends.noMatchesFound')
+                  : t('friends.noneOnApp')}
               </Text>
             );
           }
@@ -342,8 +345,8 @@ export default function FriendsScreen() {
               return (
                 <Text style={s.emptyText}>
                   {q
-                    ? 'No matches found.'
-                    : 'All your contacts are already on PaySplit.'}
+                    ? t('friends.noMatchesFound')
+                    : t('friends.allOnApp')}
                 </Text>
               );
             if (
@@ -356,7 +359,7 @@ export default function FriendsScreen() {
                   onPress={() => setUnmatchedShowAll(true)}
                 >
                   <Text style={s.showMoreText}>
-                    Show {filteredUnmatched.length - UNMATCHED_PAGE_SIZE} more
+                    {t('friends.showMore', { count: filteredUnmatched.length - UNMATCHED_PAGE_SIZE })}
                   </Text>
                 </Pressable>
               );

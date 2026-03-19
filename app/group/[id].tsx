@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { supabase } from '@/lib/supabase';
@@ -81,6 +82,7 @@ function groupByMonth(expenses: Expense[]) {
 }
 
 export default function GroupDetailScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -130,7 +132,7 @@ export default function GroupDetailScreen() {
     ]);
 
     if (groupErr || !data) {
-      setFetchError(groupErr?.message ?? 'Group not found.');
+      setFetchError(groupErr?.message ?? t('group.notFound'));
       setLoading(false);
       return;
     }
@@ -173,7 +175,7 @@ export default function GroupDetailScreen() {
       profileMap = (profiles ?? []).reduce(
         (acc, p) => ({
           ...acc,
-          [p.id]: { name: p.name ?? 'Unknown', avatar_url: p.avatar_url },
+          [p.id]: { name: p.name ?? t('group.unknownMember'), avatar_url: p.avatar_url },
         }),
         {} as Record<string, { name: string; avatar_url: string | null }>,
       );
@@ -190,7 +192,7 @@ export default function GroupDetailScreen() {
     });
     setMembers(resolvedMembers);
     setLoading(false);
-  }, [id, user]);
+  }, [id, user, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -242,6 +244,15 @@ export default function GroupDetailScreen() {
     setActionError(null);
     const groupIsCreator = !group.created_by || user?.id === group.created_by;
     if (!groupIsCreator) {
+      if (group.balance_cents !== 0) {
+        setActionError(
+          group.balance_cents > 0
+            ? t('group.owedLeaveBlocked')
+            : t('group.owesLeaveBlocked'),
+        );
+        setActionLoading(false);
+        return;
+      }
       const error = await leaveGroup();
       setActionLoading(false);
       if (error) {
@@ -261,18 +272,18 @@ export default function GroupDetailScreen() {
     }
     setShowDeleteModal(false);
     router.replace('/');
-  }, [group, deleteInput, user, leaveGroup]);
+  }, [group, deleteInput, user, leaveGroup, t]);
 
   const handleDeleteExpense = useCallback(() => {
     if (!selectedExpense) return;
     const name = selectedExpense.description;
     Alert.alert(
-      'Delete expense?',
-      `"${name}" will be permanently deleted and balances will be recalculated.`,
+      t('group.deleteExpenseTitle'),
+      t('group.deleteExpenseMessage', { name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setDeletingExpense(true);
@@ -281,7 +292,7 @@ export default function GroupDetailScreen() {
             });
             if (error) {
               setDeletingExpense(false);
-              Alert.alert('Error', error.message);
+              Alert.alert(t('common.ok'), error.message);
               return;
             }
             setDeletingExpense(false);
@@ -291,7 +302,7 @@ export default function GroupDetailScreen() {
         },
       ],
     );
-  }, [selectedExpense, fetchGroup]);
+  }, [selectedExpense, fetchGroup, t]);
 
   const handleEditExpense = useCallback(() => {
     if (!selectedExpense) return;
@@ -312,6 +323,15 @@ export default function GroupDetailScreen() {
     setActionError(null);
     const groupIsCreator = !group.created_by || user?.id === group.created_by;
     if (!groupIsCreator) {
+      if (group.balance_cents !== 0) {
+        setActionError(
+          group.balance_cents > 0
+            ? t('group.owedLeaveBlocked')
+            : t('group.owesLeaveBlocked'),
+        );
+        setActionLoading(false);
+        return;
+      }
       const error = await leaveGroup();
       setActionLoading(false);
       if (error) {
@@ -331,7 +351,7 @@ export default function GroupDetailScreen() {
     }
     setShowSettings(false);
     router.replace('/');
-  }, [group, user, leaveGroup]);
+  }, [group, user, leaveGroup, t]);
 
   const handleUnarchive = useCallback(async () => {
     if (!group) return;
@@ -382,7 +402,7 @@ export default function GroupDetailScreen() {
         testID="group-detail-screen"
       >
         <Text style={{ color: C.slate400 }}>
-          {fetchError ?? 'Group not found'}
+          {fetchError ?? t('group.notFound')}
         </Text>
       </View>
     );
@@ -391,13 +411,18 @@ export default function GroupDetailScreen() {
   const isOwed = group.balance_cents > 0;
   const balanceText =
     group.balance_cents === 0
-      ? 'All settled up'
+      ? t('group.allSettled')
       : isOwed
-        ? `You are owed ${format(group.balance_cents)}`
-        : `You owe ${format(group.balance_cents)}`;
+        ? t('group.youAreOwed', { amount: format(group.balance_cents) })
+        : t('group.youOwe', { amount: format(Math.abs(group.balance_cents)) });
 
   const grouped = groupByMonth(expenses);
   const isCreator = !group.created_by || user?.id === group.created_by;
+  const canLeave = group.balance_cents === 0;
+  const leaveBlockedReason =
+    group.balance_cents > 0
+      ? t('group.owedLeaveBlocked')
+      : t('group.owesLeaveBlocked');
 
   return (
     <View
@@ -434,7 +459,7 @@ export default function GroupDetailScreen() {
           )}
           <View style={s.coverOverlay} />
           <View style={s.coverContent}>
-            <Text style={s.coverBalanceLabel}>Total Balance</Text>
+            <Text style={s.coverBalanceLabel}>{t('group.totalBalance')}</Text>
             <Text
               style={[
                 s.coverBalance,
@@ -469,7 +494,7 @@ export default function GroupDetailScreen() {
             }
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
-            <Text style={s.actionPrimaryText}>Settle up</Text>
+            <Text style={s.actionPrimaryText}>{t('group.settleUp')}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [
@@ -485,7 +510,7 @@ export default function GroupDetailScreen() {
             }
           >
             <MaterialIcons name="analytics" size={20} color={C.primary} />
-            <Text style={s.actionSecondaryText}>Balances</Text>
+            <Text style={s.actionSecondaryText}>{t('group.balances')}</Text>
           </Pressable>
         </View>
         <View style={s.actionsBottom}>
@@ -505,14 +530,14 @@ export default function GroupDetailScreen() {
             testID="invite-member-button"
           >
             <MaterialIcons name="person-add" size={20} color={C.white} />
-            <Text style={s.actionSecondaryText}>Add member</Text>
+            <Text style={s.actionSecondaryText}>{t('group.addMember')}</Text>
           </Pressable>
         </View>
 
         {/* Members section */}
         <View style={s.membersSection}>
           <View style={s.membersSectionHeader}>
-            <Text style={s.membersSectionTitle}>Members</Text>
+            <Text style={s.membersSectionTitle}>{t('group.membersSection')}</Text>
             <Text style={s.membersSectionCount}>{members.length}</Text>
           </View>
           <ScrollView
@@ -522,7 +547,7 @@ export default function GroupDetailScreen() {
           >
             {members.map((m) => {
               const isMe = m.user_id === user?.id;
-              const name = m.display_name ?? 'Unknown';
+              const name = m.display_name ?? t('group.unknownMember');
               const initials = name
                 .split(' ')
                 .map((w: string) => w[0])
@@ -554,7 +579,7 @@ export default function GroupDetailScreen() {
                     style={[s.memberChipName, isMe && { color: C.primary }]}
                     numberOfLines={1}
                   >
-                    {isMe ? 'You' : name.split(' ')[0]}
+                    {isMe ? t('balances.you') : name.split(' ')[0]}
                   </Text>
                 </View>
               );
@@ -564,7 +589,7 @@ export default function GroupDetailScreen() {
 
         {/* Expenses section */}
         <View style={s.expensesHeader}>
-          <Text style={s.expensesTitle}>Expenses</Text>
+          <Text style={s.expensesTitle}>{t('group.expenses')}</Text>
           <Pressable
             testID="spending-link"
             onPress={() =>
@@ -574,14 +599,14 @@ export default function GroupDetailScreen() {
               })
             }
           >
-            <Text style={s.viewAll}>Spending →</Text>
+            <Text style={s.viewAll}>{t('group.spending')}</Text>
           </Pressable>
         </View>
 
         {grouped.length === 0 && (
           <View style={s.empty}>
             <MaterialIcons name="receipt-long" size={48} color={C.surfaceHL} />
-            <Text style={s.emptyText}>No expenses yet</Text>
+            <Text style={s.emptyText}>{t('group.noExpenses')}</Text>
           </View>
         )}
 
@@ -596,7 +621,7 @@ export default function GroupDetailScreen() {
                 ? expense.total_amount_cents - expense.your_split_cents
                 : expense.your_split_cents;
               const paidLabel = expense.paid_by_is_user
-                ? 'You'
+                ? t('expense.you')
                 : expense.paid_by_name;
               return (
                 <Pressable
@@ -625,7 +650,7 @@ export default function GroupDetailScreen() {
                       {expense.description}
                     </Text>
                     <Text style={s.expensePaid}>
-                      {paidLabel} paid {format(expense.total_amount_cents)}
+                      {t('group.paidAmount', { name: paidLabel, amount: format(expense.total_amount_cents) })}
                     </Text>
                   </View>
                   <View style={s.expenseRight}>
@@ -635,7 +660,7 @@ export default function GroupDetailScreen() {
                         { color: youPositive ? C.primary : C.orange },
                       ]}
                     >
-                      {youPositive ? 'you lent' : 'you owe'}
+                      {youPositive ? t('group.youLent') : t('group.youOweShort')}
                     </Text>
                     <Text
                       style={[
@@ -668,13 +693,13 @@ export default function GroupDetailScreen() {
               size={22}
               color={C.primary}
             />
-            <Text style={s.addExpenseText}>Add an expense</Text>
+            <Text style={s.addExpenseText}>{t('group.addExpense')}</Text>
           </Pressable>
         )}
         {group.archived && (
           <View style={s.archivedBanner}>
             <MaterialIcons name="archive" size={16} color={C.slate400} />
-            <Text style={s.archivedBannerText}>This group is archived</Text>
+            <Text style={s.archivedBannerText}>{t('group.archivedBanner')}</Text>
           </View>
         )}
       </ScrollView>
@@ -738,7 +763,7 @@ export default function GroupDetailScreen() {
           />
           <View style={s.bottomSheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Group Settings</Text>
+            <Text style={s.sheetTitle}>{t('group.settings')}</Text>
 
             {actionError ? (
               <Text style={s.errorText}>{actionError}</Text>
@@ -767,7 +792,7 @@ export default function GroupDetailScreen() {
                         color={C.primary}
                       />
                     </View>
-                    <Text style={s.sheetRowText}>Unarchive Group</Text>
+                    <Text style={s.sheetRowText}>{t('group.unarchiveGroup')}</Text>
                   </Pressable>
                 ) : (
                   <Pressable
@@ -790,7 +815,7 @@ export default function GroupDetailScreen() {
                         color={C.orange}
                       />
                     </View>
-                    <Text style={s.sheetRowText}>Archive Group</Text>
+                    <Text style={s.sheetRowText}>{t('group.archiveGroup')}</Text>
                   </Pressable>
                 )}
                 <Pressable
@@ -817,17 +842,22 @@ export default function GroupDetailScreen() {
                     />
                   </View>
                   <Text style={[s.sheetRowText, { color: '#ff5252' }]}>
-                    Delete Group
+                    {t('group.deleteGroup')}
                   </Text>
                 </Pressable>
               </>
             ) : (
               <Pressable
+                testID="leave-group-button"
                 style={({ pressed }: { pressed: boolean }) => [
                   s.sheetRow,
                   pressed && { opacity: 0.7 },
                 ]}
                 onPress={() => {
+                  if (!canLeave) {
+                    setActionError(leaveBlockedReason);
+                    return;
+                  }
                   setShowSettings(false);
                   setShowDeleteModal(true);
                 }}
@@ -842,7 +872,7 @@ export default function GroupDetailScreen() {
                   <MaterialIcons name="exit-to-app" size={20} color="#ff5252" />
                 </View>
                 <Text style={[s.sheetRowText, { color: '#ff5252' }]}>
-                  Leave Group
+                  {t('group.leaveGroup')}
                 </Text>
               </Pressable>
             )}
@@ -876,33 +906,15 @@ export default function GroupDetailScreen() {
               <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
             </View>
             <Text style={s.deleteTitle}>
-              {isCreator ? 'Delete Group' : 'Leave Group'}
+              {isCreator ? t('group.deleteTitle') : t('group.leaveTitle')}
             </Text>
             <Text style={s.deleteWarning}>
-              {isCreator ? (
-                <>
-                  This will permanently delete{' '}
-                  <Text style={{ fontWeight: '700', color: C.white }}>
-                    {group?.name}
-                  </Text>{' '}
-                  and all its expenses. This cannot be undone.
-                </>
-              ) : (
-                <>
-                  You will be removed from{' '}
-                  <Text style={{ fontWeight: '700', color: C.white }}>
-                    {group?.name}
-                  </Text>
-                  . You can rejoin via an invite link.
-                </>
-              )}
+              {isCreator
+                ? t('group.deleteWarning', { name: group?.name })
+                : t('group.leaveWarning', { name: group?.name })}
             </Text>
             <Text style={s.deleteLabel}>
-              Type{' '}
-              <Text style={{ fontWeight: '700', color: C.white }}>
-                {group?.name}
-              </Text>{' '}
-              to confirm
+              {t('group.typeToConfirm', { name: group?.name })}
             </Text>
             <TextInput
               style={s.deleteInput}
@@ -930,11 +942,11 @@ export default function GroupDetailScreen() {
               <Text style={s.deleteConfirmBtnText}>
                 {actionLoading
                   ? isCreator
-                    ? 'Deleting…'
-                    : 'Leaving…'
+                    ? t('group.deleting')
+                    : t('group.leaving')
                   : isCreator
-                    ? 'Delete Group'
-                    : 'Leave Group'}
+                    ? t('group.deleteGroup')
+                    : t('group.leaveGroup')}
               </Text>
             </Pressable>
             <Pressable
@@ -948,7 +960,7 @@ export default function GroupDetailScreen() {
                 setActionError(null);
               }}
             >
-              <Text style={s.deleteCancelBtnText}>Cancel</Text>
+              <Text style={s.deleteCancelBtnText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         </View>

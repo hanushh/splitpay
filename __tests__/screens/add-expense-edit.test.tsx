@@ -141,7 +141,7 @@ test('edit mode: group selector is locked (no testID group-picker-button)', asyn
 test('edit mode: header shows "Edit expense"', async () => {
   const { getByText } = render(<AddExpenseScreen />);
   await waitFor(() => {
-    expect(getByText('Edit expense')).toBeTruthy();
+    expect(getByText('expense.editExpense')).toBeTruthy();
   });
 });
 

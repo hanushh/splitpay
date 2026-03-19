@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import {
   MemberSearchPicker,
   type MemberSelection,
@@ -156,6 +157,7 @@ function generateInviteToken(): string {
 }
 
 export default function CreateGroupScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -192,7 +194,7 @@ export default function CreateGroupScreen() {
 
       if (groupErr) {
         setError(
-          groupErr.message ?? 'Failed to create group. Please try again.',
+          groupErr.message ?? t('createGroup.failedCreate'),
         );
         setSaving(false);
         return;
@@ -205,7 +207,7 @@ export default function CreateGroupScreen() {
 
       if (memberErr) {
         setError(
-          memberErr.message ?? 'Group created but failed to add you as member.',
+          memberErr.message ?? t('createGroup.failedAddMember'),
         );
         setSaving(false);
         return;
@@ -311,7 +313,7 @@ export default function CreateGroupScreen() {
       const message =
         err instanceof Error
           ? err.message
-          : 'Something went wrong. Please try again.';
+          : t('createGroup.somethingWrong');
       setError(message);
       setSaving(false);
     }
@@ -329,9 +331,9 @@ export default function CreateGroupScreen() {
           style={s.headerBtn}
           testID="cancel-button"
         >
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
-        <Text style={s.headerTitle}>New Group</Text>
+        <Text style={s.headerTitle}>{t('createGroup.title')}</Text>
         <Pressable
           onPress={handleSave}
           style={s.headerBtn}
@@ -339,7 +341,7 @@ export default function CreateGroupScreen() {
           testID="header-create-button"
         >
           <Text style={[s.createText, !canSave && { opacity: 0.35 }]}>
-            Create
+            {t('createGroup.create')}
           </Text>
         </Pressable>
       </View>
@@ -360,17 +362,17 @@ export default function CreateGroupScreen() {
           </View>
           <Text style={s.previewHint}>
             {name.trim()
-              ? 'Auto-selected · tap below to override'
-              : 'Icon and colour chosen from group name'}
+              ? t('createGroup.iconHintSelected')
+              : t('createGroup.iconHintEmpty')}
           </Text>
         </View>
 
         {/* Name */}
         <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>GROUP NAME *</Text>
+          <Text style={s.fieldLabel}>{t('createGroup.groupName')}</Text>
           <TextInput
             style={s.fieldInput}
-            placeholder="e.g. Japan Trip, Apartment 4B…"
+            placeholder={t('createGroup.groupNamePlaceholder')}
             placeholderTextColor={C.slate500}
             value={name}
             onChangeText={setName}
@@ -382,10 +384,10 @@ export default function CreateGroupScreen() {
 
         {/* Description */}
         <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>DESCRIPTION</Text>
+          <Text style={s.fieldLabel}>{t('createGroup.descriptionLabel')}</Text>
           <TextInput
             style={[s.fieldInput, s.fieldTextarea]}
-            placeholder="What's this group for? (optional)"
+            placeholder={t('createGroup.descriptionPlaceholder')}
             placeholderTextColor={C.slate500}
             value={description}
             onChangeText={setDescription}
@@ -398,7 +400,7 @@ export default function CreateGroupScreen() {
 
         {/* Add members */}
         <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>ADD MEMBERS (OPTIONAL)</Text>
+          <Text style={s.fieldLabel}>{t('createGroup.addMembers')}</Text>
           <MemberSearchPicker onSelectionChange={setMemberSelection} />
         </View>
 
@@ -425,7 +427,7 @@ export default function CreateGroupScreen() {
           ) : (
             <>
               <MaterialIcons name="group-add" size={22} color={C.bg} />
-              <Text style={s.createBtnText}>Create Group</Text>
+              <Text style={s.createBtnText}>{t('createGroup.createGroup')}</Text>
             </>
           )}
         </Pressable>

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/context/currency';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
@@ -39,6 +40,7 @@ const C = {
 
 function GroupCard({ group }: { group: Group }) {
   const { format } = useCurrency();
+  const { t } = useTranslation();
   const amountColor = group.status === 'owes' ? C.orange : C.primary;
   const opacity = group.archived ? 0.7 : 1;
 
@@ -108,11 +110,11 @@ function GroupCard({ group }: { group: Group }) {
 
       <View style={s.groupAmount}>
         {group.status === 'settled' ? (
-          <Text style={s.settledText}>settled up</Text>
+          <Text style={s.settledText}>{t('groups.settledUp')}</Text>
         ) : (
           <>
             <Text style={[s.amountLabel, { color: amountColor }]}>
-              {group.status === 'owed' ? 'you are owed' : 'you owe'}
+              {group.status === 'owed' ? t('groups.youAreOwedShort') : t('groups.youOweShort')}
             </Text>
             <Text style={[s.amountValue, { color: amountColor }]}>
               {format(group.balance_cents)}
@@ -128,13 +130,14 @@ function GroupCard({ group }: { group: Group }) {
 
 function TotalBalanceDisplay({ cents }: { cents: number }) {
   const { format } = useCurrency();
+  const { t } = useTranslation();
   const isPositive = cents >= 0;
   const label =
     cents === 0
-      ? 'You are all settled up'
+      ? t('groups.allSettled')
       : isPositive
-        ? `You are owed ${format(cents)}`
-        : `You owe ${format(cents)}`;
+        ? t('groups.youAreOwed', { amount: format(cents) })
+        : t('groups.youOwe', { amount: format(Math.abs(cents)) });
 
   return (
     <View style={s.balanceCard}>
@@ -145,7 +148,7 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
           color={C.white}
         />
       </View>
-      <Text style={s.balanceLabel}>Total Balance</Text>
+      <Text style={s.balanceLabel}>{t('groups.totalBalance')}</Text>
       <Text style={[s.balanceAmount, !isPositive && { color: C.orange }]}>
         {label}
       </Text>
@@ -156,7 +159,7 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
           color={isPositive ? C.primary : C.orange}
         />
         <Text style={[s.balanceTrendText, !isPositive && { color: C.orange }]}>
-          across {cents !== 0 ? 'active' : 'all'} groups
+          {cents !== 0 ? t('groups.acrossActive') : t('groups.acrossAll')}
         </Text>
       </View>
     </View>
@@ -165,14 +168,8 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
 
 type StatusFilter = 'all' | 'owed' | 'owes' | 'settled';
 
-const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'owed', label: 'Owed to me' },
-  { key: 'owes', label: 'I owe' },
-  { key: 'settled', label: 'Settled' },
-];
-
 export default function GroupsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
@@ -186,6 +183,16 @@ export default function GroupsScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [archivedExpanded, setArchivedExpanded] = useState(false);
   const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+
+  const statusFilters = useMemo(
+    () => [
+      { key: 'all' as const, label: t('groups.filterAll') },
+      { key: 'owed' as const, label: t('groups.filterOwed') },
+      { key: 'owes' as const, label: t('groups.filterOwe') },
+      { key: 'settled' as const, label: t('groups.filterSettled') },
+    ],
+    [t],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -247,7 +254,7 @@ export default function GroupsScreen() {
               style={s.searchInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search groups…"
+              placeholder={t('groups.searchPlaceholder')}
               placeholderTextColor={C.slate500}
               returnKeyType="search"
               autoCorrect={false}
@@ -311,12 +318,12 @@ export default function GroupsScreen() {
         }
       >
         <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Your Groups</Text>
+          <Text style={s.sectionTitle}>{t('groups.title')}</Text>
         </View>
 
         {/* Status filter pills */}
         <View style={s.filterPillRow}>
-          {STATUS_FILTERS.map(({ key, label }) => (
+          {statusFilters.map(({ key, label }) => (
             <Pressable
               key={key}
               style={[s.filterPill, statusFilter === key && s.filterPillActive]}
@@ -339,7 +346,7 @@ export default function GroupsScreen() {
             <MaterialIcons name="error-outline" size={40} color={C.danger} />
             <Text style={s.errorText}>{error}</Text>
             <Pressable style={s.retryBtn} onPress={refetch}>
-              <Text style={s.retryText}>Retry</Text>
+              <Text style={s.retryText}>{t('common.retry')}</Text>
             </Pressable>
           </View>
         ) : loading && groups.length === 0 ? (
@@ -355,7 +362,7 @@ export default function GroupsScreen() {
                   size={40}
                   color={C.surfaceHL}
                 />
-                <Text style={s.errorText}>No groups match your search</Text>
+                <Text style={s.errorText}>{t('groups.noMatch')}</Text>
               </View>
             )}
             {visibleGroups.map((group) => (
@@ -404,7 +411,7 @@ export default function GroupsScreen() {
                 onPress={() => router.push('/create-group')}
               >
                 <MaterialIcons name="group-add" size={20} color={C.primary} />
-                <Text style={s.newGroupText}>Start a new group</Text>
+                <Text style={s.newGroupText}>{t('groups.startNew')}</Text>
               </Pressable>
             </View>
           </>

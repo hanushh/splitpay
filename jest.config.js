@@ -20,6 +20,9 @@ module.exports = {
     '^@react-native-async-storage/async-storage$':
       '<rootDir>/__mocks__/@react-native-async-storage/async-storage.ts',
     '^expo-contacts$': '<rootDir>/lib/__mocks__/expo-contacts.ts',
+    '^react-i18next$': '<rootDir>/__mocks__/react-i18next.ts',
+    '^i18next$': '<rootDir>/__mocks__/i18next.ts',
+    '^expo-localization$': '<rootDir>/__mocks__/expo-localization.ts',
   },
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],
   collectCoverageFrom: [
