@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
@@ -23,8 +24,12 @@ function InviteRedeemRedirect() {
     (async () => {
       const token = await getPendingInviteToken();
       if (!token) return;
-      const { data } = await supabase.rpc('redeem_invitation_for_current_user', { p_token: token });
+      const { data, error: redeemErr } = await supabase.rpc('redeem_invitation_for_current_user', { p_token: token });
       await clearPendingInviteToken();
+      if (redeemErr) {
+        Alert.alert('Invite error', redeemErr.message ?? 'Failed to redeem your invite link. Please ask for a new one.');
+        return;
+      }
       const row = Array.isArray(data) && data[0];
       if (row?.group_id_out) {
         router.replace({ pathname: '/group/[id]', params: { id: row.group_id_out } });
