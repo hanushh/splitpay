@@ -107,7 +107,8 @@ export default function AddExpenseScreen() {
       .from('group_members')
       .select('groups!inner(id, name, icon_name)')
       .eq('user_id', user.id)
-      .then(({ data }) => {
+      .then(({ data, error: groupsErr }) => {
+        if (groupsErr) { setError(groupsErr.message ?? 'Failed to load your groups.'); return; }
         const seen = new Set<string>();
         const list = (data ?? [])
           .map((row: any) => row.groups as GroupOption)
@@ -125,10 +126,16 @@ export default function AddExpenseScreen() {
   const loadMembers = useCallback(async (gid: string) => {
     if (!user || !gid) return;
     setMembersLoading(true);
-    const { data } = await supabase
+    const { data, error: membersErr } = await supabase
       .from('group_members')
       .select('id, display_name, avatar_url, user_id')
       .eq('group_id', gid);
+
+    if (membersErr) {
+      setError(membersErr.message ?? 'Failed to load group members.');
+      setMembersLoading(false);
+      return;
+    }
 
     // Deduplicate by user_id (DB can have duplicate rows from repeated init)
     const seenUserIds = new Set<string>();
@@ -394,48 +401,32 @@ export default function AddExpenseScreen() {
       }));
 
       const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
-      if (splitErr) { setError(splitErr.message); setSaving(false); return; }
+      if (splitErr) {
+        // Splits failed after DELETE — the expense still exists but has no splits.
+        // Surface a clear message so the user knows to retry the edit.
+        setError('Splits could not be saved. Please edit the expense again to re-enter splits.');
+        setSaving(false);
+        return;
+      }
 
       setSaving(false);
       router.back();
       return;
     }
 
-    // ── Create mode: INSERT expense + splits ──
-    // Insert expense
-    const { data: expense, error: expErr } = await supabase
-      .from('expenses')
-      .insert({
-        group_id: groupId,
-        description: description.trim(),
-        amount_cents: amtCents,
-        paid_by_member_id: paidBy,
-        category: finalCategory,
-        ...(receiptUri ? { receipt_url: receiptUri } : {}),
-      })
-      .select('id')
-      .single();
+    // ── Create mode: atomic INSERT via RPC (expense + splits in one transaction) ──
+    const { error: createErr } = await supabase.rpc('create_expense_with_splits', {
+      p_group_id: groupId,
+      p_description: description.trim(),
+      p_amount_cents: amtCents,
+      p_paid_by_member_id: paidBy,
+      p_category: finalCategory,
+      p_receipt_url: receiptUri ?? null,
+      p_split_member_ids: [...selectedMembers],
+    });
 
-    if (expErr || !expense) {
-      setError(expErr?.message ?? 'Failed to save expense');
-      setSaving(false);
-      return;
-    }
-
-    // Compute equal splits (last member absorbs rounding difference)
-    const splitIds = [...selectedMembers];
-    const perPerson = Math.round(amtCents / splitIds.length);
-    const splits = splitIds.map((memberId, i) => ({
-      expense_id: expense.id,
-      member_id: memberId,
-      amount_cents: i === splitIds.length - 1
-        ? amtCents - perPerson * (splitIds.length - 1)
-        : perPerson,
-    }));
-
-    const { error: splitErr } = await supabase.from('expense_splits').insert(splits);
-    if (splitErr) {
-      setError(splitErr.message ?? 'Expense saved but splits failed');
+    if (createErr) {
+      setError(createErr.message ?? 'Failed to save expense.');
       setSaving(false);
       return;
     }
