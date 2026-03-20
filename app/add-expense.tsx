@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
 import { useCategoryCache } from '@/hooks/use-category-cache';
+import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -522,6 +523,8 @@ export default function AddExpenseScreen() {
     }
 
     setSaving(false);
+    // Fire-and-forget: notify other group members about the new expense
+    dispatchPendingPushNotifications();
     // Fire-and-forget category reinforcement (create mode only)
     if (detectedCategory !== 'other') {
       reinforceMapping(description, detectedCategory);
