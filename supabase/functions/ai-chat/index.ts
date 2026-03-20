@@ -138,10 +138,12 @@ Deno.serve(async (req) => {
     return json(500, { error: 'Gemini API key not configured' });
   }
 
+  const geminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash-lite';
+
   try {
     const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-lite',
+      model: geminiModel,
       systemInstruction: systemPrompt,
       tools: appTools,
     });
