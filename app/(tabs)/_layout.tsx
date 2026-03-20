@@ -12,6 +12,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   return (
     <Tabs
+      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: PRIMARY,
@@ -30,6 +31,15 @@ export default function TabLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: t('tabs.ai'),
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="smart-toy" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
@@ -54,15 +64,6 @@ export default function TabLayout() {
           title: t('tabs.activity'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="history" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai"
-        options={{
-          title: t('tabs.ai'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="smart-toy" size={size} color={color} />
           ),
         }}
       />
