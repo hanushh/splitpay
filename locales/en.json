@@ -267,7 +267,15 @@
   "tabs.groups": "Groups",
   "tabs.friends": "Friends",
   "tabs.activity": "Activity",
+  "tabs.ai": "AI",
   "tabs.account": "Account",
+
+  "ai.title": "AI Assistant",
+  "ai.inputPlaceholder": "Ask me anything…",
+  "ai.thinking": "Thinking…",
+  "ai.clearChat": "Clear chat",
+  "ai.emptyGreeting": "Hi! I can help you manage your expenses. Try asking:",
+  "ai.errorGeneric": "Sorry, something went wrong. Please try again.",
 
   "splash.loading": "Loading\u2026",
   "splash.tagline": "Settling expenses made simple",

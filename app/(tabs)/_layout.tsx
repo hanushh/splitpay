@@ -58,6 +58,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai"
+        options={{
+          title: t('tabs.ai'),
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="smart-toy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="account"
         options={{
           title: t('tabs.account'),
