@@ -671,21 +671,19 @@ export default function AddExpenseScreen() {
 
     // ── Create mode: atomic INSERT via RPC (expense + splits in one transaction) ──
     const customSplits = buildCustomSplits();
-    const { error: createErr } = await supabase.rpc(
-      'create_expense_with_splits',
-      {
-        p_group_id: groupId,
-        p_description: description.trim(),
-        p_amount_cents: amtCents,
-        p_paid_by_member_id: paidBy,
-        p_category: finalCategory,
-        p_receipt_url: receiptUri ?? null,
-        p_split_member_ids: customSplits
-          ? customSplits.memberIds
-          : [...selectedMembers],
-        p_split_amounts_cents: customSplits ? customSplits.amountsCents : null,
-      },
-    );
+    const rpcParams: Record<string, unknown> = {
+      p_group_id: groupId,
+      p_description: description.trim(),
+      p_amount_cents: amtCents,
+      p_paid_by_member_id: paidBy,
+      p_category: finalCategory,
+      p_receipt_url: receiptUri ?? null,
+      p_split_member_ids: customSplits ? customSplits.memberIds : [...selectedMembers],
+    };
+    if (customSplits) {
+      rpcParams.p_split_amounts_cents = customSplits.amountsCents;
+    }
+    const { error: createErr } = await supabase.rpc('create_expense_with_splits', rpcParams);
 
     if (createErr) {
       setError(createErr.message ?? 'Failed to save expense.');

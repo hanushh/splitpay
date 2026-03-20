@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { AI_MODE_ENABLED } from '@/lib/app-config';
 
 const PRIMARY = '#17e86b';
 const SURFACE_DARK = '#1a3324';
@@ -12,6 +13,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   return (
     <Tabs
+      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: PRIMARY,
@@ -30,6 +32,16 @@ export default function TabLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: t('tabs.ai'),
+          href: AI_MODE_ENABLED ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="auto-awesome" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{

@@ -19,14 +19,15 @@ export function useSettlement() {
     setLoading(true);
     setError(null);
     try {
-      const { error: rpcErr } = await supabase.rpc('record_settlement', {
+      const settlementParams: Record<string, unknown> = {
         p_group_id: params.groupId,
         p_payee_member_id: params.payeeMemberId,
         p_amount_cents: params.amountCents,
         p_payment_method: params.paymentMethod,
-        p_note: params.note ?? null,
-        p_payer_member_id: params.payerMemberId ?? null,
-      });
+      };
+      if (params.note != null) settlementParams.p_note = params.note;
+      if (params.payerMemberId != null) settlementParams.p_payer_member_id = params.payerMemberId;
+      const { error: rpcErr } = await supabase.rpc('record_settlement', settlementParams);
       if (rpcErr) throw rpcErr;
       return true;
     } catch (err: unknown) {
