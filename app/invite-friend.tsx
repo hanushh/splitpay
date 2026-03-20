@@ -114,7 +114,7 @@ export default function InviteFriendScreen() {
       .eq('user_id', user.id)
       .then(({ data, error: groupsErr }) => {
         if (groupsErr) {
-          setError(groupsErr.message ?? 'Failed to load your groups.');
+          setError(groupsErr.message ?? t('invite.failedLoadGroups'));
           return;
         }
         const seen = new Set<string>();

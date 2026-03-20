@@ -94,3 +94,12 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 export function useCurrency() {
   return useContext(CurrencyContext);
 }
+
+/** Format cents using a specific currency code (falls back to INR if unknown). */
+export function formatCentsWithCurrency(cents: number, currencyCode: string): string {
+  const currency = CURRENCIES.find((c) => c.code === currencyCode) ?? CURRENCIES.find((c) => c.code === 'INR')!;
+  if (currency.noDecimals) {
+    return `${currency.symbol}${Math.round(Math.abs(cents)).toLocaleString()}`;
+  }
+  return `${currency.symbol}${(Math.abs(cents) / 100).toFixed(2)}`;
+}

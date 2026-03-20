@@ -20,6 +20,7 @@ const mockExpense = {
   paid_by_name: 'You',
   paid_by_is_user: true,
   your_split_cents: 6000,
+  currency_code: 'INR',
 };
 
 const mockMembers = [

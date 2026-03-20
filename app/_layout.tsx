@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
@@ -21,6 +22,7 @@ export const unstable_settings = {
 
 function InviteRedeemRedirect() {
   const { session, getPendingInviteToken, clearPendingInviteToken } = useAuth();
+  const { t } = useTranslation();
   const didRun = useRef(false);
 
   useEffect(() => {
@@ -36,9 +38,8 @@ function InviteRedeemRedirect() {
       await clearPendingInviteToken();
       if (redeemErr) {
         Alert.alert(
-          'Invite error',
-          redeemErr.message ??
-            'Failed to redeem your invite link. Please ask for a new one.',
+          t('invite.redeemError'),
+          redeemErr.message ?? t('invite.redeemFailed'),
         );
         return;
       }

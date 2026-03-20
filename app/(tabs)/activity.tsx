@@ -79,29 +79,29 @@ interface Section {
 
 type FilterKey = 'all' | 'expenses' | 'settlements' | 'mine';
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString('en-US', {
+  if (days === 0) return t('activity.today');
+  if (days === 1) return t('activity.yesterday');
+  if (days < 7) return t('activity.daysAgo', { count: days });
+  return new Date(iso).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });
 }
 
-function monthKey(iso: string): string {
+function monthKey(iso: string, t: (key: string) => string): string {
   const d = new Date(iso);
   const now = new Date();
   if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear())
-    return 'This month';
+    return t('activity.thisMonth');
   if (
     d.getMonth() === now.getMonth() - 1 &&
     d.getFullYear() === now.getFullYear()
   )
-    return 'Last month';
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return t('activity.lastMonth');
+  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
 function ActivityCard({ item }: { item: ActivityRow }) {
@@ -142,7 +142,7 @@ function ActivityCard({ item }: { item: ActivityRow }) {
           {'  ·  '}
           {subtitle}
         </Text>
-        <Text style={s.timestamp}>{relativeTime(item.created_at)}</Text>
+        <Text style={s.timestamp}>{relativeTime(item.created_at, t)}</Text>
       </View>
 
       <View style={s.cardRight}>
@@ -191,7 +191,7 @@ function SettlementCard({ item }: { item: ActivityRow }) {
         <Text style={s.cardSubtitle} numberOfLines={1}>
           <Text style={s.groupTag}>{item.group_name}</Text>
         </Text>
-        <Text style={s.timestamp}>{relativeTime(item.created_at)}</Text>
+        <Text style={s.timestamp}>{relativeTime(item.created_at, t)}</Text>
       </View>
       <View style={s.cardRight}>
         <Text style={[s.amountLabel, { color: '#17e86b' }]}>{t('activity.settled')}</Text>
@@ -239,7 +239,7 @@ export default function ActivityScreen() {
     for (const row of (data as ActivityRow[]) ?? []) {
       if (seen.has(row.expense_id)) continue;
       seen.add(row.expense_id);
-      const key = monthKey(row.created_at);
+      const key = monthKey(row.created_at, t);
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(row);
     }

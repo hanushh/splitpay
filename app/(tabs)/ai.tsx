@@ -17,11 +17,11 @@ import ChatMessage from '@/components/ChatMessage';
 import { useAiChat, type ChatMessage as ChatMessageType } from '@/hooks/use-ai-chat';
 import { router } from 'expo-router';
 
-const QUICK_ACTIONS = [
-  { label: 'How much do I owe?', icon: 'account-balance-wallet' as const },
-  { label: 'Add an expense', icon: 'receipt' as const },
-  { label: 'Create a group', icon: 'group-add' as const },
-  { label: 'Show my groups', icon: 'groups' as const },
+const QUICK_ACTION_ICONS = [
+  { key: 'ai.quickActionBalance', icon: 'account-balance-wallet' as const },
+  { key: 'ai.quickActionAddExpense', icon: 'receipt' as const },
+  { key: 'ai.quickActionCreateGroup', icon: 'group-add' as const },
+  { key: 'ai.quickActionShowGroups', icon: 'groups' as const },
 ];
 
 export default function AiTab() {
@@ -135,16 +135,16 @@ export default function AiTab() {
             <MaterialIcons name="auto-awesome" size={56} color={SURFACE_HL} />
             <Text style={styles.emptyGreeting}>{t('ai.emptyGreeting')}</Text>
             <View style={styles.quickActions}>
-              {QUICK_ACTIONS.map((action) => (
+              {QUICK_ACTION_ICONS.map((action) => (
                 <TouchableOpacity
-                  key={action.label}
+                  key={action.key}
                   style={[styles.quickChip, limitReached && styles.quickChipDisabled]}
-                  onPress={() => !limitReached && sendMessage(action.label)}
+                  onPress={() => !limitReached && sendMessage(t(action.key))}
                   activeOpacity={0.7}
                   disabled={limitReached}
                 >
                   <MaterialIcons name={action.icon} size={16} color={PRIMARY} />
-                  <Text style={styles.quickChipText}>{action.label}</Text>
+                  <Text style={styles.quickChipText}>{t(action.key)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -174,7 +174,7 @@ export default function AiTab() {
           <View style={styles.limitBanner}>
             <MaterialIcons name="block" size={16} color={DANGER} />
             <Text style={styles.limitBannerText}>
-              Daily limit reached. Resets tomorrow.
+              {t('ai.dailyLimitReached')}
             </Text>
           </View>
         ) : (

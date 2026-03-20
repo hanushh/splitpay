@@ -252,7 +252,7 @@ export default function AddExpenseScreen() {
         supabase
           .from('expenses')
           .select(
-            'id, description, amount_cents, paid_by_member_id, category, receipt_url',
+            'id, description, amount_cents, paid_by_member_id, category, receipt_url, currency_code',
           )
           .eq('id', expenseId)
           .single(),
@@ -300,6 +300,10 @@ export default function AddExpenseScreen() {
         setDetectedCategory('other');
         setCustomCategory(expenseRow.category ?? '');
       }
+
+      // Restore the currency the expense was originally entered in
+      const savedCurrency = CURRENCIES.find((c) => c.code === expenseRow.currency_code);
+      if (savedCurrency) setExpenseCurrency(savedCurrency);
 
       // Store paid_by_member_id for use after loadMembers finishes (race-condition safe)
       editPaidByRef.current = expenseRow.paid_by_member_id;
@@ -613,6 +617,7 @@ export default function AddExpenseScreen() {
           paid_by_member_id: paidBy,
           category: finalCategory,
           receipt_url: receiptUri,
+          currency_code: expenseCurrency.code,
         })
         .eq('id', expenseId);
 
@@ -678,6 +683,7 @@ export default function AddExpenseScreen() {
       p_paid_by_member_id: paidBy,
       p_category: finalCategory,
       p_receipt_url: receiptUri ?? null,
+      p_currency_code: expenseCurrency.code,
       p_split_member_ids: customSplits ? customSplits.memberIds : [...selectedMembers],
     };
     if (customSplits) {

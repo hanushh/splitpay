@@ -379,7 +379,7 @@ export default function GroupsScreen() {
             >
               <View style={s.archivedHeaderLeft}>
                 <MaterialIcons name="archive" size={16} color={C.slate400} />
-                <Text style={s.archivedHeaderText}>Archived</Text>
+                <Text style={s.archivedHeaderText}>{t('groups.archived')}</Text>
               </View>
               <MaterialIcons
                 name={archivedExpanded ? 'expand-less' : 'expand-more'}
@@ -395,7 +395,7 @@ export default function GroupsScreen() {
                   style={{ marginVertical: 16 }}
                 />
               ) : archivedGroups.length === 0 ? (
-                <Text style={s.archivedEmpty}>No archived groups</Text>
+                <Text style={s.archivedEmpty}>{t('groups.noArchivedGroups')}</Text>
               ) : (
                 archivedGroups.map((group) => (
                   <GroupCard key={group.id} group={group} />
