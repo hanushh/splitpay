@@ -99,6 +99,10 @@ export default function AddExpenseScreen() {
     'equally' | 'exact' | 'percent'
   >('equally');
   const [splitCustomized, setSplitCustomized] = useState(false);
+  const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
+  const [percentAmounts, setPercentAmounts] = useState<Record<string, string>>(
+    {},
+  );
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
     new Set(),
   );
@@ -335,13 +339,98 @@ export default function AddExpenseScreen() {
     }
   }, [detectedCategory]);
 
+  // When split method changes, auto-populate starting values so the user has
+  // a sensible baseline to edit rather than blank fields.
+  useEffect(() => {
+    setError(null);
+    const ids = [...selectedMembers];
+    if (ids.length === 0) return;
+    const amtCents = Math.round(parseFloat(amount) * 100) || 0;
+    const decimals = expenseCurrency.noDecimals ? 0 : 2;
+    if (splitMethod === 'exact') {
+      const perPerson = Math.round(amtCents / ids.length);
+      const init: Record<string, string> = {};
+      ids.forEach((id, i) => {
+        const cents =
+          i === ids.length - 1
+            ? amtCents - perPerson * (ids.length - 1)
+            : perPerson;
+        init[id] = (cents / 100).toFixed(decimals);
+      });
+      setExactAmounts(init);
+    } else if (splitMethod === 'percent') {
+      const basePercent = Math.floor(10000 / ids.length) / 100; // e.g. 33.33
+      const remainder =
+        Math.round(100 * 100 - basePercent * 100 * ids.length) / 100;
+      const init: Record<string, string> = {};
+      ids.forEach((id, i) => {
+        const pct =
+          i === ids.length - 1
+            ? Math.round((basePercent + remainder) * 100) / 100
+            : basePercent;
+        init[id] = pct.toString();
+      });
+      setPercentAmounts(init);
+    }
+    // equally: no per-member inputs, nothing to init
+  }, [splitMethod]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleMember = (id: string) => {
     setSelectedMembers((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setExactAmounts((a) => {
+          const n = { ...a };
+          delete n[id];
+          return n;
+        });
+        setPercentAmounts((a) => {
+          const n = { ...a };
+          delete n[id];
+          return n;
+        });
+      } else {
+        next.add(id);
+      }
       return next;
     });
+  };
+
+  /** Redistribute exact amounts equally across currently selected members. */
+  const redistributeExact = () => {
+    const ids = [...selectedMembers];
+    if (ids.length === 0) return;
+    const amtCents = Math.round(parseFloat(amount) * 100) || 0;
+    const perPerson = Math.round(amtCents / ids.length);
+    const decimals = expenseCurrency.noDecimals ? 0 : 2;
+    const init: Record<string, string> = {};
+    ids.forEach((id, i) => {
+      const cents =
+        i === ids.length - 1
+          ? amtCents - perPerson * (ids.length - 1)
+          : perPerson;
+      init[id] = (cents / 100).toFixed(decimals);
+    });
+    setExactAmounts(init);
+  };
+
+  /** Redistribute percent amounts equally across currently selected members. */
+  const redistributePercent = () => {
+    const ids = [...selectedMembers];
+    if (ids.length === 0) return;
+    const basePercent = Math.floor(10000 / ids.length) / 100;
+    const remainder =
+      Math.round(100 * 100 - basePercent * 100 * ids.length) / 100;
+    const init: Record<string, string> = {};
+    ids.forEach((id, i) => {
+      const pct =
+        i === ids.length - 1
+          ? Math.round((basePercent + remainder) * 100) / 100
+          : basePercent;
+      init[id] = pct.toString();
+    });
+    setPercentAmounts(init);
   };
 
   const handlePickReceipt = async () => {
@@ -403,12 +492,77 @@ export default function AddExpenseScreen() {
     }
   };
 
+  const amtCentsForValidation = Math.round(parseFloat(amount) * 100) || 0;
+
+  /**
+   * Returns per-member split data for non-equal modes, or null for equally.
+   * Used for both create and edit mode submission.
+   */
+  const buildCustomSplits = ():
+    | { memberIds: string[]; amountsCents: number[] }
+    | null => {
+    if (splitMethod === 'equally') return null;
+    const ids = [...selectedMembers];
+    if (splitMethod === 'exact') {
+      const cents = ids.map((id) =>
+        Math.round((parseFloat(exactAmounts[id] ?? '0') || 0) * 100),
+      );
+      return { memberIds: ids, amountsCents: cents };
+    }
+    // percent: floor each share, give rounding remainder to last member
+    const percents = ids.map((id) => parseFloat(percentAmounts[id] ?? '0') || 0);
+    const raw = percents.map((p) =>
+      Math.floor((p / 100) * amtCentsForValidation),
+    );
+    const remainder =
+      amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+    if (raw.length > 0) raw[raw.length - 1] += remainder;
+    return { memberIds: ids, amountsCents: raw };
+  };
+
+  /**
+   * Returns a user-facing error string when custom split inputs are invalid,
+   * or null when valid (or when splitMethod is 'equally').
+   */
+  const validateCustomSplits = (): string | null => {
+    if (splitMethod === 'equally') return null;
+    const ids = [...selectedMembers];
+    if (splitMethod === 'exact') {
+      const hasBlank = ids.some((id) => !exactAmounts[id]?.trim());
+      if (hasBlank) return t('expense.splitEnterAmount');
+      const total = ids.reduce(
+        (s, id) =>
+          s + Math.round((parseFloat(exactAmounts[id]) || 0) * 100),
+        0,
+      );
+      if (total !== amtCentsForValidation)
+        return t('expense.splitAmountMismatch', {
+          expected: (amtCentsForValidation / 100).toFixed(2),
+        });
+    } else {
+      const hasBlank = ids.some((id) => !percentAmounts[id]?.trim());
+      if (hasBlank) return t('expense.splitEnterPercent');
+      const total = ids.reduce(
+        (s, id) => s + (parseFloat(percentAmounts[id]) || 0),
+        0,
+      );
+      if (Math.abs(total - 100) > 0.01)
+        return t('expense.splitPercentMismatch', {
+          total: total.toFixed(2),
+        });
+    }
+    return null;
+  };
+
+  const splitValid = validateCustomSplits() === null;
+
   const canSave =
     !!description &&
     !!amount &&
     !!groupId &&
     selectedMembers.size > 0 &&
-    !!paidBy;
+    !!paidBy &&
+    splitValid;
 
   const handleSave = async () => {
     if (!user) return;
@@ -433,6 +587,12 @@ export default function AddExpenseScreen() {
     }
     if (!description.trim()) {
       setError(t('expense.addDescription'));
+      return;
+    }
+
+    const splitValidationError = validateCustomSplits();
+    if (splitValidationError) {
+      setError(splitValidationError);
       return;
     }
 
@@ -473,15 +633,22 @@ export default function AddExpenseScreen() {
         return;
       }
 
-      const splitIds = [...selectedMembers];
-      const perPerson = Math.round(amtCents / splitIds.length);
+      const customSplits = buildCustomSplits();
+      const splitIds = customSplits
+        ? customSplits.memberIds
+        : [...selectedMembers];
+      const splitCents = customSplits
+        ? customSplits.amountsCents
+        : splitIds.map((_, i) => {
+            const perPerson = Math.round(amtCents / splitIds.length);
+            return i === splitIds.length - 1
+              ? amtCents - perPerson * (splitIds.length - 1)
+              : perPerson;
+          });
       const splits = splitIds.map((memberId, i) => ({
         expense_id: expenseId,
         member_id: memberId,
-        amount_cents:
-          i === splitIds.length - 1
-            ? amtCents - perPerson * (splitIds.length - 1)
-            : perPerson,
+        amount_cents: splitCents[i],
       }));
 
       const { error: splitErr } = await supabase
@@ -503,6 +670,7 @@ export default function AddExpenseScreen() {
     }
 
     // ── Create mode: atomic INSERT via RPC (expense + splits in one transaction) ──
+    const customSplits = buildCustomSplits();
     const { error: createErr } = await supabase.rpc(
       'create_expense_with_splits',
       {
@@ -512,7 +680,10 @@ export default function AddExpenseScreen() {
         p_paid_by_member_id: paidBy,
         p_category: finalCategory,
         p_receipt_url: receiptUri ?? null,
-        p_split_member_ids: [...selectedMembers],
+        p_split_member_ids: customSplits
+          ? customSplits.memberIds
+          : [...selectedMembers],
+        p_split_amounts_cents: customSplits ? customSplits.amountsCents : null,
       },
     );
 
@@ -776,11 +947,6 @@ export default function AddExpenseScreen() {
                         </Pressable>
                       ))}
                     </View>
-                    {splitMethod !== 'equally' && (
-                      <Text style={s.splitComingSoon}>
-                        {t('expense.splitComingSoon')}
-                      </Text>
-                    )}
                     <View
                       style={[s.shareGrid, { marginTop: 16 }]}
                       testID="share-with-section"
@@ -830,6 +996,201 @@ export default function AddExpenseScreen() {
                         );
                       })}
                     </View>
+
+                    {/* Per-member amount inputs for Exact and Percent modes */}
+                    {splitMethod !== 'equally' &&
+                      selectedMembers.size > 0 && (() => {
+                        const isExact = splitMethod === 'exact';
+                        const selectedList = members.filter((m) =>
+                          selectedMembers.has(m.id),
+                        );
+                        const amtCentsLive =
+                          Math.round(parseFloat(amount) * 100) || 0;
+
+                        // Running totals
+                        const allocatedCents = selectedList.reduce(
+                          (s, m) =>
+                            s +
+                            Math.round(
+                              (parseFloat(exactAmounts[m.id] ?? '0') || 0) *
+                                100,
+                            ),
+                          0,
+                        );
+                        const totalPct = selectedList.reduce(
+                          (s, m) =>
+                            s + (parseFloat(percentAmounts[m.id] ?? '0') || 0),
+                          0,
+                        );
+                        const isBalanced = isExact
+                          ? allocatedCents === amtCentsLive
+                          : Math.abs(totalPct - 100) <= 0.01;
+
+                        const noDecimals = expenseCurrency.noDecimals ?? false;
+                        const fmtCents = (c: number) =>
+                          (c / 100).toFixed(noDecimals ? 0 : 2);
+
+                        return (
+                          <View style={s.splitInputSection}>
+                            {/* Header row with "split equally" quick-fill */}
+                            <View style={s.splitInputHeader}>
+                              <Text style={s.splitInputHeaderLabel}>
+                                {isExact
+                                  ? t('expense.amountPerPerson')
+                                  : t('expense.percentPerPerson')}
+                              </Text>
+                              <Pressable
+                                onPress={
+                                  isExact
+                                    ? redistributeExact
+                                    : redistributePercent
+                                }
+                                style={({ pressed }: { pressed: boolean }) => [
+                                  s.splitEqualBtn,
+                                  pressed && { opacity: 0.7 },
+                                ]}
+                                testID="split-redistribute-button"
+                              >
+                                <MaterialIcons
+                                  name="balance"
+                                  size={13}
+                                  color={C.primary}
+                                />
+                                <Text style={s.splitEqualBtnText}>
+                                  {t('expense.splitEqually')}
+                                </Text>
+                              </Pressable>
+                            </View>
+
+                            {selectedList.map((m) => {
+                              const val = isExact
+                                ? (exactAmounts[m.id] ?? '')
+                                : (percentAmounts[m.id] ?? '');
+                              const setVal = isExact
+                                ? (v: string) =>
+                                    setExactAmounts((prev) => ({
+                                      ...prev,
+                                      [m.id]: v,
+                                    }))
+                                : (v: string) =>
+                                    setPercentAmounts((prev) => ({
+                                      ...prev,
+                                      [m.id]: v,
+                                    }));
+
+                              // Per-row state: valid if non-empty and parseable
+                              const parsed = parseFloat(val);
+                              const fieldOk = val.trim() !== '' && !isNaN(parsed) && parsed >= 0;
+
+                              // Helper: cents derived from this member's percent
+                              const helperCents =
+                                !isExact && fieldOk
+                                  ? Math.floor((parsed / 100) * amtCentsLive)
+                                  : null;
+
+                              return (
+                                <View
+                                  key={m.id}
+                                  style={[
+                                    s.splitInputRow,
+                                    !fieldOk &&
+                                      val.trim() !== '' &&
+                                      s.splitInputRowError,
+                                  ]}
+                                >
+                                  <View style={s.compactAvatar}>
+                                    <Text style={s.compactAvatarText}>
+                                      {(m.display_name || '?')[0].toUpperCase()}
+                                    </Text>
+                                  </View>
+                                  <Text style={s.splitInputName}>
+                                    {m.display_name}
+                                  </Text>
+                                  <TextInput
+                                    style={[
+                                      s.splitAmountInput,
+                                      fieldOk && s.splitAmountInputValid,
+                                      !fieldOk &&
+                                        val.trim() !== '' &&
+                                        s.splitAmountInputError,
+                                    ]}
+                                    value={val}
+                                    onChangeText={setVal}
+                                    keyboardType="decimal-pad"
+                                    placeholder={isExact ? (noDecimals ? '0' : '0.00') : '0'}
+                                    placeholderTextColor={C.slate500}
+                                    testID={`split-input-${m.id}`}
+                                  />
+                                  <Text style={s.splitInputSuffix}>
+                                    {isExact ? expenseCurrency.symbol : '%'}
+                                  </Text>
+                                  {helperCents !== null && (
+                                    <Text style={s.splitHelperText}>
+                                      ≈{expenseCurrency.symbol}
+                                      {fmtCents(helperCents)}
+                                    </Text>
+                                  )}
+                                </View>
+                              );
+                            })}
+
+                            {/* Running total bar */}
+                            <View style={s.splitTotalRow}>
+                              {isExact ? (
+                                <>
+                                  <Text style={s.splitTotalLabel}>
+                                    {t('expense.splitAllocated')}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      s.splitTotalValue,
+                                      isBalanced
+                                        ? s.splitTotalOk
+                                        : s.splitTotalBad,
+                                    ]}
+                                  >
+                                    {expenseCurrency.symbol}
+                                    {fmtCents(allocatedCents)}
+                                    {' / '}
+                                    {expenseCurrency.symbol}
+                                    {fmtCents(amtCentsLive)}
+                                  </Text>
+                                  {!isBalanced && (
+                                    <Text style={s.splitTotalHint}>
+                                      {allocatedCents < amtCentsLive
+                                        ? `−${expenseCurrency.symbol}${fmtCents(amtCentsLive - allocatedCents)}`
+                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - amtCentsLive)}`}
+                                    </Text>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <Text style={s.splitTotalLabel}>
+                                    {t('expense.splitTotal')}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      s.splitTotalValue,
+                                      isBalanced
+                                        ? s.splitTotalOk
+                                        : s.splitTotalBad,
+                                    ]}
+                                  >
+                                    {totalPct.toFixed(2)}% / 100%
+                                  </Text>
+                                </>
+                              )}
+                              {isBalanced && (
+                                <MaterialIcons
+                                  name="check-circle"
+                                  size={16}
+                                  color={C.primary}
+                                />
+                              )}
+                            </View>
+                          </View>
+                        );
+                      })()}
                   </>
                 )}
               </View>
@@ -1316,12 +1677,85 @@ const s = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
-  splitComingSoon: {
+  splitInputSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: C.surfaceHL,
+    paddingTop: 12,
+  },
+  splitInputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  splitInputHeaderLabel: {
+    color: C.slate400,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  splitEqualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(23,232,107,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(23,232,107,0.3)',
+  },
+  splitEqualBtnText: { color: C.primary, fontSize: 12, fontWeight: '700' },
+  splitInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
+  splitInputRowError: { borderBottomColor: C.red + '44' },
+  splitInputName: { flex: 1, color: C.white, fontSize: 14, fontWeight: '600' },
+  splitAmountInput: {
+    width: 80,
+    textAlign: 'right',
+    backgroundColor: C.surface,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    color: C.white,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
+  splitAmountInputValid: { borderColor: C.primary + '66' },
+  splitAmountInputError: { borderColor: C.red + '88' },
+  splitInputSuffix: {
+    color: C.slate400,
+    fontSize: 14,
+    width: 22,
+    textAlign: 'left',
+  },
+  splitHelperText: {
     color: C.slate500,
     fontSize: 12,
-    marginTop: 8,
-    fontStyle: 'italic',
+    minWidth: 64,
+    textAlign: 'right',
   },
+  splitTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingTop: 10,
+  },
+  splitTotalLabel: { color: C.slate500, fontSize: 12 },
+  splitTotalValue: { fontSize: 13, fontWeight: '700' },
+  splitTotalOk: { color: C.primary },
+  splitTotalBad: { color: C.red },
+  splitTotalHint: { color: C.red, fontSize: 12 },
   addReceiptBtn: {
     flexDirection: 'row',
     alignItems: 'center',
