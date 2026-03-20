@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 
 const C = {
@@ -26,6 +27,7 @@ const C = {
 
 export default function SetupContactsScreen() {
   const { refreshContactsPermission } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [checking, setChecking] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -95,13 +97,11 @@ export default function SetupContactsScreen() {
       </View>
 
       <Text style={s.title}>
-        {denied ? 'Contacts Access Required' : 'Find friends on PaySplit'}
+        {denied ? t('setupContacts.titleDenied') : t('setupContacts.titleDefault')}
       </Text>
 
       <Text style={s.subtitle}>
-        {denied
-          ? 'PaySplit requires contacts access to find friends and match payments. Please enable it in Settings to continue.'
-          : 'PaySplit uses your contacts to show which friends are already on the app and make splitting bills easier.'}
+        {denied ? t('setupContacts.subtitleDenied') : t('setupContacts.subtitleDefault')}
       </Text>
 
       {denied ? (
@@ -112,7 +112,7 @@ export default function SetupContactsScreen() {
           ]}
           onPress={() => Linking.openSettings()}
         >
-          <Text style={s.btnText}>Open Settings</Text>
+          <Text style={s.btnText}>{t('setupContacts.openSettings')}</Text>
         </Pressable>
       ) : (
         <Pressable
@@ -122,7 +122,7 @@ export default function SetupContactsScreen() {
           ]}
           onPress={handleAllow}
         >
-          <Text style={s.btnText}>Allow Access</Text>
+          <Text style={s.btnText}>{t('setupContacts.allowAccess')}</Text>
         </Pressable>
       )}
     </View>

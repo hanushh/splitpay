@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
@@ -29,6 +30,7 @@ const C = {
 
 export default function SetupPhoneScreen() {
   const { user, refreshPhoneComplete } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export default function SetupPhoneScreen() {
   const handleSave = async () => {
     const normalized = normalizePhone(phone.trim());
     if (!normalized) {
-      setError('Enter a valid phone number (e.g. +91 98765 43210).');
+      setError(t('setupPhone.invalidPhone'));
       return;
     }
     if (!user) return;
@@ -76,11 +78,8 @@ export default function SetupPhoneScreen() {
         <View style={s.logoMark}>
           <Text style={s.logoText}>S</Text>
         </View>
-        <Text style={s.title}>Add your phone number</Text>
-        <Text style={s.subtitle}>
-          Your phone number helps friends find you on PaySplit. This is required
-          to continue.
-        </Text>
+        <Text style={s.title}>{t('setupPhone.title')}</Text>
+        <Text style={s.subtitle}>{t('setupPhone.subtitle')}</Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
 
@@ -103,7 +102,7 @@ export default function SetupPhoneScreen() {
           {saving ? (
             <ActivityIndicator color={C.bg} />
           ) : (
-            <Text style={s.saveBtnText}>Continue</Text>
+            <Text style={s.saveBtnText}>{t('setupPhone.continue')}</Text>
           )}
         </Pressable>
       </View>

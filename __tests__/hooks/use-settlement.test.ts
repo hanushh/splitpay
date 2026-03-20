@@ -35,7 +35,6 @@ describe('useSettlement', () => {
       p_amount_cents: 5000,
       p_payment_method: 'cash',
       p_note: 'test note',
-      p_payer_member_id: null,
     });
     expect(ok!).toBe(true);
     expect(result.current.error).toBeNull();
@@ -110,9 +109,7 @@ describe('useSettlement', () => {
     await act(async () => {
       await result.current.settle({ ...params, note: undefined });
     });
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'record_settlement',
-      expect.objectContaining({ p_note: null }),
-    );
+    const call = (supabase.rpc as jest.Mock).mock.calls[0][1];
+    expect(call).not.toHaveProperty('p_note');
   });
 });

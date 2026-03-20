@@ -22,6 +22,7 @@ export interface Expense {
   paid_by_name: string;
   paid_by_is_user: boolean;
   your_split_cents: number;
+  currency_code: string;
 }
 
 export interface ExpenseSplit {

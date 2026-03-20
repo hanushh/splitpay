@@ -12,6 +12,7 @@ jest.mock('@/context/auth', () => ({
 }));
 jest.mock('@/context/currency', () => ({
   useCurrency: () => ({ format: (c: number) => `$${(c / 100).toFixed(2)}` }),
+  formatCentsWithCurrency: (c: number) => `$${(c / 100).toFixed(2)}`,
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -35,6 +36,7 @@ const mockExpenses = [
     paid_by_name: 'You',
     paid_by_is_user: true,
     your_split_cents: 6000,
+    currency_code: 'INR',
   },
 ];
 

@@ -220,8 +220,7 @@ export default function CreateGroupScreen() {
 
       if (balanceErr) {
         setError(
-          balanceErr.message ??
-            'Group created but failed to initialise your balance.',
+          balanceErr.message ?? t('createGroup.failedInitBalance'),
         );
         setSaving(false);
         return;
@@ -238,8 +237,7 @@ export default function CreateGroupScreen() {
         );
         if (friendErr) {
           setError(
-            friendErr.message ??
-              'Group created but failed to add some members.',
+            friendErr.message ?? t('createGroup.failedAddMembers'),
           );
           setSaving(false);
           return;
@@ -262,8 +260,7 @@ export default function CreateGroupScreen() {
 
         if (contactMemberErr) {
           setError(
-            contactMemberErr.message ??
-              `Failed to add ${contact.name} to the group.`,
+            contactMemberErr.message ?? t('createGroup.failedAddContact', { name: contact.name }),
           );
           setSaving(false);
           return;
@@ -279,8 +276,7 @@ export default function CreateGroupScreen() {
 
         if (inviteErr) {
           setError(
-            inviteErr.message ??
-              `Failed to create invite for ${contact.name}. They were added to the group but you won't be able to share a link.`,
+            inviteErr.message ?? t('createGroup.failedCreateInvite', { name: contact.name }),
           );
           setSaving(false);
           return;

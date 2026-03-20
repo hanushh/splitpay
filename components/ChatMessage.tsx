@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { type ChatMessage as ChatMessageType } from '@/hooks/use-ai-chat';
 
 interface Props {
@@ -15,14 +16,15 @@ const ACTION_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   view_group: 'groups',
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  add_expense: 'Add Expense',
-  create_group: 'Create Group',
-  settle_up: 'Settle Up',
-  view_group: 'View Group',
+const ACTION_LABEL_KEYS: Record<string, string> = {
+  add_expense: 'ai.actionAddExpense',
+  create_group: 'ai.actionCreateGroup',
+  settle_up: 'ai.actionSettleUp',
+  view_group: 'ai.actionViewGroup',
 };
 
 export default function ChatMessage({ message, onActionPress }: Props) {
+  const { t } = useTranslation();
   const isUser = message.role === 'user';
   const isAction = message.role === 'action';
 
@@ -33,7 +35,8 @@ export default function ChatMessage({ message, onActionPress }: Props) {
 
   if (isAction && message.actionType) {
     const icon = ACTION_ICONS[message.actionType] ?? 'open-in-new';
-    const label = ACTION_LABELS[message.actionType] ?? message.content;
+    const labelKey = ACTION_LABEL_KEYS[message.actionType];
+    const label = labelKey ? t(labelKey) : message.content;
 
     return (
       <View style={styles.actionContainer}>
@@ -50,7 +53,7 @@ export default function ChatMessage({ message, onActionPress }: Props) {
           <MaterialIcons name={icon} size={22} color={PRIMARY} />
           <View style={styles.actionTextWrapper}>
             <Text style={styles.actionLabel}>{label}</Text>
-            <Text style={styles.actionSub}>Tap to open</Text>
+            <Text style={styles.actionSub}>{t('ai.actionTapToOpen')}</Text>
           </View>
           <MaterialIcons name="chevron-right" size={20} color={SLATE_400} />
         </TouchableOpacity>

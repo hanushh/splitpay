@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
 import { supabase } from '@/lib/supabase';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 
@@ -650,7 +650,7 @@ export default function GroupDetailScreen() {
                       {expense.description}
                     </Text>
                     <Text style={s.expensePaid}>
-                      {t('group.paidAmount', { name: paidLabel, amount: format(expense.total_amount_cents) })}
+                      {t('group.paidAmount', { name: paidLabel, amount: formatCentsWithCurrency(expense.total_amount_cents, expense.currency_code) })}
                     </Text>
                   </View>
                   <View style={s.expenseRight}>
@@ -668,7 +668,7 @@ export default function GroupDetailScreen() {
                         { color: youPositive ? C.primary : C.orange },
                       ]}
                     >
-                      {format(youCents)}
+                      {formatCentsWithCurrency(youCents, expense.currency_code)}
                     </Text>
                   </View>
                 </Pressable>
@@ -735,7 +735,7 @@ export default function GroupDetailScreen() {
           onClose={() => setSelectedExpense(null)}
           onEdit={handleEditExpense}
           onDelete={handleDeleteExpense}
-          format={format}
+          format={(cents) => formatCentsWithCurrency(cents, selectedExpense.currency_code)}
         />
       )}
 
