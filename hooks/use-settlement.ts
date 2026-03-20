@@ -7,6 +7,7 @@ interface SettleParams {
   payeeMemberId: string;
   amountCents: number;
   paymentMethod: 'cash' | 'venmo' | 'other';
+  currencyCode: string;
   note?: string;
   payerMemberId?: string; // if provided, this member pays the current user
 }
@@ -24,6 +25,7 @@ export function useSettlement() {
         p_payee_member_id: params.payeeMemberId,
         p_amount_cents: params.amountCents,
         p_payment_method: params.paymentMethod,
+        p_currency_code: params.currencyCode,
       };
       if (params.note != null) settlementParams.p_note = params.note;
       if (params.payerMemberId != null) settlementParams.p_payer_member_id = params.payerMemberId;

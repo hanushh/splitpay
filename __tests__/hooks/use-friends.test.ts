@@ -68,6 +68,7 @@ beforeEach(() => {
             display_name: 'Alice Smith',
             avatar_url: null,
             balance_cents: 1500,
+            currency_code: 'INR',
           },
         ],
         error: null,
@@ -99,7 +100,7 @@ describe('useFriends', () => {
     });
     expect(result.current.matched).toHaveLength(1);
     expect(result.current.matched[0].userId).toBe('user-alice');
-    expect(result.current.matched[0].balanceCents).toBe(1500);
+    expect(result.current.matched[0].balances).toEqual([{ currency_code: 'INR', balance_cents: 1500 }]);
     expect(result.current.matched[0].balanceStatus).toBe('owed');
     // phone numbers sent as plain text; phone_hash array must be empty
     expect(supabase.rpc).toHaveBeenCalledWith(
@@ -136,7 +137,7 @@ describe('useFriends', () => {
       await result.current.refetch();
     });
     expect(result.current.matched[0].balanceStatus).toBe('no_groups');
-    expect(result.current.matched[0].balanceCents).toBe(0);
+    expect(result.current.matched[0].balances).toEqual([]);
   });
 
   it('sets error when match_contacts RPC fails', async () => {

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/auth';
+import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, GroupMember } from './use-groups';
 
 export function useArchivedGroups() {
@@ -33,7 +34,7 @@ export function useArchivedGroups() {
         .select(
           `
           id, name, description, image_url, icon_name, archived,
-          group_balances!left ( balance_cents ),
+          group_balances!left ( balance_cents, currency_code ),
           group_members ( id, display_name, avatar_url, user_id )
         `,
         )
@@ -82,15 +83,16 @@ export function useArchivedGroups() {
       }
 
       const mapped: Group[] = (groupRows ?? []).map((row) => {
-        const balance_cents: number =
-          (row.group_balances as { balance_cents: number }[] | null)?.[0]
-            ?.balance_cents ?? 0;
-        const status =
-          balance_cents > 0
-            ? 'owed'
-            : balance_cents < 0
-              ? 'owes'
-              : ('settled' as const);
+        type RawBalance = { balance_cents: number; currency_code: string };
+        const balances: CurrencyBalance[] = sortBalancesDesc(
+          ((row.group_balances as RawBalance[] | null) ?? [])
+            .filter((b) => b.balance_cents !== 0)
+            .map((b) => ({
+              currency_code: b.currency_code,
+              balance_cents: Number(b.balance_cents),
+            })),
+        );
+        const status = deriveBalanceStatus(balances);
 
         const members: GroupMember[] = (
           (row.group_members as RawMember[]) ?? []
@@ -119,7 +121,7 @@ export function useArchivedGroups() {
           icon_name: row.icon_name,
           archived: true,
           status,
-          balance_cents,
+          balances,
           members,
         };
       });

@@ -17,8 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency } from '@/context/currency';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
+import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, useGroups } from '@/hooks/use-groups';
 import { useArchivedGroups } from '@/hooks/use-archived-groups';
 
@@ -39,10 +40,12 @@ const C = {
 };
 
 function GroupCard({ group }: { group: Group }) {
-  const { format } = useCurrency();
   const { t } = useTranslation();
   const amountColor = group.status === 'owes' ? C.orange : C.primary;
   const opacity = group.archived ? 0.7 : 1;
+  const sortedBalances = sortBalancesDesc(group.balances);
+  const primaryBalance = sortedBalances[0];
+  const extraCount = sortedBalances.length - 1;
 
   return (
     <Pressable
@@ -111,16 +114,26 @@ function GroupCard({ group }: { group: Group }) {
       <View style={s.groupAmount}>
         {group.status === 'settled' ? (
           <Text style={s.settledText}>{t('groups.settledUp')}</Text>
-        ) : (
+        ) : primaryBalance ? (
           <>
             <Text style={[s.amountLabel, { color: amountColor }]}>
-              {group.status === 'owed' ? t('groups.youAreOwedShort') : t('groups.youOweShort')}
+              {group.status === 'owed'
+                ? t('groups.youAreOwedShort')
+                : t('groups.youOweShort')}
             </Text>
             <Text style={[s.amountValue, { color: amountColor }]}>
-              {format(group.balance_cents)}
+              {formatCentsWithCurrency(
+                primaryBalance.balance_cents,
+                primaryBalance.currency_code,
+              )}
             </Text>
+            {extraCount > 0 && (
+              <Text style={s.andMoreText}>
+                {t('groups.andMore', { count: extraCount })}
+              </Text>
+            )}
           </>
-        )}
+        ) : null}
       </View>
 
       <MaterialIcons name="chevron-right" size={22} color={C.surfaceHL} />
@@ -128,16 +141,10 @@ function GroupCard({ group }: { group: Group }) {
   );
 }
 
-function TotalBalanceDisplay({ cents }: { cents: number }) {
-  const { format } = useCurrency();
+function TotalBalanceDisplay({ balances }: { balances: CurrencyBalance[] }) {
   const { t } = useTranslation();
-  const isPositive = cents >= 0;
-  const label =
-    cents === 0
-      ? t('groups.allSettled')
-      : isPositive
-        ? t('groups.youAreOwed', { amount: format(cents) })
-        : t('groups.youOwe', { amount: format(Math.abs(cents)) });
+  const isSettled = balances.length === 0;
+  const hasDebt = balances.some((b) => b.balance_cents < 0);
 
   return (
     <View style={s.balanceCard}>
@@ -149,17 +156,41 @@ function TotalBalanceDisplay({ cents }: { cents: number }) {
         />
       </View>
       <Text style={s.balanceLabel}>{t('groups.totalBalance')}</Text>
-      <Text style={[s.balanceAmount, !isPositive && { color: C.orange }]}>
-        {label}
-      </Text>
+      {isSettled ? (
+        <Text style={s.balanceAmount}>{t('groups.allSettled')}</Text>
+      ) : (
+        balances.map((b) => (
+          <Text
+            key={b.currency_code}
+            style={[
+              s.balanceAmount,
+              b.balance_cents < 0 && { color: C.orange },
+            ]}
+          >
+            {b.balance_cents > 0
+              ? t('groups.youAreOwed', {
+                  amount: formatCentsWithCurrency(
+                    b.balance_cents,
+                    b.currency_code,
+                  ),
+                })
+              : t('groups.youOwe', {
+                  amount: formatCentsWithCurrency(
+                    Math.abs(b.balance_cents),
+                    b.currency_code,
+                  ),
+                })}
+          </Text>
+        ))
+      )}
       <View style={s.balanceTrend}>
         <MaterialIcons
-          name={isPositive ? 'trending-up' : 'trending-down'}
+          name={!hasDebt ? 'trending-up' : 'trending-down'}
           size={14}
-          color={isPositive ? C.primary : C.orange}
+          color={!hasDebt ? C.primary : C.orange}
         />
-        <Text style={[s.balanceTrendText, !isPositive && { color: C.orange }]}>
-          {cents !== 0 ? t('groups.acrossActive') : t('groups.acrossAll')}
+        <Text style={[s.balanceTrendText, hasDebt && { color: C.orange }]}>
+          {!isSettled ? t('groups.acrossActive') : t('groups.acrossAll')}
         </Text>
       </View>
     </View>
@@ -172,7 +203,7 @@ export default function GroupsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
+  const { groups, loading, error, refetch, totalBalances } = useGroups();
   const {
     groups: archivedGroups,
     loading: archivedLoading,
@@ -297,7 +328,7 @@ export default function GroupsScreen() {
           </View>
         )}
 
-        {!showSearch && <TotalBalanceDisplay cents={totalBalanceCents} />}
+        {!showSearch && <TotalBalanceDisplay balances={totalBalances} />}
       </View>
 
       {/* Main Content */}
@@ -607,6 +638,7 @@ const s = StyleSheet.create({
   amountLabel: { fontSize: 12, fontWeight: '700' },
   amountValue: { fontSize: 17, fontWeight: '700' },
   settledText: { fontSize: 13, fontWeight: '500', color: C.slate400 },
+  andMoreText: { fontSize: 11, color: C.slate400, fontWeight: '600' },
   centered: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   errorText: { color: C.slate400, fontSize: 14, textAlign: 'center' },
   retryBtn: {

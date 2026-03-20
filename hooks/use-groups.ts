@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/auth';
+import {
+  type CurrencyBalance,
+  deriveBalanceStatus,
+  mergeBalances,
+} from '@/lib/balance-utils';
 
 export type GroupStatus = 'owed' | 'owes' | 'settled';
 
@@ -18,8 +23,8 @@ export interface Group {
   icon_name: string | null;
   archived: boolean;
   status: GroupStatus;
-  /** Raw balance in cents: positive = owed to user, negative = user owes */
-  balance_cents: number;
+  /** Per-currency balances: positive = owed to user, negative = user owes */
+  balances: CurrencyBalance[];
   members: GroupMember[];
 }
 
@@ -56,7 +61,7 @@ export function useGroups() {
         .select(
           `
           id, name, description, image_url, icon_name, archived,
-          group_balances!left ( balance_cents ),
+          group_balances!left ( balance_cents, currency_code ),
           group_members ( id, display_name, avatar_url, user_id )
         `,
         )
@@ -106,12 +111,17 @@ export function useGroups() {
       }
 
       const mapped: Group[] = (groupRows ?? []).map((row) => {
-        const balance_cents: number =
-          (row.group_balances as { balance_cents: number }[] | null)?.[0]
-            ?.balance_cents ?? 0;
+        type RawBalance = { balance_cents: number; currency_code: string };
+        const rawBalances = (row.group_balances as RawBalance[] | null) ?? [];
+        const userBalances = rawBalances.filter(
+          (b) => b.currency_code != null,
+        ) as CurrencyBalance[];
 
-        const status: GroupStatus =
-          balance_cents > 0 ? 'owed' : balance_cents < 0 ? 'owes' : 'settled';
+        const balances: CurrencyBalance[] = userBalances.filter(
+          (b) => b.balance_cents !== 0,
+        );
+
+        const status: GroupStatus = deriveBalanceStatus(balances);
 
         const members: GroupMember[] = (
           (row.group_members as RawMember[]) ?? []
@@ -140,7 +150,7 @@ export function useGroups() {
           icon_name: row.icon_name,
           archived: row.archived ?? false,
           status,
-          balance_cents,
+          balances,
           members,
         };
       });
@@ -158,7 +168,7 @@ export function useGroups() {
     fetchGroups();
   }, [user, fetchGroups]);
 
-  const totalBalanceCents = groups.reduce((sum, g) => sum + g.balance_cents, 0);
+  const totalBalances = mergeBalances(groups);
 
-  return { groups, loading, error, refetch: fetchGroups, totalBalanceCents };
+  return { groups, loading, error, refetch: fetchGroups, totalBalances };
 }

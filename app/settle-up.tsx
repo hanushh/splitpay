@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
+import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -33,6 +34,7 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 export default function SettleUpScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { currency: appCurrency } = useCurrency();
   const {
     groupId,
     groupName,
@@ -40,6 +42,7 @@ export default function SettleUpScreen() {
     amountCents,
     friendMemberId,
     payerMemberId,
+    currencyCode,
   } = useLocalSearchParams<{
     groupId?: string;
     groupName?: string;
@@ -47,8 +50,14 @@ export default function SettleUpScreen() {
     amountCents?: string;
     friendMemberId?: string;
     payerMemberId?: string;
+    currencyCode?: string;
   }>();
 
+  const initialCurrency: Currency =
+    CURRENCIES.find((c) => c.code === currencyCode) ?? appCurrency;
+
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<Currency>(initialCurrency);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -60,7 +69,12 @@ export default function SettleUpScreen() {
 
   const parsedCents = Math.round(parseFloat(amountInput) * 100);
   const isValidAmount = !isNaN(parsedCents) && parsedCents > 0;
-  const isOverpayment = amountCents ? parsedCents > Number(amountCents) : false;
+  // Only flag overpayment when settling in the same currency as the original debt
+  const isOverpayment =
+    amountCents &&
+    selectedCurrency.code === (currencyCode ?? initialCurrency.code)
+      ? parsedCents > Number(amountCents)
+      : false;
   const canSave = isValidAmount && !!friendMemberId && !!groupId && !saving;
 
   const iThemPay = !!payerMemberId; // they are paying me
@@ -79,6 +93,7 @@ export default function SettleUpScreen() {
       payeeMemberId: friendMemberId!,
       amountCents: parsedCents,
       paymentMethod,
+      currencyCode: selectedCurrency.code,
       note: note.trim() || undefined,
       payerMemberId: payerMemberId || undefined,
     });
@@ -134,15 +149,18 @@ export default function SettleUpScreen() {
           <Text style={s.amountLabel}>
             {iThemPay ? t('settle.theyPaid', { name: payeeName }) : t('settle.youPaid', { name: payeeName })}
           </Text>
-          <TextInput
-            style={s.amountValue}
-            value={amountInput}
-            onChangeText={setAmountInput}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor={C.slate400}
-            selectTextOnFocus
-          />
+          <View style={s.amountRow}>
+            <Text style={s.currencySymbol}>{selectedCurrency.symbol}</Text>
+            <TextInput
+              style={s.amountValue}
+              value={amountInput}
+              onChangeText={setAmountInput}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={C.slate400}
+              selectTextOnFocus
+            />
+          </View>
           {isOverpayment && (
             <Text style={s.overpaymentWarning}>
               {t('settle.overpayment')}
@@ -155,6 +173,36 @@ export default function SettleUpScreen() {
             </View>
           )}
         </View>
+
+        {/* Currency picker */}
+        <Text style={s.sectionTitle}>{t('settle.currency')}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.currencyChips}
+          keyboardShouldPersistTaps="handled"
+        >
+          {CURRENCIES.map((c) => (
+            <Pressable
+              key={c.code}
+              style={[
+                s.currencyChip,
+                selectedCurrency.code === c.code && s.currencyChipActive,
+              ]}
+              onPress={() => setSelectedCurrency(c)}
+            >
+              <Text style={s.currencyChipFlag}>{c.flag}</Text>
+              <Text
+                style={[
+                  s.currencyChipText,
+                  selectedCurrency.code === c.code && s.currencyChipTextActive,
+                ]}
+              >
+                {c.code}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         {/* Payment method */}
         <Text style={s.sectionTitle}>{t('settle.paymentMethod')}</Text>
@@ -298,6 +346,18 @@ const s = StyleSheet.create({
   },
   checkCircle: { marginBottom: 4 },
   amountLabel: { color: C.slate400, fontSize: 15 },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  currencySymbol: {
+    color: C.slate400,
+    fontSize: 24,
+    fontWeight: '600',
+    alignSelf: 'flex-end',
+    marginBottom: 4,
+  },
   amountValue: {
     color: C.white,
     fontSize: 36,
@@ -418,6 +478,25 @@ const s = StyleSheet.create({
     borderStyle: 'dashed',
   },
   receiptText: { color: C.slate400, fontSize: 14, fontWeight: '600' },
+  currencyChips: { paddingHorizontal: 16, gap: 8 },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.surfaceHL,
+  },
+  currencyChipActive: {
+    borderColor: C.primary,
+    backgroundColor: 'rgba(23,232,107,0.08)',
+  },
+  currencyChipFlag: { fontSize: 16 },
+  currencyChipText: { color: C.slate400, fontWeight: '600', fontSize: 13 },
+  currencyChipTextActive: { color: C.primary },
   footer: {
     paddingHorizontal: 16,
     paddingTop: 12,

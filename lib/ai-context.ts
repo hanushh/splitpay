@@ -10,9 +10,7 @@ interface GroupRow {
 interface FriendBalance {
   name: string;
   balance_cents: number;
-  member_id: string;
-  group_id: string;
-  group_name: string;
+  currency_code: string;
 }
 
 interface RecentExpense {
@@ -62,18 +60,21 @@ export async function buildRagContext(
         .from('groups')
         .select(
           `id, name, archived,
-           group_balances!left ( balance_cents ),
+           group_balances!left ( balance_cents, currency_code ),
            group_members ( id, display_name, user_id )`,
         )
         .in('id', groupIds)
         .eq('archived', false);
 
       type RawMember = { id: string; display_name: string | null; user_id: string | null };
+      type RawBalance = { balance_cents: number; currency_code: string };
 
       for (const row of groupRows ?? []) {
-        const balanceCents =
-          (row.group_balances as { balance_cents: number }[] | null)?.[0]
-            ?.balance_cents ?? 0;
+        const balanceRows = (row.group_balances as RawBalance[] | null) ?? [];
+        const primary = balanceRows
+          .filter((b) => b.balance_cents !== 0)
+          .sort((a, b) => Math.abs(b.balance_cents) - Math.abs(a.balance_cents))[0];
+        const balanceCents = primary?.balance_cents ?? 0;
 
         const members = ((row.group_members as RawMember[]) ?? [])
           .filter((m) => m.user_id !== userId)
@@ -117,12 +118,12 @@ export async function buildRagContext(
     const friends: FriendBalance[] = [];
     if (Array.isArray(friendData)) {
       for (const row of friendData as Record<string, unknown>[]) {
+        const balance_cents = Number(row.balance_cents ?? 0);
+        if (balance_cents === 0) continue;
         friends.push({
-          name: (row.friend_name as string) ?? 'Unknown',
-          balance_cents: Number(row.balance_cents ?? 0),
-          member_id: (row.member_id as string) ?? '',
-          group_id: (row.group_id as string) ?? '',
-          group_name: (row.group_name as string) ?? '',
+          name: (row.display_name as string) ?? 'Unknown',
+          balance_cents,
+          currency_code: (row.currency_code as string) ?? 'INR',
         });
       }
     }
@@ -134,11 +135,9 @@ export async function buildRagContext(
       for (const f of friends) {
         const dir =
           f.balance_cents > 0
-            ? `you are owed ${formatCents(f.balance_cents)}`
-            : `you owe ${formatCents(f.balance_cents)}`;
-        lines.push(
-          `- ${f.name}: ${dir} | Group: ${f.group_name} (${f.group_id}) | Member ID: ${f.member_id}`,
-        );
+            ? `you are owed ${formatCents(f.balance_cents)} ${f.currency_code}`
+            : `you owe ${formatCents(f.balance_cents)} ${f.currency_code}`;
+        lines.push(`- ${f.name}: ${dir}`);
       }
     }
     lines.push('');

@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth';
 import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
+import {
+  type CurrencyBalance,
+  deriveBalanceStatus,
+  sortBalancesDesc,
+} from '@/lib/balance-utils';
 
 export { normalizePhone };
 
@@ -11,7 +16,7 @@ export interface MatchedFriend {
   userId: string;
   name: string;
   avatarUrl: string | null;
-  balanceCents: number;
+  balances: CurrencyBalance[];
   balanceStatus: 'owed' | 'owes' | 'settled' | 'no_groups';
 }
 
@@ -172,15 +177,19 @@ export function useFriends(): UseFriendsResult {
       if (balanceErr) throw new Error(balanceErr.message);
       if (groupFriendErr) throw new Error(groupFriendErr.message);
 
-      const balanceByUserId = new Map<string, { balance_cents: number }>();
+      // Group per-currency balance rows by user_id
+      const balanceByUserId = new Map<string, CurrencyBalance[]>();
       for (const row of (balanceRows as {
         user_id: string;
+        currency_code: string;
         balance_cents: number;
       }[]) ?? []) {
         if (!row.user_id) continue;
-        const prev = balanceByUserId.get(row.user_id);
-        balanceByUserId.set(row.user_id, {
-          balance_cents: (prev?.balance_cents ?? 0) + Number(row.balance_cents),
+        if (!balanceByUserId.has(row.user_id))
+          balanceByUserId.set(row.user_id, []);
+        balanceByUserId.get(row.user_id)!.push({
+          currency_code: row.currency_code,
+          balance_cents: Number(row.balance_cents),
         });
       }
 
@@ -208,27 +217,32 @@ export function useFriends(): UseFriendsResult {
 
       const matchedFriends: MatchedFriend[] = Array.from(profileMap.values())
         .map((profile) => {
-          const balanceRow = balanceByUserId.get(profile.id);
-          const balanceCents = balanceRow?.balance_cents ?? 0;
-          let balanceStatus: MatchedFriend['balanceStatus'];
-          if (!balanceRow) {
-            balanceStatus = 'no_groups';
-          } else if (balanceCents > 0) {
-            balanceStatus = 'owed';
-          } else if (balanceCents < 0) {
-            balanceStatus = 'owes';
-          } else {
-            balanceStatus = 'settled';
-          }
+          const rawBalances = balanceByUserId.get(profile.id);
+          const balances: CurrencyBalance[] = rawBalances
+            ? sortBalancesDesc(rawBalances)
+            : [];
+          const balanceStatus: MatchedFriend['balanceStatus'] = rawBalances
+            ? deriveBalanceStatus(balances)
+            : 'no_groups';
           return {
             userId: profile.id,
             name: profile.name,
             avatarUrl: profile.avatar_url,
-            balanceCents,
+            balances,
             balanceStatus,
           };
         })
-        .sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
+        .sort((a, b) => {
+          const sumA = a.balances.reduce(
+            (s, b) => s + Math.abs(b.balance_cents),
+            0,
+          );
+          const sumB = b.balances.reduce(
+            (s, b) => s + Math.abs(b.balance_cents),
+            0,
+          );
+          return sumB - sumA;
+        });
 
       const finalUnmatched: UnmatchedContact[] = contacts
         .filter((c) => {

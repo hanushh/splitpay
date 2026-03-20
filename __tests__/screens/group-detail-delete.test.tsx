@@ -53,12 +53,20 @@ beforeEach(() => {
         eq: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
     }
+    if (table === 'group_balances') {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnValueOnce({
+          eq: jest.fn().mockResolvedValue({
+            data: [{ balance_cents: 6000, currency_code: 'INR' }],
+            error: null,
+          }),
+        }),
+      };
+    }
     return {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      maybeSingle: jest
-        .fn()
-        .mockResolvedValue({ data: { balance_cents: 6000 }, error: null }),
       single: jest.fn().mockResolvedValue({ data: mockGroup, error: null }),
     };
   });
@@ -170,6 +178,18 @@ function setupNonCreatorMock(balanceCents: number) {
         eq: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
     }
+    if (table === 'group_balances') {
+      const rows =
+        balanceCents !== 0
+          ? [{ balance_cents: balanceCents, currency_code: 'INR' }]
+          : [];
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnValueOnce({
+          eq: jest.fn().mockResolvedValue({ data: rows, error: null }),
+        }),
+      };
+    }
     if (table === 'group_members') {
       return {
         select: jest.fn().mockReturnThis(),
@@ -180,9 +200,6 @@ function setupNonCreatorMock(balanceCents: number) {
     return {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      maybeSingle: jest
-        .fn()
-        .mockResolvedValue({ data: { balance_cents: balanceCents }, error: null }),
       single: jest
         .fn()
         .mockResolvedValue({ data: nonCreatorGroup, error: null }),
