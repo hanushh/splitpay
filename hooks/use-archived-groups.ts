@@ -85,7 +85,7 @@ export function useArchivedGroups() {
       const mapped: Group[] = (groupRows ?? []).map((row) => {
         type RawBalance = { balance_cents: number; currency_code: string };
         const balances: CurrencyBalance[] = sortBalancesDesc(
-          ((row.group_balances as RawBalance[] | null) ?? [])
+          (Array.isArray(row.group_balances) ? (row.group_balances as RawBalance[]) : [])
             .filter((b) => b.balance_cents !== 0)
             .map((b) => ({
               currency_code: b.currency_code,

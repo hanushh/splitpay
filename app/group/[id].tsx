@@ -147,7 +147,7 @@ export default function GroupDetailScreen() {
     }
     type RawBalance = { balance_cents: number; currency_code: string };
     const balances: CurrencyBalance[] = sortBalancesDesc(
-      ((bal as RawBalance[] | null) ?? [])
+      (Array.isArray(bal) ? (bal as RawBalance[]) : [])
         .filter((b) => b.balance_cents !== 0)
         .map((b) => ({
           currency_code: b.currency_code,

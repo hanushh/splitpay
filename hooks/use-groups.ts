@@ -112,7 +112,9 @@ export function useGroups() {
 
       const mapped: Group[] = (groupRows ?? []).map((row) => {
         type RawBalance = { balance_cents: number; currency_code: string };
-        const rawBalances = (row.group_balances as RawBalance[] | null) ?? [];
+        const rawBalances = Array.isArray(row.group_balances)
+          ? (row.group_balances as RawBalance[])
+          : [];
         const userBalances = rawBalances.filter(
           (b) => b.currency_code != null,
         ) as CurrencyBalance[];
