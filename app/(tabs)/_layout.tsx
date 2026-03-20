@@ -36,7 +36,7 @@ export default function TabLayout() {
         options={{
           title: t('tabs.ai'),
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="smart-toy" size={size} color={color} />
+            <MaterialIcons name="auto-awesome" size={size} color={color} />
           ),
         }}
       />

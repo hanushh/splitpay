@@ -107,7 +107,7 @@ export default function AiTab() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <MaterialIcons name="smart-toy" size={22} color={PRIMARY} />
+          <MaterialIcons name="auto-awesome" size={22} color={PRIMARY} />
           <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         </View>
         <View style={styles.headerRight}>
@@ -132,7 +132,7 @@ export default function AiTab() {
         {/* Message list */}
         {isEmpty ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="smart-toy" size={56} color={SURFACE_HL} />
+            <MaterialIcons name="auto-awesome" size={56} color={SURFACE_HL} />
             <Text style={styles.emptyGreeting}>{t('ai.emptyGreeting')}</Text>
             <View style={styles.quickActions}>
               {QUICK_ACTIONS.map((action) => (
