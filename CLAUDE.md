@@ -204,6 +204,16 @@ white: '#ffffff';
 - **Hooks**: `camelCase.ts` prefixed with `use` (e.g., `useGroups.ts`)
 - **Utilities / lib**: `kebab-case.ts`
 
+### Internationalisation (i18n)
+
+- **All user-visible strings must use i18n** — never hardcode English text in JSX or UI logic.
+- Import and use the hook: `import { useTranslation } from 'react-i18next'` → `const { t } = useTranslation()`
+- Use `t('section.key')` for static strings and `t('section.key', { variable: value })` for interpolation.
+- Key naming convention: `section.featureOrElement` in dot-notation (e.g. `expense.saveButton`, `common.cancel`).
+- **When adding new keys, update all 17 locale files** in `locales/` — they must stay at parity (no fallback for missing keys):
+  `en`, `es`, `fr`, `de`, `it`, `pt`, `ru`, `ar`, `fa`, `he`, `hi`, `mr`, `ur`, `ta`, `te`, `kn`, `tr`
+- i18n config: `lib/i18n.ts` | Locale files: `locales/{code}.json`
+
 ### Import alias
 
 - `@/*` resolves to the project root (configured in `tsconfig.json`).
