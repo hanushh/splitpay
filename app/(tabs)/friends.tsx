@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency } from '@/context/currency';
+import { sortBalancesDesc } from '@/lib/balance-utils';
 import {
   useFriends,
   type MatchedFriend,
@@ -151,7 +152,6 @@ function FriendActionSheet({
 export default function FriendsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { format } = useCurrency();
   const { user } = useAuth();
   const { matched, unmatched, loading, error, permissionDenied, refetch } =
     useFriends();
@@ -239,14 +239,28 @@ export default function FriendsScreen() {
 
   const renderMatchedItem = ({ item }: { item: MatchedFriend }) => {
     const ini = initials(item.name);
-    const { balanceStatus, balanceCents } = item;
+    const { balanceStatus } = item;
+    const sortedBalances = sortBalancesDesc(item.balances);
+    const primaryBalance = sortedBalances[0];
+    const extraCount = sortedBalances.length - 1;
+
     let chipText = '';
     let chipColor = C.slate400;
-    if (balanceStatus === 'owed') {
-      chipText = t('friends.youAreOwed', { amount: format(balanceCents) });
+    if (balanceStatus === 'owed' && primaryBalance) {
+      chipText = t('friends.youAreOwed', {
+        amount: formatCentsWithCurrency(
+          primaryBalance.balance_cents,
+          primaryBalance.currency_code,
+        ),
+      });
       chipColor = C.primary;
-    } else if (balanceStatus === 'owes') {
-      chipText = t('friends.youOwe', { amount: format(Math.abs(balanceCents)) });
+    } else if (balanceStatus === 'owes' && primaryBalance) {
+      chipText = t('friends.youOwe', {
+        amount: formatCentsWithCurrency(
+          Math.abs(primaryBalance.balance_cents),
+          primaryBalance.currency_code,
+        ),
+      });
       chipColor = C.orange;
     } else if (balanceStatus === 'settled') {
       chipText = t('friends.settledUp');
@@ -264,7 +278,14 @@ export default function FriendsScreen() {
           </View>
         )}
         <Text style={s.rowName}>{item.name}</Text>
-        <Text style={[s.chip, { color: chipColor }]}>{chipText}</Text>
+        <View style={s.chipWrap}>
+          <Text style={[s.chip, { color: chipColor }]}>{chipText}</Text>
+          {extraCount > 0 && (
+            <Text style={s.andMoreChip}>
+              {t('friends.andMore', { count: extraCount })}
+            </Text>
+          )}
+        </View>
       </Pressable>
     );
   };
@@ -450,7 +471,9 @@ const s = StyleSheet.create({
   },
   avatarInitials: { color: C.primary, fontWeight: '700', fontSize: 14 },
   rowName: { flex: 1, color: C.white, fontWeight: '600', fontSize: 15 },
+  chipWrap: { alignItems: 'flex-end', gap: 2 },
   chip: { fontSize: 12, fontWeight: '600' },
+  andMoreChip: { fontSize: 10, color: C.slate400, fontWeight: '600' },
   inviteBtn: {
     backgroundColor: C.surfaceHL,
     paddingHorizontal: 14,

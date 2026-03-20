@@ -18,7 +18,7 @@ const mockGroupRows = [
     name: 'Japan Trip',
     icon_name: 'flight',
     created_at: '2026-01-01T00:00:00Z',
-    group_balances: [{ balance_cents: 5000 }],
+    group_balances: [{ balance_cents: 5000, currency_code: 'INR' }],
     group_members: [{ user_id: 'user-123' }],
   },
   {
@@ -26,7 +26,7 @@ const mockGroupRows = [
     name: 'Roommates',
     icon_name: 'home',
     created_at: '2026-01-02T00:00:00Z',
-    group_balances: [{ balance_cents: -2000 }],
+    group_balances: [{ balance_cents: -2000, currency_code: 'INR' }],
     group_members: [{ user_id: 'user-123' }],
   },
 ];
@@ -85,11 +85,11 @@ describe('useGroups', () => {
     expect(names).toContain('Roommates');
   });
 
-  it('computes totalBalanceCents as sum of all group balances', async () => {
+  it('computes totalBalances as merged per-currency balances', async () => {
     const { result } = renderHook(() => useGroups());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    // 5000 + (-2000) = 3000
-    expect(result.current.totalBalanceCents).toBe(3000);
+    // 5000 INR + (-2000 INR) = 3000 INR
+    expect(result.current.totalBalances).toEqual([{ currency_code: 'INR', balance_cents: 3000 }]);
   });
 
   it('sets status "owed" for positive balance', async () => {
@@ -129,7 +129,7 @@ describe('useGroups', () => {
         name: 'Settled Group',
         icon_name: 'group',
         created_at: '2026-01-03T00:00:00Z',
-        group_balances: [{ balance_cents: 0 }],
+        group_balances: [{ balance_cents: 0, currency_code: 'INR' }],
         group_members: [{ user_id: 'user-123' }],
       },
     ];
@@ -139,10 +139,10 @@ describe('useGroups', () => {
     const { result } = renderHook(() => useGroups());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.groups[0].status).toBe('settled');
-    expect(result.current.groups[0].balance_cents).toBe(0);
+    expect(result.current.groups[0].balances).toEqual([]);
   });
 
-  it('defaults balance_cents to 0 when group_balances is empty', async () => {
+  it('returns empty balances when group_balances is empty', async () => {
     const noBalanceRow = [
       {
         id: 'g4',
@@ -158,7 +158,7 @@ describe('useGroups', () => {
     );
     const { result } = renderHook(() => useGroups());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.groups[0].balance_cents).toBe(0);
+    expect(result.current.groups[0].balances).toEqual([]);
     expect(result.current.groups[0].status).toBe('settled');
   });
 
@@ -169,7 +169,7 @@ describe('useGroups', () => {
         name: 'Group With Members',
         icon_name: 'group',
         created_at: '2026-01-06T00:00:00Z',
-        group_balances: [{ balance_cents: 1000 }],
+        group_balances: [{ balance_cents: 1000, currency_code: 'INR' }],
         group_members: [
           { user_id: 'user-123', display_name: 'Me', avatar_url: null },
           {
@@ -230,7 +230,7 @@ describe('useGroups', () => {
       icon_name: 'group',
       archived: false,
       created_at: '2026-01-01T00:00:00Z',
-      group_balances: [{ balance_cents: 1000 }],
+      group_balances: [{ balance_cents: 1000, currency_code: 'INR' }],
       group_members: [{ user_id: 'user-123' }],
     };
     const eqMock = jest.fn().mockReturnThis();

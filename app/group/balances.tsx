@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency } from '@/context/currency';
+import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { settlementEvents } from '@/lib/settlement-events';
 import { supabase } from '@/lib/supabase';
 
@@ -32,7 +33,7 @@ interface MemberBalance {
   id: string;
   display_name: string;
   avatar_url: string | null;
-  balance_cents: number;
+  balances: CurrencyBalance[];
   isCurrentUser: boolean;
 }
 
@@ -44,9 +45,8 @@ export default function GroupBalancesScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { format } = useCurrency();
   const [members, setMembers] = useState<MemberBalance[]>([]);
-  const [totalCents, setTotalCents] = useState(0);
+  const [myBalances, setMyBalances] = useState<CurrencyBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
@@ -56,16 +56,15 @@ export default function GroupBalancesScreen() {
     setFetchError(null);
 
     const [
-      { data: myBalance, error: balanceErr },
+      { data: myBalanceRows, error: balanceErr },
       { data: memberRows, error: membersErr },
       { data: myMember, error: myMemberErr },
     ] = await Promise.all([
       supabase
         .from('group_balances')
-        .select('balance_cents')
+        .select('balance_cents, currency_code')
         .eq('group_id', groupId)
-        .eq('user_id', user.id)
-        .single(),
+        .eq('user_id', user.id),
       supabase.rpc('get_group_member_balances', {
         p_group_id: groupId,
         p_user_id: user.id,
@@ -83,8 +82,7 @@ export default function GroupBalancesScreen() {
       setLoading(false);
       return;
     }
-    if (balanceErr && balanceErr.code !== 'PGRST116') {
-      // PGRST116 = row not found (no balance row yet) — treat as 0, not an error
+    if (balanceErr) {
       setFetchError(balanceErr.message ?? 'Failed to load your balance.');
       setLoading(false);
       return;
@@ -97,22 +95,46 @@ export default function GroupBalancesScreen() {
       return;
     }
 
-    setTotalCents(myBalance?.balance_cents ?? 0);
+    const myBals: CurrencyBalance[] = (
+      (myBalanceRows ?? []) as { balance_cents: number; currency_code: string }[]
+    )
+      .filter((r) => r.balance_cents !== 0)
+      .map((r) => ({
+        currency_code: r.currency_code,
+        balance_cents: Number(r.balance_cents),
+      }));
+
+    setMyBalances(sortBalancesDesc(myBals));
     setMyMemberId((myMember as { id: string } | null)?.id ?? null);
 
-    const list: MemberBalance[] = (
-      (memberRows as {
-        member_id: string;
-        display_name: string;
-        avatar_url: string | null;
-        balance_cents: number;
-      }[]) ?? []
-    ).map((row) => ({
-      id: row.member_id,
-      display_name: row.display_name ?? 'Unknown',
-      avatar_url: row.avatar_url,
-      balance_cents: Number(row.balance_cents),
-      isCurrentUser: false,
+    // Group rows by member_id → per-currency balances
+    type RawRow = {
+      member_id: string;
+      display_name: string;
+      avatar_url: string | null;
+      currency_code: string;
+      balance_cents: number;
+    };
+    const rawRows = (memberRows as RawRow[]) ?? [];
+    const memberMap = new Map<string, MemberBalance>();
+    for (const row of rawRows) {
+      if (!memberMap.has(row.member_id)) {
+        memberMap.set(row.member_id, {
+          id: row.member_id,
+          display_name: row.display_name ?? 'Unknown',
+          avatar_url: row.avatar_url,
+          balances: [],
+          isCurrentUser: false,
+        });
+      }
+      memberMap.get(row.member_id)!.balances.push({
+        currency_code: row.currency_code,
+        balance_cents: Number(row.balance_cents),
+      });
+    }
+    const list: MemberBalance[] = Array.from(memberMap.values()).map((m) => ({
+      ...m,
+      balances: sortBalancesDesc(m.balances),
     }));
 
     setMembers(list);
@@ -135,12 +157,8 @@ export default function GroupBalancesScreen() {
     [fetchBalances],
   );
 
-  const totalText =
-    totalCents === 0
-      ? t('balances.allSettled')
-      : totalCents > 0
-        ? `+${format(totalCents)}`
-        : `-${format(totalCents)}`;
+  const isAllSettled = myBalances.length === 0;
+  const primaryBalance = myBalances[0];
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -160,20 +178,30 @@ export default function GroupBalancesScreen() {
       {/* Total balance banner */}
       <View style={s.banner}>
         <View style={s.bannerLeft}>
-          <Text
-            style={[
-              s.bannerAmount,
-              { color: totalCents >= 0 ? C.primary : C.orange },
-            ]}
-          >
-            {totalText}
-          </Text>
+          {isAllSettled ? (
+            <Text style={[s.bannerAmount, { color: C.primary }]}>
+              {t('balances.allSettled')}
+            </Text>
+          ) : (
+            myBalances.map((b) => (
+              <Text
+                key={b.currency_code}
+                style={[
+                  s.bannerAmount,
+                  { color: b.balance_cents > 0 ? C.primary : C.orange },
+                ]}
+              >
+                {b.balance_cents > 0 ? '+' : '-'}
+                {formatCentsWithCurrency(b.balance_cents, b.currency_code)}
+              </Text>
+            ))
+          )}
           <Text style={s.bannerSub}>
-            {totalCents > 0
-              ? t('balances.youAreOwedTotal')
-              : totalCents < 0
-                ? t('balances.youOweTotal')
-                : t('balances.allSettledTotal')}
+            {isAllSettled
+              ? t('balances.allSettledTotal')
+              : primaryBalance && primaryBalance.balance_cents > 0
+                ? t('balances.youAreOwedTotal')
+                : t('balances.youOweTotal')}
           </Text>
         </View>
         <Pressable style={s.chartBtn}>
@@ -203,8 +231,6 @@ export default function GroupBalancesScreen() {
               .join('')
               .toUpperCase()
               .slice(0, 2);
-            const isOwed = m.balance_cents > 0;
-            const amtText = format(m.balance_cents);
 
             return (
               <View key={m.id} style={s.memberCard}>
@@ -240,52 +266,68 @@ export default function GroupBalancesScreen() {
                     >
                       {m.isCurrentUser ? t('balances.me') : m.display_name}
                     </Text>
-                    {m.isCurrentUser && <Text style={s.memberSub}>{t('balances.you')}</Text>}
+                    {m.isCurrentUser && (
+                      <Text style={s.memberSub}>{t('balances.you')}</Text>
+                    )}
                   </View>
                 </View>
 
                 <View style={s.memberRight}>
-                  {m.balance_cents === 0 ? (
+                  {m.balances.length === 0 ? (
                     <Text style={s.settledText}>{t('balances.settledUp')}</Text>
                   ) : (
-                    <View style={s.balanceInfo}>
-                      <Text
-                        style={[
-                          s.balanceText,
-                          { color: isOwed ? C.primary : C.orange },
-                        ]}
-                      >
-                        {isOwed ? t('balances.owesYou', { amount: amtText }) : t('balances.youOwe', { amount: amtText })}
-                      </Text>
-                      {!m.isCurrentUser && (!isOwed || myMemberId) && (
-                        <Pressable
-                          style={s.settleBtn}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/settle-up',
-                              params: {
-                                groupId,
-                                groupName,
-                                friendName: m.display_name,
-                                amountCents: String(Math.abs(m.balance_cents)),
-                                // isOwed=true: they owe me → they are payer, I am payee
-                                // isOwed=false: I owe them → I am payer (RPC default), they are payee
-                                ...(isOwed
-                                  ? {
-                                      payerMemberId: m.id,
-                                      friendMemberId: myMemberId ?? '',
-                                    }
-                                  : { friendMemberId: m.id }),
-                              },
-                            })
-                          }
-                        >
-                          <Text style={s.settleBtnText}>
-                            {isOwed ? t('balances.settleUpBtn') : t('balances.pay')}
+                    m.balances.map((b) => {
+                      const isOwed = b.balance_cents > 0;
+                      const amtText = formatCentsWithCurrency(
+                        b.balance_cents,
+                        b.currency_code,
+                      );
+                      return (
+                        <View key={b.currency_code} style={s.currencyRow}>
+                          <Text
+                            style={[
+                              s.balanceText,
+                              { color: isOwed ? C.primary : C.orange },
+                            ]}
+                          >
+                            {isOwed
+                              ? t('balances.owesYou', { amount: amtText })
+                              : t('balances.youOwe', { amount: amtText })}
                           </Text>
-                        </Pressable>
-                      )}
-                    </View>
+                          {!m.isCurrentUser && (!isOwed || myMemberId) && (
+                            <Pressable
+                              style={s.settleBtn}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/settle-up',
+                                  params: {
+                                    groupId,
+                                    groupName,
+                                    friendName: m.display_name,
+                                    amountCents: String(
+                                      Math.abs(b.balance_cents),
+                                    ),
+                                    currencyCode: b.currency_code,
+                                    ...(isOwed
+                                      ? {
+                                          payerMemberId: m.id,
+                                          friendMemberId: myMemberId ?? '',
+                                        }
+                                      : { friendMemberId: m.id }),
+                                  },
+                                })
+                              }
+                            >
+                              <Text style={s.settleBtnText}>
+                                {isOwed
+                                  ? t('balances.settleUpBtn')
+                                  : t('balances.pay')}
+                              </Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })
                   )}
                 </View>
               </View>
@@ -325,8 +367,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.surfaceHL,
   },
-  bannerLeft: { gap: 4 },
-  bannerAmount: { fontSize: 28, fontWeight: '700' },
+  bannerLeft: { gap: 4, flex: 1 },
+  bannerAmount: { fontSize: 22, fontWeight: '700' },
   bannerSub: { color: C.slate400, fontSize: 13 },
   chartBtn: {
     flexDirection: 'row',
@@ -349,7 +391,7 @@ const s = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 10 },
   memberCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     backgroundColor: C.surface,
     borderRadius: 16,
@@ -372,9 +414,9 @@ const s = StyleSheet.create({
   memberInitials: { color: C.primary, fontWeight: '700', fontSize: 16 },
   memberName: { color: C.white, fontWeight: '700', fontSize: 15 },
   memberSub: { color: C.slate400, fontSize: 12 },
-  memberRight: { alignItems: 'flex-end' },
+  memberRight: { alignItems: 'flex-end', gap: 8 },
   settledText: { color: C.slate400, fontWeight: '600', fontSize: 13 },
-  balanceInfo: { alignItems: 'flex-end', gap: 6 },
+  currencyRow: { alignItems: 'flex-end', gap: 4 },
   balanceText: { fontWeight: '600', fontSize: 14 },
   settleBtn: {
     backgroundColor: C.primary,

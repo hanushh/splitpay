@@ -12,6 +12,7 @@ const params = {
   payeeMemberId: 'member-2',
   amountCents: 5000,
   paymentMethod: 'cash' as const,
+  currencyCode: 'INR',
   note: 'test note',
 };
 
@@ -34,6 +35,7 @@ describe('useSettlement', () => {
       p_payee_member_id: 'member-2',
       p_amount_cents: 5000,
       p_payment_method: 'cash',
+      p_currency_code: 'INR',
       p_note: 'test note',
     });
     expect(ok!).toBe(true);

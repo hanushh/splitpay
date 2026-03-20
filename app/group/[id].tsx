@@ -17,7 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency } from '@/context/currency';
+import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
 import { supabase } from '@/lib/supabase';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 
@@ -38,7 +39,7 @@ interface GroupDetail {
   name: string;
   description: string | null;
   image_url: string | null;
-  balance_cents: number;
+  balances: CurrencyBalance[];
   created_by: string | null;
   archived: boolean;
 }
@@ -86,7 +87,6 @@ export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { format } = useCurrency();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,10 +117,9 @@ export default function GroupDetailScreen() {
         .single(),
       supabase
         .from('group_balances')
-        .select('balance_cents')
+        .select('balance_cents, currency_code')
         .eq('group_id', id)
-        .eq('user_id', user.id)
-        .maybeSingle(),
+        .eq('user_id', user.id),
       supabase.rpc('get_group_expenses', {
         p_group_id: id,
         p_user_id: user.id,
@@ -146,9 +145,18 @@ export default function GroupDetailScreen() {
       setLoading(false);
       return;
     }
+    type RawBalance = { balance_cents: number; currency_code: string };
+    const balances: CurrencyBalance[] = sortBalancesDesc(
+      ((bal as RawBalance[] | null) ?? [])
+        .filter((b) => b.balance_cents !== 0)
+        .map((b) => ({
+          currency_code: b.currency_code,
+          balance_cents: Number(b.balance_cents),
+        })),
+    );
     setGroup({
       ...data,
-      balance_cents: bal?.balance_cents ?? 0,
+      balances,
       archived: data.archived ?? false,
     });
     const seen = new Set<string>();
@@ -244,9 +252,10 @@ export default function GroupDetailScreen() {
     setActionError(null);
     const groupIsCreator = !group.created_by || user?.id === group.created_by;
     if (!groupIsCreator) {
-      if (group.balance_cents !== 0) {
+      const status = deriveBalanceStatus(group.balances);
+      if (status !== 'settled') {
         setActionError(
-          group.balance_cents > 0
+          status === 'owed'
             ? t('group.owedLeaveBlocked')
             : t('group.owesLeaveBlocked'),
         );
@@ -323,9 +332,10 @@ export default function GroupDetailScreen() {
     setActionError(null);
     const groupIsCreator = !group.created_by || user?.id === group.created_by;
     if (!groupIsCreator) {
-      if (group.balance_cents !== 0) {
+      const status = deriveBalanceStatus(group.balances);
+      if (status !== 'settled') {
         setActionError(
-          group.balance_cents > 0
+          status === 'owed'
             ? t('group.owedLeaveBlocked')
             : t('group.owesLeaveBlocked'),
         );
@@ -408,19 +418,13 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const isOwed = group.balance_cents > 0;
-  const balanceText =
-    group.balance_cents === 0
-      ? t('group.allSettled')
-      : isOwed
-        ? t('group.youAreOwed', { amount: format(group.balance_cents) })
-        : t('group.youOwe', { amount: format(Math.abs(group.balance_cents)) });
+  const balanceStatus = deriveBalanceStatus(group.balances);
 
   const grouped = groupByMonth(expenses);
   const isCreator = !group.created_by || user?.id === group.created_by;
-  const canLeave = group.balance_cents === 0;
+  const canLeave = balanceStatus === 'settled';
   const leaveBlockedReason =
-    group.balance_cents > 0
+    balanceStatus === 'owed'
       ? t('group.owedLeaveBlocked')
       : t('group.owesLeaveBlocked');
 
@@ -460,21 +464,35 @@ export default function GroupDetailScreen() {
           <View style={s.coverOverlay} />
           <View style={s.coverContent}>
             <Text style={s.coverBalanceLabel}>{t('group.totalBalance')}</Text>
-            <Text
-              style={[
-                s.coverBalance,
-                {
-                  color:
-                    group.balance_cents === 0
-                      ? C.slate400
-                      : isOwed
-                        ? C.primary
-                        : C.orange,
-                },
-              ]}
-            >
-              {balanceText}
-            </Text>
+            {balanceStatus === 'settled' ? (
+              <Text style={[s.coverBalance, { color: C.slate400 }]}>
+                {t('group.allSettled')}
+              </Text>
+            ) : (
+              group.balances.map((b) => (
+                <Text
+                  key={b.currency_code}
+                  style={[
+                    s.coverBalance,
+                    { color: b.balance_cents > 0 ? C.primary : C.orange },
+                  ]}
+                >
+                  {b.balance_cents > 0
+                    ? t('group.youAreOwed', {
+                        amount: formatCentsWithCurrency(
+                          b.balance_cents,
+                          b.currency_code,
+                        ),
+                      })
+                    : t('group.youOwe', {
+                        amount: formatCentsWithCurrency(
+                          Math.abs(b.balance_cents),
+                          b.currency_code,
+                        ),
+                      })}
+                </Text>
+              ))
+            )}
           </View>
         </View>
 
