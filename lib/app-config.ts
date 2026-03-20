@@ -52,3 +52,10 @@ export const DEFAULT_COUNTRY_CODE = '+1';
  * Resets at midnight local time. Change this to adjust the daily quota.
  */
 export const AI_DAILY_PROMPT_LIMIT = 50;
+
+/**
+ * Feature flag: enable or disable the AI Assistant tab.
+ * Set to false to completely hide the AI tab from the bottom navigation.
+ * No user-facing setting — change this at the code level to toggle the feature.
+ */
+export const AI_MODE_ENABLED = false;
