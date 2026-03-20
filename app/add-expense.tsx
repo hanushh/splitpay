@@ -346,6 +346,7 @@ export default function AddExpenseScreen() {
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
     const amtCents = Math.round(parseFloat(amount) * 100) || 0;
+    const decimals = expenseCurrency.noDecimals ? 0 : 2;
     if (splitMethod === 'exact') {
       const perPerson = Math.round(amtCents / ids.length);
       const init: Record<string, string> = {};
@@ -354,7 +355,7 @@ export default function AddExpenseScreen() {
           i === ids.length - 1
             ? amtCents - perPerson * (ids.length - 1)
             : perPerson;
-        init[id] = (cents / 100).toFixed(2);
+        init[id] = (cents / 100).toFixed(decimals);
       });
       setExactAmounts(init);
     } else if (splitMethod === 'percent') {
@@ -402,13 +403,14 @@ export default function AddExpenseScreen() {
     if (ids.length === 0) return;
     const amtCents = Math.round(parseFloat(amount) * 100) || 0;
     const perPerson = Math.round(amtCents / ids.length);
+    const decimals = expenseCurrency.noDecimals ? 0 : 2;
     const init: Record<string, string> = {};
     ids.forEach((id, i) => {
       const cents =
         i === ids.length - 1
           ? amtCents - perPerson * (ids.length - 1)
           : perPerson;
-      init[id] = (cents / 100).toFixed(2);
+      init[id] = (cents / 100).toFixed(decimals);
     });
     setExactAmounts(init);
   };
@@ -1024,6 +1026,10 @@ export default function AddExpenseScreen() {
                           ? allocatedCents === amtCentsLive
                           : Math.abs(totalPct - 100) <= 0.01;
 
+                        const noDecimals = expenseCurrency.noDecimals ?? false;
+                        const fmtCents = (c: number) =>
+                          (c / 100).toFixed(noDecimals ? 0 : 2);
+
                         return (
                           <View style={s.splitInputSection}>
                             {/* Header row with "split equally" quick-fill */}
@@ -1111,7 +1117,7 @@ export default function AddExpenseScreen() {
                                     value={val}
                                     onChangeText={setVal}
                                     keyboardType="decimal-pad"
-                                    placeholder={isExact ? '0.00' : '0'}
+                                    placeholder={isExact ? (noDecimals ? '0' : '0.00') : '0'}
                                     placeholderTextColor={C.slate500}
                                     testID={`split-input-${m.id}`}
                                   />
@@ -1121,7 +1127,7 @@ export default function AddExpenseScreen() {
                                   {helperCents !== null && (
                                     <Text style={s.splitHelperText}>
                                       ≈{expenseCurrency.symbol}
-                                      {(helperCents / 100).toFixed(2)}
+                                      {fmtCents(helperCents)}
                                     </Text>
                                   )}
                                 </View>
@@ -1144,16 +1150,16 @@ export default function AddExpenseScreen() {
                                     ]}
                                   >
                                     {expenseCurrency.symbol}
-                                    {(allocatedCents / 100).toFixed(2)}
+                                    {fmtCents(allocatedCents)}
                                     {' / '}
                                     {expenseCurrency.symbol}
-                                    {(amtCentsLive / 100).toFixed(2)}
+                                    {fmtCents(amtCentsLive)}
                                   </Text>
                                   {!isBalanced && (
                                     <Text style={s.splitTotalHint}>
                                       {allocatedCents < amtCentsLive
-                                        ? `−${expenseCurrency.symbol}${((amtCentsLive - allocatedCents) / 100).toFixed(2)}`
-                                        : `+${expenseCurrency.symbol}${((allocatedCents - amtCentsLive) / 100).toFixed(2)}`}
+                                        ? `−${expenseCurrency.symbol}${fmtCents(amtCentsLive - allocatedCents)}`
+                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - amtCentsLive)}`}
                                     </Text>
                                   )}
                                 </>
