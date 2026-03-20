@@ -1,8 +1,44 @@
-import { useCallback, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { buildRagContext, buildSystemPrompt } from '@/lib/ai-context';
 import { sendChatMessage, type GeminiMessage } from '@/lib/gemini';
+import { AI_DAILY_PROMPT_LIMIT } from '@/lib/app-config';
+
+// ── Daily rate limit ──────────────────────────────────────────────────────────
+
+const DAILY_LIMIT = AI_DAILY_PROMPT_LIMIT;
+const STORAGE_KEY = 'ai_chat_daily_usage';
+
+interface DailyUsage {
+  date: string; // 'YYYY-MM-DD'
+  count: number;
+}
+
+function todayString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function getDailyUsage(): Promise<DailyUsage> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DailyUsage;
+      if (parsed.date === todayString()) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return { date: todayString(), count: 0 };
+}
+
+async function incrementDailyUsage(): Promise<number> {
+  const usage = await getDailyUsage();
+  const updated: DailyUsage = { date: todayString(), count: usage.count + 1 };
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  return updated.count;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +60,12 @@ export function useAiChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [promptsUsed, setPromptsUsed] = useState(0);
+
+  // Load today's usage on mount
+  useEffect(() => {
+    getDailyUsage().then((u) => setPromptsUsed(u.count));
+  }, []);
 
   /** Convert internal messages to Gemini history (exclude action cards) */
   const toGeminiHistory = useCallback(
@@ -92,6 +134,19 @@ export function useAiChat() {
     async (text: string) => {
       if (!user || !text.trim()) return;
 
+      // Enforce daily limit
+      const usage = await getDailyUsage();
+      if (usage.count >= DAILY_LIMIT) {
+        const limitMsg: ChatMessage = {
+          id: `${Date.now()}-limit`,
+          role: 'assistant',
+          content: `You've reached your daily limit of ${DAILY_LIMIT} prompts. Come back tomorrow!`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, limitMsg]);
+        return;
+      }
+
       const userMsg: ChatMessage = {
         id: `${Date.now()}-user`,
         role: 'user',
@@ -131,6 +186,10 @@ export function useAiChat() {
           systemPrompt,
         );
 
+        // Increment usage only on successful API response
+        const newCount = await incrementDailyUsage();
+        setPromptsUsed(newCount);
+
         if (response.functionCall) {
           const { name, args } = response.functionCall;
 
@@ -161,7 +220,8 @@ export function useAiChat() {
           };
           appendMessage(assistantMsg);
         }
-      } catch {
+      } catch (err) {
+        console.error('[AI Chat] sendMessage error:', err);
         const errMsg: ChatMessage = {
           id: `${Date.now()}-err`,
           role: 'assistant',
@@ -180,5 +240,12 @@ export function useAiChat() {
     setMessages([]);
   }, []);
 
-  return { messages, sendMessage, loading, clearHistory };
+  return {
+    messages,
+    sendMessage,
+    loading,
+    clearHistory,
+    promptsRemaining: Math.max(0, DAILY_LIMIT - promptsUsed),
+    dailyLimit: DAILY_LIMIT,
+  };
 }

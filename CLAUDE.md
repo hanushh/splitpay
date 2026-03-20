@@ -130,6 +130,20 @@ pnpm e2e:test:auth       # Detox – auth tests only
 
 ---
 
+## Verification
+
+This is a **React Native / Expo** app — the `preview_*` tools only work for web apps and must never be used here. There is no web dev server to start.
+
+After editing code, verify with:
+```bash
+pnpm typecheck   # TypeScript
+pnpm lint        # ESLint
+```
+
+Visual verification requires running the app on an Android emulator via `pnpm dev`.
+
+---
+
 ## Pre-PR Checklist
 
 Before committing or raising a PR, all of the following must pass:

@@ -46,3 +46,9 @@ export const APP_STORE_URL =
  * Change this for non-US deployments.
  */
 export const DEFAULT_COUNTRY_CODE = '+1';
+
+/**
+ * Maximum number of AI chat prompts a user can send per day.
+ * Resets at midnight local time. Change this to adjust the daily quota.
+ */
+export const AI_DAILY_PROMPT_LIMIT = 50;

@@ -1,12 +1,12 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "Expo Dev Server",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["exec", "expo", "start"],
-      "port": 8081
-    },
+    // {
+    //   "name": "Expo Dev Server",
+    //   "runtimeExecutable": "pnpm",
+    //   "runtimeArgs": ["exec", "expo", "start"],
+    //   "port": 8081
+    // },
     {
       "name": "Expo Web",
       "runtimeExecutable": "pnpm",

@@ -26,17 +26,18 @@ const QUICK_ACTIONS = [
 
 export default function AiTab() {
   const { t } = useTranslation();
-  const { messages, sendMessage, loading, clearHistory } = useAiChat();
+  const { messages, sendMessage, loading, clearHistory, promptsRemaining, dailyLimit } = useAiChat();
+  const limitReached = promptsRemaining === 0;
   const [inputText, setInputText] = useState('');
   const insets = useSafeAreaInsets();
   const listRef = useRef<any>(null); // FlatList instance for scrollToEnd
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || loading) return;
+    if (!text || loading || limitReached) return;
     setInputText('');
     await sendMessage(text);
-  }, [inputText, loading, sendMessage]);
+  }, [inputText, loading, limitReached, sendMessage]);
 
   const handleActionPress = useCallback(
     (actionType: string, actionParams: Record<string, unknown>) => {
@@ -109,11 +110,18 @@ export default function AiTab() {
           <MaterialIcons name="smart-toy" size={22} color={PRIMARY} />
           <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         </View>
-        {messages.length > 0 && (
-          <TouchableOpacity onPress={clearHistory} hitSlop={12}>
-            <Text style={styles.clearBtn}>{t('ai.clearChat')}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerRight}>
+          <View style={[styles.quotaBadge, limitReached && styles.quotaBadgeExhausted]}>
+            <Text style={[styles.quotaText, limitReached && styles.quotaTextExhausted]}>
+              {promptsRemaining}/{dailyLimit}
+            </Text>
+          </View>
+          {messages.length > 0 && (
+            <TouchableOpacity onPress={clearHistory} hitSlop={12}>
+              <Text style={styles.clearBtn}>{t('ai.clearChat')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -130,9 +138,10 @@ export default function AiTab() {
               {QUICK_ACTIONS.map((action) => (
                 <TouchableOpacity
                   key={action.label}
-                  style={styles.quickChip}
-                  onPress={() => sendMessage(action.label)}
+                  style={[styles.quickChip, limitReached && styles.quickChipDisabled]}
+                  onPress={() => !limitReached && sendMessage(action.label)}
                   activeOpacity={0.7}
+                  disabled={limitReached}
                 >
                   <MaterialIcons name={action.icon} size={16} color={PRIMARY} />
                   <Text style={styles.quickChipText}>{action.label}</Text>
@@ -161,28 +170,37 @@ export default function AiTab() {
         )}
 
         {/* Input bar */}
-        <View style={styles.inputBar}>
-          <TextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder={t('ai.inputPlaceholder')}
-            placeholderTextColor={SLATE_400}
-            multiline
-            maxLength={500}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!inputText.trim() || loading) && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || loading}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="send" size={20} color="#112117" />
-          </TouchableOpacity>
-        </View>
+        {limitReached ? (
+          <View style={styles.limitBanner}>
+            <MaterialIcons name="block" size={16} color={DANGER} />
+            <Text style={styles.limitBannerText}>
+              Daily limit reached. Resets tomorrow.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.inputBar}>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder={t('ai.inputPlaceholder')}
+              placeholderTextColor={SLATE_400}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!inputText.trim() || loading) && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || loading}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="send" size={20} color="#112117" />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -194,6 +212,7 @@ const SURFACE = '#1a3324';
 const SURFACE_HL = '#244732';
 const SLATE_400 = '#94a3b8';
 const WHITE = '#ffffff';
+const DANGER = '#ff5252';
 
 const styles = StyleSheet.create({
   flex: {
@@ -225,6 +244,48 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     color: SLATE_400,
+    fontSize: 14,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quotaBadge: {
+    backgroundColor: SURFACE,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: SURFACE_HL,
+  },
+  quotaBadgeExhausted: {
+    borderColor: DANGER,
+    backgroundColor: '#2a1a1a',
+  },
+  quotaText: {
+    color: SLATE_400,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  quotaTextExhausted: {
+    color: DANGER,
+  },
+  quickChipDisabled: {
+    opacity: 0.4,
+  },
+  limitBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: SURFACE_HL,
+    backgroundColor: BG,
+  },
+  limitBannerText: {
+    color: DANGER,
     fontSize: 14,
   },
   // Empty state
