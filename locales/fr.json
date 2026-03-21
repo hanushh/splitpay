@@ -165,7 +165,7 @@
   "friends.contactsBody": "PaySplit a besoin d'accéder à vos contacts pour afficher quels amis sont déjà sur l'app.",
   "friends.contactsRequired": "Accès aux contacts requis",
   "friends.invite": "Inviter",
-  "friends.inviteMessage": "Salut ! J'utilise {{appName}} pour partager les dépenses avec mes amis. Télécharge-le ici : {{link}}",
+  "friends.inviteMessage": "Salut {{name}} ! J'utilise {{appName}} pour partager les dépenses avec mes amis. Télécharge-le ici : {{link}}",
   "friends.inviteToApp": "Inviter sur PaySplit",
   "friends.noMatchesFound": "Aucun résultat trouvé.",
   "friends.noneOnApp": "Aucun de vos contacts n'est encore sur PaySplit.",

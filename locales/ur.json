@@ -165,7 +165,7 @@
   "friends.contactsBody": "یہ دکھانے کے لیے کہ کون ایپ پر ہے، PaySplit کو رابطوں تک رسائی درکار ہے۔",
   "friends.contactsRequired": "رابطوں تک رسائی ضروری ہے",
   "friends.invite": "دعوت دیں",
-  "friends.inviteMessage": "سلام! میں دوستوں کے ساتھ بل بانٹنے کے لیے {{appName}} استعمال کرتا ہوں۔ یہاں سے ڈاؤن لوڈ کریں: {{link}}",
+  "friends.inviteMessage": "سلام {{name}}! میں دوستوں کے ساتھ بل بانٹنے کے لیے {{appName}} استعمال کرتا ہوں۔ یہاں سے ڈاؤن لوڈ کریں: {{link}}",
   "friends.inviteToApp": "PaySplit پر دعوت دیں",
   "friends.noMatchesFound": "کوئی مماثلت نہیں ملی۔",
   "friends.noneOnApp": "آپ کے رابطوں میں سے کوئی ابھی تک PaySplit پر نہیں ہے۔",

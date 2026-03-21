@@ -165,7 +165,7 @@
   "friends.contactsBody": "ఎవరు యాప్‌లో ఉన్నారో చూపించడానికి PaySplit కి కాంటాక్ట్‌ల యాక్సెస్ అవసరం.",
   "friends.contactsRequired": "కాంటాక్ట్ యాక్సెస్ అవసరం",
   "friends.invite": "ఆహ్వానించండి",
-  "friends.inviteMessage": "హలో! స్నేహితులతో బిల్లులు పంచుకోవడానికి {{appName}} ఉపయోగిస్తున్నాను. ఇక్కడ డౌన్‌లోడ్ చేయండి: {{link}}",
+  "friends.inviteMessage": "హలో {{name}}! స్నేహితులతో బిల్లులు పంచుకోవడానికి {{appName}} ఉపయోగిస్తున్నాను. ఇక్కడ డౌన్‌లోడ్ చేయండి: {{link}}",
   "friends.inviteToApp": "PaySplit కి ఆహ్వానించండి",
   "friends.noMatchesFound": "సరిపోలికలు లేవు.",
   "friends.noneOnApp": "మీ కాంటాక్ట్‌లలో ఎవరూ ఇంకా PaySplit లో లేరు.",

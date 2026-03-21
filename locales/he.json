@@ -165,7 +165,7 @@
   "friends.contactsBody": "PaySplit זקוק לגישה לאנשי הקשר שלך כדי להציג אילו חברים כבר באפליקציה.",
   "friends.contactsRequired": "נדרשת גישה לאנשי קשר",
   "friends.invite": "הזמן",
-  "friends.inviteMessage": "היי! אני משתמש ב-{{appName}} לחלוקת חשבונות עם חברים. הורד כאן: {{link}}",
+  "friends.inviteMessage": "היי {{name}}! אני משתמש ב-{{appName}} לחלוקת חשבונות עם חברים. הורד כאן: {{link}}",
   "friends.inviteToApp": "הזמן ל-PaySplit",
   "friends.noMatchesFound": "לא נמצאו תוצאות.",
   "friends.noneOnApp": "אף אחד מאנשי הקשר שלך עדיין לא ב-PaySplit.",

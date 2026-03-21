@@ -16,10 +16,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency } from '@/context/currency';
-import { sortBalancesDesc } from '@/lib/balance-utils';
 import {
   useFriends,
   type MatchedFriend,
@@ -27,10 +25,11 @@ import {
 } from '@/hooks/use-friends';
 import {
   APP_DISPLAY_NAME,
-  APP_STORE_URL,
-  INVITE_WEB_LINK_BASE,
+  APP_STORE_URL
 } from '@/lib/app-config';
+import { sortBalancesDesc } from '@/lib/balance-utils';
 import { findTopSharedGroup } from '@/lib/friend-utils';
+import { useTranslation } from 'react-i18next';
 
 const C = {
   primary: '#17e86b',
@@ -292,8 +291,7 @@ export default function FriendsScreen() {
 
   const renderUnmatchedItem = ({ item }: { item: UnmatchedContact }) => {
     const ini = initials(item.name);
-    const inviteLink = INVITE_WEB_LINK_BASE || APP_STORE_URL;
-    const shareMessage = t('friends.inviteMessage', { appName: APP_DISPLAY_NAME, link: inviteLink });
+    const shareMessage = t('friends.inviteMessage', { name: item.name, appName: APP_DISPLAY_NAME, link: APP_STORE_URL });
     return (
       <View style={s.row}>
         <View style={s.avatarCircle}>
