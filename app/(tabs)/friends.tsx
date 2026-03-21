@@ -28,7 +28,6 @@ import {
 import {
   APP_DISPLAY_NAME,
   APP_STORE_URL,
-  INVITE_WEB_LINK_BASE,
 } from '@/lib/app-config';
 import { findTopSharedGroup } from '@/lib/friend-utils';
 
@@ -292,8 +291,7 @@ export default function FriendsScreen() {
 
   const renderUnmatchedItem = ({ item }: { item: UnmatchedContact }) => {
     const ini = initials(item.name);
-    const inviteLink = INVITE_WEB_LINK_BASE || APP_STORE_URL;
-    const shareMessage = t('friends.inviteMessage', { appName: APP_DISPLAY_NAME, link: inviteLink });
+    const shareMessage = t('friends.inviteMessage', { appName: APP_DISPLAY_NAME, link: APP_STORE_URL });
     return (
       <View style={s.row}>
         <View style={s.avatarCircle}>
