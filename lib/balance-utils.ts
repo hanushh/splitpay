@@ -41,7 +41,7 @@ export function sortBalancesDesc(balances: CurrencyBalance[]): CurrencyBalance[]
 export function mergeBalances(items: { balances: CurrencyBalance[] }[]): CurrencyBalance[] {
   const map = new Map<string, number>();
   for (const item of items) {
-    for (const b of item.balances) {
+    for (const b of (item.balances ?? [])) {
       map.set(b.currency_code, (map.get(b.currency_code) ?? 0) + b.balance_cents);
     }
   }

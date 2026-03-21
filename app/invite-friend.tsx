@@ -23,8 +23,8 @@ import {
 import { useAuth } from '@/context/auth';
 import {
   APP_DISPLAY_NAME,
+  APP_STORE_URL,
   INVITE_LINK_PREFIX,
-  INVITE_WEB_LINK_BASE,
 } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
@@ -219,10 +219,9 @@ export default function InviteFriendScreen() {
       });
 
       if (!inviteErr) {
-        const linkBase = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
         invites.push({
           contactName: contact.name,
-          shareUrl: `${linkBase}?token=${encodeURIComponent(token)}`,
+          shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
         });
       }
     }
@@ -238,14 +237,14 @@ export default function InviteFriendScreen() {
     try {
       if (pendingInvites.length === 1) {
         await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
+          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       } else {
         const links = pendingInvites
           .map((p) => `${p.contactName}: ${p.shareUrl}`)
           .join('\n');
         await Share.share({
-          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n${links}`,
+          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       }
     } catch {}

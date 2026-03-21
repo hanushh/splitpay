@@ -317,6 +317,18 @@ After any migration, regenerate TypeScript types:
 # See .agents/workflows/update-supabase-types.md for full steps
 ```
 
+### Edge Functions
+
+The production and staging projects require these secrets for Edge Functions to work. Secrets persist on the project — only (re-)set them when values change or when configuring a new project:
+
+```bash
+# Production (project-ref: yapfqffhgcncqxovjcsr, reads from .env.production)
+source .env.production && supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" GEMINI_MODEL="$GEMINI_MODEL" --project-ref yapfqffhgcncqxovjcsr
+
+# Staging (project-ref: gfmbrytpmmbtpumxwile, reads from .env.development)
+source .env.development && supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" GEMINI_MODEL="$GEMINI_MODEL" --project-ref gfmbrytpmmbtpumxwile
+```
+
 ---
 
 ## Testing

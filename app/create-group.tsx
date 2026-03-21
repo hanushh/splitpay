@@ -21,7 +21,7 @@ import {
   type MemberSelection,
 } from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
-import { APP_DISPLAY_NAME, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
+import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
 
 const C = {
@@ -282,9 +282,7 @@ export default function CreateGroupScreen() {
           return;
         }
 
-        const shareUrl = INVITE_WEB_LINK_BASE
-          ? `${INVITE_WEB_LINK_BASE}?token=${token}`
-          : `paysplit://invite?token=${token}`;
+        const shareUrl = `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`;
         pendingInvites.push({ contactName: contact.name, shareUrl });
       }
 
@@ -295,14 +293,14 @@ export default function CreateGroupScreen() {
       // Open share sheet after navigation (native overlay, works on top of any screen)
       if (pendingInvites.length === 1) {
         await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${groupName} on ${APP_DISPLAY_NAME}: ${pendingInvites[0].shareUrl}`,
+          message: `Hey ${pendingInvites[0].contactName}! Join ${groupName} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       } else if (pendingInvites.length > 1) {
         const links = pendingInvites
           .map((p) => `${p.contactName}: ${p.shareUrl}`)
           .join('\n');
         await Share.share({
-          message: `Join ${groupName} on ${APP_DISPLAY_NAME}!\n${links}`,
+          message: `Join ${groupName} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       }
     } catch (err: unknown) {

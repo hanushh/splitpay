@@ -42,6 +42,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   refreshPhoneComplete: () => Promise<void>;
   refreshContactsPermission: () => Promise<void>;
+  pendingInviteToken: string | null;
   getPendingInviteToken: () => Promise<string | null>;
   clearPendingInviteToken: () => Promise<void>;
 };
@@ -58,6 +59,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   refreshPhoneComplete: async () => {},
   refreshContactsPermission: async () => {},
+  pendingInviteToken: null,
   getPendingInviteToken: async () => null,
   clearPendingInviteToken: async () => {},
 });
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [phoneComplete, setPhoneComplete] = useState(true);
   const [contactsPermissionGranted, setContactsPermissionGranted] =
     useState(false);
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const activePushToken = useRef<string | null>(null);
   const handlingOAuthCallback = useRef(false);
 
@@ -136,7 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
-          if (token) await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
+          if (token) {
+            await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
+            setPendingInviteToken(token);
+          }
         } catch {}
         return;
       }
@@ -399,8 +405,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getPendingInviteToken = async () =>
     SecureStore.getItemAsync(INVITE_TOKEN_KEY);
-  const clearPendingInviteToken = async () =>
-    SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+  const clearPendingInviteToken = async () => {
+    setPendingInviteToken(null);
+    await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+  };
 
   return (
     <AuthContext.Provider
@@ -416,6 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         refreshPhoneComplete,
         refreshContactsPermission,
+        pendingInviteToken,
         getPendingInviteToken,
         clearPendingInviteToken,
       }}

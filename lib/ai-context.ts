@@ -70,7 +70,7 @@ export async function buildRagContext(
       type RawBalance = { balance_cents: number; currency_code: string };
 
       for (const row of groupRows ?? []) {
-        const balanceRows = (row.group_balances as RawBalance[] | null) ?? [];
+        const balanceRows = Array.isArray(row.group_balances) ? (row.group_balances as RawBalance[]) : [];
         const primary = balanceRows
           .filter((b) => b.balance_cents !== 0)
           .sort((a, b) => Math.abs(b.balance_cents) - Math.abs(a.balance_cents))[0];
