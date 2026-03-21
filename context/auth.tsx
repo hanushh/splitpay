@@ -76,7 +76,7 @@ async function fetchPhoneComplete(userId: string): Promise<boolean> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [phoneComplete, setPhoneComplete] = useState(true);
+  const [phoneComplete, setPhoneComplete] = useState(false);
   const [contactsPermissionGranted, setContactsPermissionGranted] =
     useState(false);
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
@@ -117,6 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      // When a new session arrives (e.g. Google OAuth callback), re-evaluate
+      // phoneComplete so users without a phone are sent to setup-phone.
+      if (session?.user?.id) {
+        fetchPhoneComplete(session.user.id).then((complete) => {
+          if (!cancelled) setPhoneComplete(complete);
+        });
+      } else {
+        setPhoneComplete(false);
+      }
     });
 
     return () => {
