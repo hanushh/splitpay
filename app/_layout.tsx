@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/native';
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
@@ -21,19 +21,15 @@ export const unstable_settings = {
 };
 
 function InviteRedeemRedirect() {
-  const { session, getPendingInviteToken, clearPendingInviteToken } = useAuth();
+  const { session, pendingInviteToken, clearPendingInviteToken } = useAuth();
   const { t } = useTranslation();
-  const didRun = useRef(false);
 
   useEffect(() => {
-    if (!session || didRun.current) return;
-    didRun.current = true;
+    if (!session || !pendingInviteToken) return;
     (async () => {
-      const token = await getPendingInviteToken();
-      if (!token) return;
       const { data, error: redeemErr } = await supabase.rpc(
         'redeem_invitation_for_current_user',
-        { p_token: token },
+        { p_token: pendingInviteToken },
       );
       await clearPendingInviteToken();
       if (redeemErr) {
@@ -51,7 +47,7 @@ function InviteRedeemRedirect() {
         });
       }
     })();
-  }, [session, getPendingInviteToken, clearPendingInviteToken]);
+  }, [session, pendingInviteToken, clearPendingInviteToken]);
 
   return null;
 }
