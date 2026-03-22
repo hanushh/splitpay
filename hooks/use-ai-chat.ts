@@ -123,6 +123,44 @@ export function useAiChat() {
           router.push(`/group/${String(args.groupId ?? '')}`);
           break;
 
+        case 'view_balances':
+          router.push({
+            pathname: '/group/balances',
+            params: {
+              groupId: String(args.groupId ?? ''),
+              groupName: String(args.groupName ?? ''),
+            },
+          });
+          break;
+
+        case 'view_spending':
+          router.push({
+            pathname: '/group/spending',
+            params: {
+              groupId: String(args.groupId ?? ''),
+              groupName: String(args.groupName ?? ''),
+            },
+          });
+          break;
+
+        case 'view_activity':
+          router.push('/(tabs)/activity');
+          break;
+
+        case 'view_friends':
+          router.push('/(tabs)/friends');
+          break;
+
+        case 'invite_friend':
+          router.push({
+            pathname: '/invite-friend',
+            params: {
+              groupId: String(args.groupId ?? ''),
+              groupName: String(args.groupName ?? ''),
+            },
+          });
+          break;
+
         default:
           break;
       }
@@ -199,6 +237,11 @@ export function useAiChat() {
             create_group: 'Create Group',
             settle_up: 'Settle Up',
             view_group: 'View Group',
+            view_balances: 'View Balances',
+            view_spending: 'View Spending',
+            view_activity: 'View Activity',
+            view_friends: 'View Friends',
+            invite_friend: 'Invite Friend',
           };
 
           const actionMsg: ChatMessage = {
