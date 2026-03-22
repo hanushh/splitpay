@@ -14,6 +14,11 @@ const ACTION_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   create_group: 'group-add',
   settle_up: 'account-balance-wallet',
   view_group: 'groups',
+  view_balances: 'balance',
+  view_spending: 'pie-chart',
+  view_activity: 'timeline',
+  view_friends: 'people',
+  invite_friend: 'person-add',
 };
 
 const ACTION_LABEL_KEYS: Record<string, string> = {
@@ -21,6 +26,11 @@ const ACTION_LABEL_KEYS: Record<string, string> = {
   create_group: 'ai.actionCreateGroup',
   settle_up: 'ai.actionSettleUp',
   view_group: 'ai.actionViewGroup',
+  view_balances: 'ai.actionViewBalances',
+  view_spending: 'ai.actionViewSpending',
+  view_activity: 'ai.actionViewActivity',
+  view_friends: 'ai.actionViewFriends',
+  invite_friend: 'ai.actionInviteFriend',
 };
 
 export default function ChatMessage({ message, onActionPress }: Props) {
