@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -20,6 +21,7 @@ import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency } from '@/context/currency';
 import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
 import { supabase } from '@/lib/supabase';
+import { APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 
 const C = {
@@ -101,6 +103,7 @@ export default function GroupDetailScreen() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
@@ -201,6 +204,37 @@ export default function GroupDetailScreen() {
     setMembers(resolvedMembers);
     setLoading(false);
   }, [id, user, t]);
+
+  const handleRemind = useCallback(
+    async (member: GroupMember) => {
+      if (!id || !user || !group) return;
+      setRemindingId(member.id);
+      try {
+        const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+        await supabase.from('invitations').insert({
+          inviter_id: user.id,
+          group_id: id,
+          token,
+          status: 'pending',
+        });
+        const link = `${INVITE_WEB_LINK_BASE}?token=${encodeURIComponent(token)}`;
+        const name = member.display_name ?? t('group.unknownMember');
+        await Share.share({
+          message: t('group.remindMessage', {
+            name,
+            groupName: group.name,
+            link,
+            appStoreUrl: APP_STORE_URL,
+          }),
+        });
+      } catch {
+        // share cancelled — no action needed
+      } finally {
+        setRemindingId(null);
+      }
+    },
+    [id, user, group, t],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -553,57 +587,96 @@ export default function GroupDetailScreen() {
         </View>
 
         {/* Members section */}
-        <View style={s.membersSection}>
-          <View style={s.membersSectionHeader}>
-            <Text style={s.membersSectionTitle}>{t('group.membersSection')}</Text>
-            <Text style={s.membersSectionCount}>{members.length}</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.membersRow}
-          >
-            {members.map((m) => {
-              const isMe = m.user_id === user?.id;
-              const name = m.display_name ?? t('group.unknownMember');
-              const initials = name
-                .split(' ')
-                .map((w: string) => w[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2);
-              return (
-                <View key={m.id} style={s.memberChip}>
-                  {m.avatar_url ? (
-                    <Image
-                      source={{ uri: m.avatar_url }}
-                      style={s.memberChipAvatar}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        s.memberChipAvatar,
-                        isMe ? s.memberChipAvatarMe : s.memberChipAvatarDefault,
-                      ]}
-                    >
+        {(() => {
+          const appMembers = members.filter((m) => m.user_id !== null);
+          const pendingMembers = members.filter((m) => m.user_id === null);
+          return (
+            <View style={s.membersSection}>
+              <View style={s.membersSectionHeader}>
+                <Text style={s.membersSectionTitle}>{t('group.membersSection')}</Text>
+                <Text style={s.membersSectionCount}>{appMembers.length}</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.membersRow}
+              >
+                {appMembers.map((m) => {
+                  const isMe = m.user_id === user?.id;
+                  const name = m.display_name ?? t('group.unknownMember');
+                  const initials = name
+                    .split(' ')
+                    .map((w: string) => w[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+                  return (
+                    <View key={m.id} style={s.memberChip}>
+                      {m.avatar_url ? (
+                        <Image source={{ uri: m.avatar_url }} style={s.memberChipAvatar} />
+                      ) : (
+                        <View
+                          style={[
+                            s.memberChipAvatar,
+                            isMe ? s.memberChipAvatarMe : s.memberChipAvatarDefault,
+                          ]}
+                        >
+                          <Text style={[s.memberChipInitials, isMe && { color: C.bg }]}>
+                            {initials}
+                          </Text>
+                        </View>
+                      )}
                       <Text
-                        style={[s.memberChipInitials, isMe && { color: C.bg }]}
+                        style={[s.memberChipName, isMe && { color: C.primary }]}
+                        numberOfLines={1}
                       >
-                        {initials}
+                        {isMe ? t('balances.you') : name.split(' ')[0]}
                       </Text>
                     </View>
-                  )}
-                  <Text
-                    style={[s.memberChipName, isMe && { color: C.primary }]}
-                    numberOfLines={1}
-                  >
-                    {isMe ? t('balances.you') : name.split(' ')[0]}
-                  </Text>
+                  );
+                })}
+              </ScrollView>
+
+              {pendingMembers.length > 0 && (
+                <View style={s.pendingSection}>
+                  <Text style={s.pendingSectionTitle}>{t('group.notOnAppYet')}</Text>
+                  {pendingMembers.map((m) => {
+                    const name = m.display_name ?? t('group.unknownMember');
+                    const initials = name
+                      .split(' ')
+                      .map((w: string) => w[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2);
+                    const isReminding = remindingId === m.id;
+                    return (
+                      <View key={m.id} style={s.pendingRow}>
+                        <View style={s.pendingAvatar}>
+                          <Text style={s.pendingInitials}>{initials}</Text>
+                        </View>
+                        <Text style={s.pendingName} numberOfLines={1}>{name}</Text>
+                        <Pressable
+                          style={({ pressed }: { pressed: boolean }) => [
+                            s.remindBtn,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                          onPress={() => handleRemind(m)}
+                          disabled={isReminding}
+                        >
+                          {isReminding ? (
+                            <ActivityIndicator size="small" color={C.orange} />
+                          ) : (
+                            <Text style={s.remindBtnText}>{t('group.remind')}</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    );
+                  })}
                 </View>
-              );
-            })}
-          </ScrollView>
-        </View>
+              )}
+            </View>
+          );
+        })()}
 
         {/* Expenses section */}
         <View style={s.expensesHeader}>
@@ -1243,6 +1316,61 @@ const s = StyleSheet.create({
   },
   deleteCancelBtnText: { color: C.slate400, fontWeight: '600', fontSize: 15 },
   membersSection: { paddingHorizontal: 16, marginBottom: 24 },
+  pendingSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: C.surfaceHL,
+    paddingTop: 12,
+    gap: 10,
+  },
+  pendingSectionTitle: {
+    color: C.slate400,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pendingAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.surfaceHL,
+    borderWidth: 1,
+    borderColor: C.slate500,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingInitials: {
+    color: C.slate400,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pendingName: {
+    flex: 1,
+    color: C.slate400,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  remindBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.orange,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  remindBtnText: {
+    color: C.orange,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   membersSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

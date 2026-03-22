@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
@@ -23,14 +22,12 @@ import i18n from '@/lib/i18n';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
-import { nextMilestone, useInviteStats } from '@/hooks/use-invite-stats';
 
 const C = {
   primary: '#17e86b',
   bg: '#112117',
   surface: '#1a3324',
   surfaceHL: '#244732',
-  orange: '#f97316',
   slate300: '#cbd5e1',
   slate400: '#94a3b8',
   slate500: '#64748b',
@@ -86,56 +83,6 @@ function SettingRow({
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={s.sectionHeader}>{title}</Text>;
-}
-
-function ReferralCard() {
-  const { t } = useTranslation();
-  const { accepted, loading } = useInviteStats();
-  const milestone = nextMilestone(accepted);
-  const progress = Math.min(accepted / milestone, 1);
-
-  const BADGES = [
-    { threshold: 1,  label: '🥉' },
-    { threshold: 5,  label: '🥈' },
-    { threshold: 10, label: '🥇' },
-    { threshold: 25, label: '🏆' },
-  ];
-  const earned = BADGES.filter((b) => accepted >= b.threshold).map((b) => b.label);
-
-  return (
-    <Pressable
-      style={({ pressed }: { pressed: boolean }) => [s.referralCard, pressed && { opacity: 0.85 }]}
-      onPress={() => router.push('/invite-friend')}
-    >
-      <View style={s.referralTop}>
-        <View style={s.referralIconWrap}>
-          <MaterialIcons name="people" size={22} color={C.orange} />
-        </View>
-        <View style={s.referralTextWrap}>
-          <Text style={s.referralTitle}>{t('account.referralTitle')}</Text>
-          {loading ? (
-            <ActivityIndicator size="small" color={C.orange} style={{ marginTop: 4 }} />
-          ) : (
-            <Text style={s.referralCount}>
-              {t('account.referralCount', { count: accepted })}
-              {earned.length > 0 ? '  ' + earned.join(' ') : ''}
-            </Text>
-          )}
-        </View>
-        <MaterialIcons name="chevron-right" size={20} color={C.slate500} />
-      </View>
-      {!loading && (
-        <View style={s.referralBarWrap}>
-          <View style={s.referralBarBg}>
-            <View style={[s.referralBarFill, { width: `${progress * 100}%` }]} />
-          </View>
-          <Text style={s.referralBarLabel}>
-            {t('account.referralProgress', { current: accepted, target: milestone })}
-          </Text>
-        </View>
-      )}
-    </Pressable>
-  );
 }
 
 export default function AccountScreen() {
@@ -236,9 +183,6 @@ export default function AccountScreen() {
             <Text style={s.emailText}>{email}</Text>
           </View>
         </View>
-
-        {/* Referral card */}
-        <ReferralCard />
 
         {/* Profile */}
         <SectionHeader title={t('account.profile')} />
@@ -604,60 +548,6 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: '#244732',
     marginHorizontal: 4,
-  },
-  referralCard: {
-    backgroundColor: C.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.25)',
-  },
-  referralTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  referralIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(249,115,22,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  referralTextWrap: {
-    flex: 1,
-  },
-  referralTitle: {
-    color: C.white,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  referralCount: {
-    color: C.orange,
-    fontSize: 13,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  referralBarWrap: {
-    marginTop: 12,
-    gap: 6,
-  },
-  referralBarBg: {
-    height: 6,
-    backgroundColor: C.surfaceHL,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  referralBarFill: {
-    height: '100%',
-    backgroundColor: C.orange,
-    borderRadius: 3,
-  },
-  referralBarLabel: {
-    color: C.slate400,
-    fontSize: 11,
   },
   phoneErrorText: {
     color: '#ff5252',
