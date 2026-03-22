@@ -83,36 +83,35 @@ describe('ExpenseDetailSheet', () => {
   });
 
   it('hides Edit and Delete actions when isArchived is true', () => {
-    const { queryByText } = render(
+    const { queryByTestId } = render(
       <ExpenseDetailSheet {...baseProps} isArchived={true} />,
     );
-    expect(queryByText('Edit')).toBeNull();
-    expect(queryByText('Delete')).toBeNull();
+    expect(queryByTestId('edit-btn')).toBeNull();
+    expect(queryByTestId('delete-btn')).toBeNull();
   });
 
   it('shows ActivityIndicator on Delete when deletingExpense is true', () => {
-    const { queryByText, getByTestId } = render(
+    const { getByTestId } = render(
       <ExpenseDetailSheet {...baseProps} deletingExpense={true} />,
     );
-    expect(queryByText('Delete')).toBeNull();
     expect(getByTestId('delete-loading')).toBeTruthy();
   });
 
   it('calls onEdit when Edit is pressed', () => {
     const onEdit = jest.fn();
-    const { getByText } = render(
+    const { getByTestId } = render(
       <ExpenseDetailSheet {...baseProps} onEdit={onEdit} />,
     );
-    fireEvent.press(getByText('Edit'));
+    fireEvent.press(getByTestId('edit-btn'));
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
   it('calls onDelete when Delete is pressed', () => {
     const onDelete = jest.fn();
-    const { getByText } = render(
+    const { getByTestId } = render(
       <ExpenseDetailSheet {...baseProps} onDelete={onDelete} />,
     );
-    fireEvent.press(getByText('Delete'));
+    fireEvent.press(getByTestId('delete-btn'));
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 

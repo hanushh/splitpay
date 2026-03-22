@@ -79,23 +79,24 @@ beforeEach(() => {
 
 async function openDetailSheet(
   getByText: ReturnType<typeof render>['getByText'],
+  getByTestId: ReturnType<typeof render>['getByTestId'],
 ) {
   await waitFor(() => getByText('Dinner at Locavore'));
   fireEvent.press(getByText('Dinner at Locavore'));
-  await waitFor(() => getByText('Delete'));
+  await waitFor(() => getByTestId('delete-btn'));
 }
 
 test('tapping an expense card opens the detail sheet', async () => {
-  const { getByText } = render(<GroupDetailScreen />);
-  await openDetailSheet(getByText);
-  expect(getByText('Edit')).toBeTruthy();
-  expect(getByText('Delete')).toBeTruthy();
+  const { getByText, getByTestId } = render(<GroupDetailScreen />);
+  await openDetailSheet(getByText, getByTestId);
+  expect(getByTestId('edit-btn')).toBeTruthy();
+  expect(getByTestId('delete-btn')).toBeTruthy();
 });
 
 test('tapping Delete shows confirmation Alert with expense name', async () => {
-  const { getByText } = render(<GroupDetailScreen />);
-  await openDetailSheet(getByText);
-  fireEvent.press(getByText('Delete'));
+  const { getByText, getByTestId } = render(<GroupDetailScreen />);
+  await openDetailSheet(getByText, getByTestId);
+  fireEvent.press(getByTestId('delete-btn'));
   expect(Alert.alert).toHaveBeenCalledWith(
     'group.deleteExpenseTitle',
     'group.deleteExpenseMessage',
@@ -104,9 +105,9 @@ test('tapping Delete shows confirmation Alert with expense name', async () => {
 });
 
 test('confirming delete calls delete_expense rpc and then re-fetches group', async () => {
-  const { getByText } = render(<GroupDetailScreen />);
-  await openDetailSheet(getByText);
-  fireEvent.press(getByText('Delete'));
+  const { getByText, getByTestId } = render(<GroupDetailScreen />);
+  await openDetailSheet(getByText, getByTestId);
+  fireEvent.press(getByTestId('delete-btn'));
 
   // Simulate the user pressing the destructive "Delete" button in the Alert
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
@@ -137,9 +138,9 @@ test('delete error shows Alert and does not close the sheet', async () => {
     return Promise.resolve({ data: mockExpenses, error: null });
   });
 
-  const { getByText } = render(<GroupDetailScreen />);
-  await openDetailSheet(getByText);
-  fireEvent.press(getByText('Delete'));
+  const { getByText, getByTestId } = render(<GroupDetailScreen />);
+  await openDetailSheet(getByText, getByTestId);
+  fireEvent.press(getByTestId('delete-btn'));
 
   const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
   const buttons: { text: string; onPress?: () => void }[] = alertCall[2];
@@ -151,8 +152,8 @@ test('delete error shows Alert and does not close the sheet', async () => {
   await waitFor(() => {
     // A second Alert should have been shown with the error message
     expect(Alert.alert).toHaveBeenCalledWith('common.ok', 'Permission denied');
-    // The sheet should still be visible (Edit/Delete buttons still rendered)
-    expect(getByText('Edit')).toBeTruthy();
+    // The sheet should still be visible (edit/delete buttons still rendered)
+    expect(getByTestId('edit-btn')).toBeTruthy();
   });
 });
 

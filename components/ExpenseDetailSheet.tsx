@@ -213,6 +213,7 @@ export default function ExpenseDetailSheet({
           {!isArchived && (
             <View style={s.headerActions}>
               <Pressable
+                testID="edit-btn"
                 style={({ pressed }: { pressed: boolean }) => [
                   s.iconBtn,
                   pressed && { opacity: 0.6 },
@@ -222,6 +223,7 @@ export default function ExpenseDetailSheet({
                 <MaterialIcons name="edit" size={18} color={C.primary} />
               </Pressable>
               <Pressable
+                testID="delete-btn"
                 style={({ pressed }: { pressed: boolean }) => [
                   s.iconBtn,
                   pressed && { opacity: 0.6 },
