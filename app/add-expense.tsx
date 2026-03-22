@@ -608,63 +608,24 @@ export default function AddExpenseScreen() {
         : detectedCategory;
 
     if (isEditing && expenseId) {
-      // ── Edit mode: UPDATE expense, DELETE old splits, INSERT new splits ──
-      const { error: updateErr } = await supabase
-        .from('expenses')
-        .update({
-          description: description.trim(),
-          amount_cents: amtCents,
-          paid_by_member_id: paidBy,
-          category: finalCategory,
-          receipt_url: receiptUri,
-          currency_code: expenseCurrency.code,
-        })
-        .eq('id', expenseId);
-
-      if (updateErr) {
-        setError(updateErr.message);
-        setSaving(false);
-        return;
-      }
-
-      const { error: deleteErr } = await supabase
-        .from('expense_splits')
-        .delete()
-        .eq('expense_id', expenseId);
-
-      if (deleteErr) {
-        setError(deleteErr.message);
-        setSaving(false);
-        return;
-      }
-
+      // ── Edit mode: atomic update via RPC (reverses old balances, updates expense + splits) ──
       const customSplits = buildCustomSplits();
-      const splitIds = customSplits
-        ? customSplits.memberIds
-        : [...selectedMembers];
-      const splitCents = customSplits
-        ? customSplits.amountsCents
-        : splitIds.map((_, i) => {
-            const perPerson = Math.round(amtCents / splitIds.length);
-            return i === splitIds.length - 1
-              ? amtCents - perPerson * (splitIds.length - 1)
-              : perPerson;
-          });
-      const splits = splitIds.map((memberId, i) => ({
-        expense_id: expenseId,
-        member_id: memberId,
-        amount_cents: splitCents[i],
-      }));
-
-      const { error: splitErr } = await supabase
-        .from('expense_splits')
-        .insert(splits);
-      if (splitErr) {
-        // Splits failed after DELETE — the expense still exists but has no splits.
-        // Surface a clear message so the user knows to retry the edit.
-        setError(
-          'Splits could not be saved. Please edit the expense again to re-enter splits.',
-        );
+      const editRpcParams: Record<string, unknown> = {
+        p_expense_id: expenseId,
+        p_description: description.trim(),
+        p_amount_cents: amtCents,
+        p_paid_by_member_id: paidBy,
+        p_category: finalCategory,
+        p_receipt_url: receiptUri ?? null,
+        p_currency_code: expenseCurrency.code,
+        p_split_member_ids: customSplits ? customSplits.memberIds : [...selectedMembers],
+      };
+      if (customSplits) {
+        editRpcParams.p_split_amounts_cents = customSplits.amountsCents;
+      }
+      const { error: updateErr } = await supabase.rpc('update_expense_with_splits', editRpcParams);
+      if (updateErr) {
+        setError(updateErr.message ?? t('expense.saveFailed'));
         setSaving(false);
         return;
       }
