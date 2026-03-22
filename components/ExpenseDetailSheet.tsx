@@ -210,6 +210,33 @@ export default function ExpenseDetailSheet({
               {dateLabel} · {categoryLabel}
             </Text>
           </View>
+          {!isArchived && (
+            <View style={s.headerActions}>
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [
+                  s.iconBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
+                onPress={onEdit}
+              >
+                <MaterialIcons name="edit" size={18} color={C.primary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [
+                  s.iconBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
+                onPress={onDelete}
+                disabled={deletingExpense}
+              >
+                {deletingExpense ? (
+                  <ActivityIndicator testID="delete-loading" size="small" color={C.danger} />
+                ) : (
+                  <MaterialIcons name="delete-outline" size={18} color={C.danger} />
+                )}
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {/* ② Hero */}
@@ -309,46 +336,6 @@ export default function ExpenseDetailSheet({
           )}
         </View>
 
-        {/* ④ Actions — hidden when archived */}
-        {!isArchived && (
-          <View style={s.actions}>
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                s.editBtn,
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={onEdit}
-            >
-              <MaterialIcons name="edit" size={18} color={C.primary} />
-              <Text style={s.editBtnText}>Edit</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                s.deleteBtn,
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={onDelete}
-              disabled={deletingExpense}
-            >
-              {deletingExpense ? (
-                <ActivityIndicator
-                  testID="delete-loading"
-                  size="small"
-                  color={C.danger}
-                />
-              ) : (
-                <>
-                  <MaterialIcons
-                    name="delete-outline"
-                    size={18}
-                    color={C.danger}
-                  />
-                  <Text style={s.deleteBtnText}>Delete</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        )}
       </View>
     </Modal>
   );
@@ -480,39 +467,17 @@ const s = StyleSheet.create({
     backgroundColor: C.surfaceHL,
   },
   skeletonLine: { height: 10, borderRadius: 5, backgroundColor: C.surfaceHL },
-  // actions
-  actions: {
+  headerActions: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: C.surfaceHL,
+    gap: 8,
+    marginLeft: 8,
   },
-  editBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  iconBtn: {
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(23,232,107,0.1)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(23,232,107,0.3)',
+    borderRadius: 10,
+    backgroundColor: C.surfaceHL,
   },
-  editBtnText: { color: C.primary, fontSize: 15, fontWeight: '700' },
-  deleteBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(255,82,82,0.08)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,82,82,0.3)',
-  },
-  deleteBtnText: { color: C.danger, fontSize: 15, fontWeight: '700' },
 });

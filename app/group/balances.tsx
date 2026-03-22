@@ -177,37 +177,31 @@ export default function GroupBalancesScreen() {
 
       {/* Total balance banner */}
       <View style={s.banner}>
-        <View style={s.bannerLeft}>
-          {isAllSettled ? (
-            <Text style={[s.bannerAmount, { color: C.primary }]}>
-              {t('balances.allSettled')}
-            </Text>
-          ) : (
-            myBalances.map((b) => (
-              <Text
-                key={b.currency_code}
-                style={[
-                  s.bannerAmount,
-                  { color: b.balance_cents > 0 ? C.primary : C.orange },
-                ]}
-              >
-                {b.balance_cents > 0 ? '+' : '-'}
-                {formatCentsWithCurrency(b.balance_cents, b.currency_code)}
-              </Text>
-            ))
-          )}
-          <Text style={s.bannerSub}>
-            {isAllSettled
-              ? t('balances.allSettledTotal')
-              : primaryBalance && primaryBalance.balance_cents > 0
-                ? t('balances.youAreOwedTotal')
-                : t('balances.youOweTotal')}
+        {isAllSettled ? (
+          <Text style={[s.bannerAmount, { color: C.primary }]}>
+            {t('balances.allSettled')}
           </Text>
-        </View>
-        <Pressable style={s.chartBtn}>
-          <MaterialIcons name="bar-chart" size={22} color={C.primary} />
-          <Text style={s.chartBtnText}>{t('balances.viewChart')}</Text>
-        </Pressable>
+        ) : (
+          myBalances.map((b) => (
+            <Text
+              key={b.currency_code}
+              style={[
+                s.bannerAmount,
+                { color: b.balance_cents > 0 ? C.primary : C.orange },
+              ]}
+            >
+              {b.balance_cents > 0 ? '+' : '-'}
+              {formatCentsWithCurrency(b.balance_cents, b.currency_code)}
+            </Text>
+          ))
+        )}
+        <Text style={s.bannerSub}>
+          {isAllSettled
+            ? t('balances.allSettledTotal')
+            : primaryBalance && primaryBalance.balance_cents > 0
+              ? t('balances.youAreOwedTotal')
+              : t('balances.youOweTotal')}
+        </Text>
       </View>
 
       <Text style={s.sectionTitle}>{t('balances.groupMembers')}</Text>
@@ -356,9 +350,6 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     marginHorizontal: 16,
     marginBottom: 20,
     backgroundColor: C.surface,
@@ -366,20 +357,10 @@ const s = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: C.surfaceHL,
+    gap: 4,
   },
-  bannerLeft: { gap: 4, flex: 1 },
   bannerAmount: { fontSize: 22, fontWeight: '700' },
   bannerSub: { color: C.slate400, fontSize: 13 },
-  chartBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.surfaceHL,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  chartBtnText: { color: C.primary, fontWeight: '600', fontSize: 13 },
   sectionTitle: {
     color: C.slate400,
     fontSize: 11,

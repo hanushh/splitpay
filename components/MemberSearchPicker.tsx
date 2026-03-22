@@ -246,9 +246,7 @@ export function MemberSearchPicker({
   const searching = searchLoading && q.length >= 2;
   const hasSelection =
     selectedAppUsers.length > 0 || selectedContacts.length > 0;
-  const showResults =
-    q.length > 0 ||
-    (!loading && (filteredAppUsers.length > 0 || filteredContacts.length > 0));
+  const showResults = q.length > 0;
 
   return (
     <View style={s.container}>

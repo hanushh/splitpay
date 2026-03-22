@@ -163,6 +163,7 @@ export default function CreateGroupScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [showDescription, setShowDescription] = useState(false);
   const [memberSelection, setMemberSelection] = useState<MemberSelection>({
     appUsers: [],
     contacts: [],
@@ -374,23 +375,37 @@ export default function CreateGroupScreen() {
             maxLength={60}
             testID="group-name-input"
           />
+          <Pressable
+            onPress={() => setShowDescription((v) => !v)}
+            style={s.descriptionLink}
+          >
+            <Text style={s.descriptionLinkText}>
+              {description.trim().length > 0
+                ? t('createGroup.descriptionLabel')
+                : showDescription
+                  ? t('createGroup.descriptionLabel')
+                  : '+ ' + t('createGroup.descriptionLabel')}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Description */}
-        <View style={s.fieldBlock}>
-          <Text style={s.fieldLabel}>{t('createGroup.descriptionLabel')}</Text>
-          <TextInput
-            style={[s.fieldInput, s.fieldTextarea]}
-            placeholder={t('createGroup.descriptionPlaceholder')}
-            placeholderTextColor={C.slate500}
-            value={description}
-            onChangeText={setDescription}
-            returnKeyType="done"
-            multiline
-            maxLength={160}
-            testID="group-description-input"
-          />
-        </View>
+        {showDescription && (
+          <View style={s.fieldBlock}>
+            <TextInput
+              style={[s.fieldInput, s.fieldTextarea]}
+              placeholder={t('createGroup.descriptionPlaceholder')}
+              placeholderTextColor={C.slate500}
+              value={description}
+              onChangeText={setDescription}
+              returnKeyType="done"
+              multiline
+              maxLength={160}
+              autoFocus
+              testID="group-description-input"
+            />
+          </View>
+        )}
 
         {/* Add members */}
         <View style={s.fieldBlock}>
@@ -462,6 +477,15 @@ const s = StyleSheet.create({
   },
   previewHint: { color: C.slate400, fontSize: 13 },
   fieldBlock: { marginBottom: 24 },
+  descriptionLink: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  descriptionLinkText: {
+    color: C.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
   fieldLabel: {
     color: C.slate500,
     fontSize: 11,

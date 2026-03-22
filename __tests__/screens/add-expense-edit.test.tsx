@@ -54,7 +54,8 @@ const mockMembers = [
   { id: 'member-2', display_name: 'Alex', avatar_url: null, user_id: 'user-2' },
 ];
 
-// Track calls to each table for save-path assertions
+// Track calls for save-path assertions
+let rpcMock: jest.Mock;
 let updateMock: jest.Mock;
 let splitsDeleteMock: jest.Mock;
 let splitsInsertMock: jest.Mock;
@@ -67,6 +68,9 @@ beforeEach(() => {
     groupName: 'Bali Trip',
     expenseId: 'expense-1',
   });
+
+  rpcMock = jest.fn().mockResolvedValue({ error: null });
+  (supabase.rpc as jest.Mock) = rpcMock;
 
   updateMock = jest
     .fn()
@@ -161,7 +165,7 @@ test('edit mode: paidBy is set from fetched paid_by_member_id (member-2), not de
   expect(paidBySection).toHaveTextContent('Alex', { exact: false });
 });
 
-test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async () => {
+test('edit mode: save calls update_expense_with_splits RPC', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
   await waitFor(() => {
     expect(getByTestId('description-input').props.value).toBe(
@@ -172,9 +176,15 @@ test('edit mode: save calls UPDATE then DELETE splits then INSERT splits', async
     fireEvent.press(getByTestId('save-expense-button'));
   });
   await waitFor(() => {
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(splitsDeleteMock).toHaveBeenCalledTimes(1);
-    expect(splitsInsertMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith(
+      'update_expense_with_splits',
+      expect.objectContaining({
+        p_expense_id: 'expense-1',
+        p_description: 'Dinner at Locavore',
+        p_amount_cents: 12000,
+        p_paid_by_member_id: 'member-2',
+      }),
+    );
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
