@@ -78,6 +78,39 @@ export default function AiTab() {
         case 'view_group':
           router.push(`/group/${String(actionParams.groupId ?? '')}`);
           break;
+        case 'view_balances':
+          router.push({
+            pathname: '/group/balances',
+            params: {
+              groupId: String(actionParams.groupId ?? ''),
+              groupName: String(actionParams.groupName ?? ''),
+            },
+          });
+          break;
+        case 'view_spending':
+          router.push({
+            pathname: '/group/spending',
+            params: {
+              groupId: String(actionParams.groupId ?? ''),
+              groupName: String(actionParams.groupName ?? ''),
+            },
+          });
+          break;
+        case 'view_activity':
+          router.push('/(tabs)/activity');
+          break;
+        case 'view_friends':
+          router.push('/(tabs)/friends');
+          break;
+        case 'invite_friend':
+          router.push({
+            pathname: '/invite-friend',
+            params: {
+              groupId: String(actionParams.groupId ?? ''),
+              groupName: String(actionParams.groupName ?? ''),
+            },
+          });
+          break;
         default:
           break;
       }

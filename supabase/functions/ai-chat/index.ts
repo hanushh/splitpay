@@ -79,6 +79,52 @@ const appTools = [
           required: ['groupId'],
         },
       },
+      {
+        name: 'view_balances',
+        description: 'Open the Balances screen for a group, showing who owes what.',
+        parameters: {
+          type: SchemaType.OBJECT,
+          properties: {
+            groupId: { type: SchemaType.STRING, description: 'ID of the group.' },
+            groupName: { type: SchemaType.STRING, description: 'Display name of the group.' },
+          },
+          required: ['groupId', 'groupName'],
+        },
+      },
+      {
+        name: 'view_spending',
+        description: 'Open the Spending breakdown screen for a group, showing expenses by category.',
+        parameters: {
+          type: SchemaType.OBJECT,
+          properties: {
+            groupId: { type: SchemaType.STRING, description: 'ID of the group.' },
+            groupName: { type: SchemaType.STRING, description: 'Display name of the group.' },
+          },
+          required: ['groupId', 'groupName'],
+        },
+      },
+      {
+        name: 'view_activity',
+        description: 'Navigate to the activity feed showing recent expense events across all groups.',
+        parameters: { type: SchemaType.OBJECT, properties: {} },
+      },
+      {
+        name: 'view_friends',
+        description: 'Navigate to the Friends tab showing cross-group balances with each friend.',
+        parameters: { type: SchemaType.OBJECT, properties: {} },
+      },
+      {
+        name: 'invite_friend',
+        description: 'Open the Invite Friend screen to add someone new to a group.',
+        parameters: {
+          type: SchemaType.OBJECT,
+          properties: {
+            groupId: { type: SchemaType.STRING, description: 'ID of the group.' },
+            groupName: { type: SchemaType.STRING, description: 'Display name of the group.' },
+          },
+          required: ['groupId', 'groupName'],
+        },
+      },
     ],
   },
 ];
