@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useExistingFriends } from '@/hooks/use-existing-friends';
 import { useFriends, type UnmatchedContact } from '@/hooks/use-friends';
+import { supabase } from '@/lib/supabase';
 
 export interface SelectedMember {
   userId: string;
@@ -91,6 +92,8 @@ export function MemberSearchPicker({
   const [selectedContacts, setSelectedContacts] = useState<UnmatchedContact[]>(
     [],
   );
+  const [searchResults, setSearchResults] = useState<SelectedMember[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -105,6 +108,30 @@ export function MemberSearchPicker({
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, []);
+
+  // Global user search — fires when query is at least 2 chars
+  useEffect(() => {
+    if (debouncedQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    supabase
+      .rpc('search_app_users', { p_query: debouncedQuery.trim() })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setSearchResults(
+          (data ?? []).map((r: { user_id: string; name: string; avatar_url: string | null }) => ({
+            userId: r.user_id,
+            name: r.name ?? 'Unknown',
+            avatarUrl: r.avatar_url,
+          })),
+        );
+        setSearchLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
 
   // Merge matched (from useFriends) + existingFriends (from useExistingFriends),
   // deduplicate by userId, and filter out excluded IDs.
@@ -143,15 +170,22 @@ export function MemberSearchPicker({
 
   const q = debouncedQuery.toLowerCase().trim();
 
-  const filteredAppUsers = useMemo(
-    () =>
-      allAppUsers.filter(
-        (u) =>
-          !selectedAppUserIds.has(u.userId) &&
-          (!q || u.name.toLowerCase().includes(q)),
-      ),
-    [allAppUsers, selectedAppUserIds, q],
-  );
+  const filteredAppUsers = useMemo(() => {
+    const excludeSet = new Set([
+      ...Array.from(selectedAppUserIds),
+      ...(excludeUserIds ?? []),
+    ]);
+    const base = allAppUsers.filter(
+      (u) => !excludeSet.has(u.userId) && (!q || u.name.toLowerCase().includes(q)),
+    );
+    if (q.length < 2) return base;
+    // Merge in global search results not already present
+    const seen = new Set(base.map((u) => u.userId));
+    const extra = searchResults.filter(
+      (u) => !seen.has(u.userId) && !excludeSet.has(u.userId),
+    );
+    return [...base, ...extra];
+  }, [allAppUsers, selectedAppUserIds, excludeUserIds, q, searchResults]);
 
   const excludeContactNamesLower = useMemo(
     () => new Set(excludeContactNames.map((n) => n.toLowerCase())),
@@ -209,6 +243,7 @@ export function MemberSearchPicker({
   );
 
   const loading = friendsLoading || existingLoading;
+  const searching = searchLoading && q.length >= 2;
   const hasSelection =
     selectedAppUsers.length > 0 || selectedContacts.length > 0;
   const showResults =
@@ -264,6 +299,12 @@ export function MemberSearchPicker({
         <View style={s.centerRow}>
           <ActivityIndicator color={C.primary} size="small" />
           <Text style={s.hint}>{t('memberPicker.loadingContacts')}</Text>
+        </View>
+      )}
+      {!loading && searching && (
+        <View style={s.centerRow}>
+          <ActivityIndicator color={C.primary} size="small" />
+          <Text style={s.hint}>{t('memberPicker.searching')}</Text>
         </View>
       )}
       {!loading && permissionDenied && (

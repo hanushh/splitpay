@@ -300,5 +300,6 @@
   "tabs.activity": "Активность",
   "tabs.ai": "AI",
   "tabs.friends": "Друзья",
-  "tabs.groups": "Группы"
+  "tabs.groups": "Группы",
+  "memberPicker.searching": "Поиск…"
 }

@@ -300,5 +300,6 @@
   "tabs.activity": "Actividad",
   "tabs.ai": "AI",
   "tabs.friends": "Amigos",
-  "tabs.groups": "Grupos"
+  "tabs.groups": "Grupos",
+  "memberPicker.searching": "Buscando…"
 }

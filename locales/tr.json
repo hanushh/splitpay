@@ -300,5 +300,6 @@
   "tabs.activity": "Aktivite",
   "tabs.ai": "AI",
   "tabs.friends": "Arkadaşlar",
-  "tabs.groups": "Gruplar"
+  "tabs.groups": "Gruplar",
+  "memberPicker.searching": "Aranıyor…"
 }

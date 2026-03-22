@@ -81,6 +81,7 @@ export default function InviteFriendScreen() {
   const [existingContactNames, setExistingContactNames] = useState<string[]>(
     [],
   );
+  const [membersLoaded, setMembersLoaded] = useState(false);
 
   // When coming from Friends tab with a pre-selected user, seed memberSelection
   const [memberSelection, setMemberSelection] = useState<MemberSelection>(
@@ -148,6 +149,7 @@ export default function InviteFriendScreen() {
         .filter((r) => !r.user_id && r.display_name)
         .map((r) => r.display_name!),
     );
+    setMembersLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -367,13 +369,17 @@ export default function InviteFriendScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Only show member search picker when no pre-selected friend */}
-        {!paramUserId && (
+        {/* Gate the picker on membersLoaded — prevents already-added members
+            from appearing as selectable before the exclusion list is ready */}
+        {!paramUserId && membersLoaded && (
           <MemberSearchPicker
             excludeUserIds={existingMemberIds}
             excludeContactNames={existingContactNames}
             onSelectionChange={setMemberSelection}
           />
+        )}
+        {!paramUserId && !membersLoaded && activeGroupId && (
+          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
         )}
 
         {!activeGroupId && (

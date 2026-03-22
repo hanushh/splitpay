@@ -300,5 +300,6 @@
   "tabs.activity": "النشاط",
   "tabs.ai": "AI",
   "tabs.friends": "الأصدقاء",
-  "tabs.groups": "المجموعات"
+  "tabs.groups": "المجموعات",
+  "memberPicker.searching": "جارٍ البحث…"
 }
