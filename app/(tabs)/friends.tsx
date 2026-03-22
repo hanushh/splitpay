@@ -205,18 +205,6 @@ export default function FriendsScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
-        <MaterialIcons name="error-outline" size={40} color={C.danger} />
-        <Text style={s.errorText}>{error}</Text>
-        <Pressable style={s.retryBtn} onPress={refetch}>
-          <Text style={s.retryBtnText}>{t('common.retry')}</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   if (permissionDenied) {
     return (
       <View style={[s.container, s.centered, { paddingTop: insets.top }]}>
@@ -311,6 +299,15 @@ export default function FriendsScreen() {
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <Text style={s.screenTitle}>{t('friends.title')}</Text>
+      {error && (
+        <View style={s.errorBanner}>
+          <MaterialIcons name="error-outline" size={18} color={C.danger} />
+          <Text style={s.errorBannerText} numberOfLines={2}>{error}</Text>
+          <Pressable onPress={refetch}>
+            <Text style={s.retryBtnText}>{t('common.retry')}</Text>
+          </Pressable>
+        </View>
+      )}
       <View style={s.searchWrap}>
         <MaterialIcons
           name="search"
@@ -488,6 +485,20 @@ const s = StyleSheet.create({
   showMoreBtn: { paddingHorizontal: 16, paddingTop: 12 },
   showMoreText: { color: C.primary, fontWeight: '600', fontSize: 14 },
   errorText: { color: C.white, fontSize: 15, textAlign: 'center' },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: '#2a1a1a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.danger,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorBannerText: { flex: 1, color: C.danger, fontSize: 13, fontWeight: '500' },
   retryBtn: {
     backgroundColor: C.surfaceHL,
     paddingHorizontal: 20,
