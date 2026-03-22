@@ -2,25 +2,37 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a rewarded-ad monetisation layer to cover Supabase hosting costs (~$30–40/month). After a user successfully settles a debt, a scratch-card screen appears. The user can watch a short rewarded video ad to reveal a prize (or dismiss without watching). No virtual currency, no wallet — the reward is direct and immediate.
+**Goal:** Add a rewarded-ad monetisation layer to cover Supabase hosting costs (~$30–40/month). After a user successfully settles a debt, a scratch-card screen appears. The user watches a short rewarded video ad to reveal a real affiliate coupon from a brand partner. No virtual currency, no wallet — the reward is a genuine discount code, immediately actionable.
 
-**Revenue model:** Rewarded video ads (CPM $10–25, ~90% completion rate) triggered once per settlement. A plain interstitial would yield ~8–10× less due to lower CPM and forced-skip behaviour.
+**Revenue model (dual stream):**
+1. **AdMob rewarded video** — CPM $10–25, ~90% completion rate, paid per completed view
+2. **Affiliate commission** — 2–8% of sale value when user redeems the coupon via the tracking link
 
 **User flow:**
 ```
 settle-up.tsx  →  record_settlement RPC succeeds
              →  router.replace('/scratch-card')
-             →  ScratchCardScreen shows covered card
-             →  "Watch a short ad to reveal your reward" button
+             →  ScratchCardScreen fetches a coupon from Supabase (pre-loaded)
+             →  Covered card shown, "Watch a short ad to reveal" button
              →  Rewarded ad plays (Google AdMob rewarded)
-             →  On reward callback → card becomes scratchable
-             →  User scratches to reveal prize text
+             →  On reward callback → overlay fades, card becomes scratchable
+             →  User scratches to reveal:
+                  - Brand logo
+                  - Discount text (e.g. "20% off at Swiggy")
+                  - Coupon code
+                  - [Redeem Now →] button (affiliate tracking URL)
+                  - [Copy Code] button
              →  "Done" returns to group screen
 ```
 
-**No coins.** No coin balance, no coin hook, no wallet UI. The scratch card is the only reward mechanism.
+**No coins.** No coin balance, no coin hook, no wallet UI.
 
-**Tech Stack:** React Native 0.81 + Expo ~54, Google AdMob (`react-native-google-mobile-ads`), React Native Gesture Handler (scratch interaction), TypeScript strict, Expo Router, pnpm
+**Affiliate networks (India-focused):**
+- **Cuelinks** — Flipkart, Amazon IN, Myntra, Swiggy
+- **vCommission** — Zomato, MakeMyTrip, Nykaa
+- **EarnKaro** — Amazon IN, Meesho, Ajio
+
+**Tech Stack:** React Native 0.81 + Expo ~54, Google AdMob (`react-native-google-mobile-ads`), Supabase (coupon table + RPC), TypeScript strict, Expo Router, pnpm
 
 ---
 
@@ -55,9 +67,159 @@ Add to `app.json` under `expo.plugins`:
 
 ---
 
-## Chunk 2: Rewarded Ad Hook
+## Chunk 2: Database — Coupon Table
 
-### Task 2: Create `hooks/use-rewarded-ad.ts`
+### Task 2: Create the migration file
+
+**Files:**
+- Create: `supabase/migrations/20260322100000_add_coupons.sql`
+
+The `coupons` table stores affiliate coupon inventory pre-loaded by the developer. Each row is one coupon offer from a brand. Coupons can be shared (one code used by many users) or single-use — the `single_use` flag controls this. A `claim_coupon` RPC returns a random active coupon and, for single-use coupons, marks it claimed.
+
+- [ ] **Step 1: Create migration**
+
+```sql
+-- supabase/migrations/20260322100000_add_coupons.sql
+
+CREATE TABLE public.coupons (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_name      TEXT        NOT NULL,
+  brand_logo_url  TEXT,
+  discount_text   TEXT        NOT NULL,   -- e.g. "20% off your next order"
+  code            TEXT        NOT NULL,
+  tracking_url    TEXT        NOT NULL,   -- affiliate deep link / tracking URL
+  single_use      BOOLEAN     NOT NULL DEFAULT false,
+  claimed_by      UUID        REFERENCES public.profiles(id),
+  active          BOOLEAN     NOT NULL DEFAULT true,
+  expires_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Only the service role can insert/update coupons (developer manages inventory)
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "authenticated users can read active coupons"
+  ON public.coupons FOR SELECT
+  TO authenticated
+  USING (active = true AND (expires_at IS NULL OR expires_at > NOW()));
+
+-- RPC: claim_coupon
+-- Returns a random active coupon. For single-use coupons, marks claimed_by.
+-- SECURITY DEFINER so it can update claimed_by regardless of RLS.
+CREATE OR REPLACE FUNCTION public.claim_coupon()
+RETURNS TABLE (
+  id              UUID,
+  brand_name      TEXT,
+  brand_logo_url  TEXT,
+  discount_text   TEXT,
+  code            TEXT,
+  tracking_url    TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_coupon public.coupons%ROWTYPE;
+BEGIN
+  -- Pick a random active coupon not already claimed by this user
+  SELECT * INTO v_coupon
+  FROM public.coupons
+  WHERE active = true
+    AND (expires_at IS NULL OR expires_at > NOW())
+    AND (single_use = false OR claimed_by IS NULL)
+    AND (claimed_by IS DISTINCT FROM auth.uid())
+  ORDER BY RANDOM()
+  LIMIT 1;
+
+  IF v_coupon.id IS NULL THEN
+    RETURN; -- empty result set — caller handles gracefully
+  END IF;
+
+  -- Mark single-use coupons as claimed
+  IF v_coupon.single_use THEN
+    UPDATE public.coupons
+    SET claimed_by = auth.uid()
+    WHERE id = v_coupon.id;
+  END IF;
+
+  RETURN QUERY SELECT
+    v_coupon.id,
+    v_coupon.brand_name,
+    v_coupon.brand_logo_url,
+    v_coupon.discount_text,
+    v_coupon.code,
+    v_coupon.tracking_url;
+END;
+$$;
+```
+
+- [ ] **Step 2: Regenerate Supabase TypeScript types**
+
+```bash
+# See .agents/workflows/update-supabase-types.md
+```
+
+---
+
+## Chunk 3: Coupon Hook
+
+### Task 3: Create `hooks/use-coupon.ts`
+
+**Files:**
+- Create: `hooks/use-coupon.ts`
+
+- [ ] **Step 1: Implement the hook**
+
+```typescript
+// hooks/use-coupon.ts
+import { useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+
+export interface Coupon {
+  id: string;
+  brand_name: string;
+  brand_logo_url: string | null;
+  discount_text: string;
+  code: string;
+  tracking_url: string;
+}
+
+interface UseCouponReturn {
+  coupon: Coupon | null;
+  loading: boolean;
+  error: string | null;
+  claim: () => Promise<void>;
+}
+
+export function useCoupon(): UseCouponReturn {
+  const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const claim = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('claim_coupon');
+      if (rpcError) throw rpcError;
+      setCoupon((data as Coupon[])?.[0] ?? null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { coupon, loading, error, claim };
+}
+```
+
+---
+
+## Chunk 4: Rewarded Ad Hook
+
+### Task 4: Create `hooks/use-rewarded-ad.ts`
 
 **Files:**
 - Create: `hooks/use-rewarded-ad.ts`
@@ -128,33 +290,27 @@ export function useRewardedAd(onEarned: () => void): UseRewardedAdReturn {
 
 ---
 
-## Chunk 3: Scratch Card Screen
+## Chunk 5: Scratch Card Screen
 
-### Task 3: Create `app/scratch-card.tsx`
+### Task 5: Create `app/scratch-card.tsx`
 
 **Files:**
 - Create: `app/scratch-card.tsx`
 - Modify: `app/_layout.tsx` — register modal route
 
-The screen has two visual states:
+The screen has three visual states:
 
-1. **Locked** — card face covered by a grey overlay, "Watch a short ad to reveal" button visible.
-2. **Unlocked** — overlay removed, instructional text "Scratch to reveal!" appears; user scratches with finger.
+1. **Locked** — card face covered, "Watch a short ad to reveal" button visible. Coupon is fetched from Supabase in the background while the user decides.
+2. **Unlocked** — overlay fades out, "Scratch to reveal!" hint appears. User scratches with finger.
+3. **Scratched** — coupon revealed: brand name, discount text, code, Redeem and Copy buttons.
 
-Prize pool (randomised, kept lightweight — no backend needed at this stage):
-
-| Prize | Weight |
-|-------|--------|
-| "Better luck next time" | 60% |
-| "Free coffee on your friend ☕" | 20% |
-| "You're the settle-up hero 🏆" | 10% |
-| "Legend. That's it." | 10% |
+**Fallback:** if `claim_coupon` returns no rows (inventory empty), show a fun string instead of a coupon — no broken state.
 
 - [ ] **Step 1: Implement scratch-card screen**
 
 ```typescript
 // app/scratch-card.tsx
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -163,30 +319,17 @@ import {
   ActivityIndicator,
   PanResponder,
   Animated,
+  Linking,
+  Clipboard,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/colors';
 import { useRewardedAd } from '@/hooks/use-rewarded-ad';
-
-const PRIZES = [
-  { label: 'scratchCard.prizes.betterLuck', weight: 60 },
-  { label: 'scratchCard.prizes.freeCoffee', weight: 20 },
-  { label: 'scratchCard.prizes.hero', weight: 10 },
-  { label: 'scratchCard.prizes.legend', weight: 10 },
-];
-
-function pickPrize(): string {
-  const total = PRIZES.reduce((s, p) => s + p.weight, 0);
-  let rand = Math.random() * total;
-  for (const prize of PRIZES) {
-    rand -= prize.weight;
-    if (rand <= 0) return prize.label;
-  }
-  return PRIZES[0].label;
-}
+import { useCoupon } from '@/hooks/use-coupon';
 
 export default function ScratchCardScreen() {
   const { t } = useTranslation();
@@ -195,9 +338,16 @@ export default function ScratchCardScreen() {
 
   const [revealed, setRevealed] = useState(false);
   const [scratched, setScratched] = useState(false);
-  const prize = useRef(pickPrize()).current;
+  const [copied, setCopied] = useState(false);
 
   const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  const { coupon, loading: couponLoading, claim } = useCoupon();
+
+  // Pre-fetch coupon as soon as screen mounts
+  useEffect(() => {
+    claim();
+  }, [claim]);
 
   const handleEarned = useCallback(() => {
     setRevealed(true);
@@ -208,7 +358,7 @@ export default function ScratchCardScreen() {
     }).start();
   }, [overlayOpacity]);
 
-  const { loaded, loading, show, error } = useRewardedAd(handleEarned);
+  const { loaded, loading: adLoading, show, error: adError } = useRewardedAd(handleEarned);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -219,21 +369,58 @@ export default function ScratchCardScreen() {
     }),
   ).current;
 
+  const handleCopy = useCallback(() => {
+    if (!coupon) return;
+    Clipboard.setString(coupon.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [coupon]);
+
+  const handleRedeem = useCallback(() => {
+    if (!coupon) return;
+    Linking.openURL(coupon.tracking_url);
+  }, [coupon]);
+
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.bg }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       <Text style={[styles.title, { color: colors.white }]}>
         {t('scratchCard.title')}
       </Text>
 
       {/* Card */}
       <View style={styles.cardWrapper} {...panResponder.panHandlers}>
-        {/* Prize text — always rendered below overlay */}
+        {/* Coupon content — rendered below overlay */}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.prizeText, { color: colors.primary }]}>
-            {scratched ? t(prize) : '???'}
-          </Text>
+          {scratched ? (
+            coupon ? (
+              <View style={styles.couponContent}>
+                {coupon.brand_logo_url && (
+                  <Image
+                    source={{ uri: coupon.brand_logo_url }}
+                    style={styles.brandLogo}
+                    contentFit="contain"
+                  />
+                )}
+                <Text style={[styles.brandName, { color: colors.white }]}>
+                  {coupon.brand_name}
+                </Text>
+                <Text style={[styles.discountText, { color: colors.primary }]}>
+                  {coupon.discount_text}
+                </Text>
+                <Text style={[styles.couponCode, { color: colors.orange }]}>
+                  {coupon.code}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.fallbackText, { color: colors.primary }]}>
+                {t('scratchCard.noOffer')}
+              </Text>
+            )
+          ) : (
+            <Text style={[styles.hiddenText, { color: colors.surfaceHL }]}>
+              ???
+            </Text>
+          )}
         </View>
 
         {/* Scratch overlay */}
@@ -252,13 +439,33 @@ export default function ScratchCardScreen() {
         </Animated.View>
       </View>
 
-      {revealed ? (
+      {/* State-dependent controls */}
+      {scratched && coupon ? (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.redeemButton, { backgroundColor: colors.primary }]}
+            onPress={handleRedeem}
+          >
+            <Text style={[styles.redeemButtonText, { color: colors.bg }]}>
+              {t('scratchCard.redeemButton')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.copyButton, { borderColor: colors.primary }]}
+            onPress={handleCopy}
+          >
+            <Text style={[styles.copyButtonText, { color: colors.primary }]}>
+              {copied ? t('scratchCard.copied') : t('scratchCard.copyCode')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : revealed ? (
         <Text style={[styles.hint, { color: colors.white }]}>
           {t('scratchCard.scratchHint')}
         </Text>
       ) : (
         <>
-          {error && (
+          {adError && (
             <Text style={[styles.error, { color: colors.danger }]}>
               {t('scratchCard.adError')}
             </Text>
@@ -267,12 +474,12 @@ export default function ScratchCardScreen() {
             style={[
               styles.watchButton,
               { backgroundColor: colors.primary },
-              (!loaded || loading) && styles.watchButtonDisabled,
+              (!loaded || adLoading || couponLoading) && styles.buttonDisabled,
             ]}
             onPress={show}
-            disabled={!loaded || loading}
+            disabled={!loaded || adLoading || couponLoading}
           >
-            {loading ? (
+            {adLoading || couponLoading ? (
               <ActivityIndicator color={colors.bg} />
             ) : (
               <Text style={[styles.watchButtonText, { color: colors.bg }]}>
@@ -283,10 +490,7 @@ export default function ScratchCardScreen() {
         </>
       )}
 
-      <TouchableOpacity
-        style={styles.doneButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.doneButton} onPress={() => router.back()}>
         <Text style={[styles.doneText, { color: colors.white }]}>
           {t('common.done')}
         </Text>
@@ -308,8 +512,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   cardWrapper: {
-    width: 280,
-    height: 160,
+    width: 300,
+    height: 180,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 32,
@@ -319,12 +523,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
+    padding: 16,
   },
-  prizeText: {
-    fontSize: 20,
+  couponContent: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  brandLogo: {
+    width: 48,
+    height: 48,
+    marginBottom: 4,
+  },
+  brandName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  discountText: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  couponCode: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  fallbackText: {
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
     paddingHorizontal: 16,
+  },
+  hiddenText: {
+    fontSize: 24,
+    fontWeight: '700',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -341,6 +573,35 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 24,
   },
+  actions: {
+    width: '100%',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  redeemButton: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minWidth: 220,
+    alignItems: 'center',
+  },
+  redeemButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  copyButton: {
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 220,
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  copyButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
   watchButton: {
     paddingHorizontal: 28,
     paddingVertical: 14,
@@ -349,7 +610,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  watchButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.5,
   },
   watchButtonText: {
@@ -384,9 +645,9 @@ Add inside the `<Stack>`:
 
 ---
 
-## Chunk 4: Wire Settle-Up to Scratch Card
+## Chunk 6: Wire Settle-Up to Scratch Card
 
-### Task 4: Navigate to scratch card after settlement
+### Task 6: Navigate to scratch card after settlement
 
 **Files:**
 - Modify: `app/settle-up.tsx`
@@ -403,9 +664,9 @@ router.replace('/scratch-card');
 
 ---
 
-## Chunk 5: i18n Strings
+## Chunk 7: i18n Strings
 
-### Task 5: Add translation keys to all 17 locale files
+### Task 7: Add translation keys to all 17 locale files
 
 **Files:**
 - Modify: `locales/en.json` (and all 16 other locale files)
@@ -415,16 +676,14 @@ router.replace('/scratch-card');
 ```json
 "scratchCard": {
   "title": "You earned a scratch card!",
-  "coverText": "Covered",
+  "coverText": "Scratch me",
   "watchButton": "Watch a short ad to reveal",
-  "scratchHint": "Scratch the card to reveal your reward!",
+  "scratchHint": "Scratch to reveal your coupon!",
   "adError": "Ad unavailable — try again later",
-  "prizes": {
-    "betterLuck": "Better luck next time",
-    "freeCoffee": "Free coffee on your friend ☕",
-    "hero": "You're the settle-up hero 🏆",
-    "legend": "Legend. That's it."
-  }
+  "redeemButton": "Redeem Now →",
+  "copyCode": "Copy Code",
+  "copied": "Copied!",
+  "noOffer": "No offers right now — check back soon!"
 }
 ```
 
@@ -436,12 +695,13 @@ Use the same key structure. Translate values appropriately for each language.
 
 ---
 
-## Chunk 6: Unit Tests
+## Chunk 8: Unit Tests
 
-### Task 6: Tests for `useRewardedAd` and `ScratchCardScreen`
+### Task 8: Tests for hooks and ScratchCardScreen
 
 **Files:**
 - Create: `__tests__/hooks/use-rewarded-ad.test.ts`
+- Create: `__tests__/hooks/use-coupon.test.ts`
 - Create: `__tests__/screens/scratch-card.test.tsx`
 
 - [ ] **Step 1: Mock `react-native-google-mobile-ads`**
@@ -460,19 +720,14 @@ const mockAd = {
   show: jest.fn(),
 };
 
-export const RewardedAd = {
-  createForAdRequest: jest.fn(() => mockAd),
-};
-export const RewardedAdEventType = {
-  LOADED: 'loaded',
-  EARNED_REWARD: 'earned_reward',
-};
+export const RewardedAd = { createForAdRequest: jest.fn(() => mockAd) };
+export const RewardedAdEventType = { LOADED: 'loaded', EARNED_REWARD: 'earned_reward' };
 export const AdEventType = { ERROR: 'error' };
 export const TestIds = { REWARDED: 'test-rewarded-id' };
 export { mockAd as __mockAd, listeners as __listeners };
 ```
 
-- [ ] **Step 2: Write hook tests**
+- [ ] **Step 2: Write `use-rewarded-ad` tests**
 
 Test that:
 - `loaded` becomes `true` when `LOADED` fires
@@ -480,13 +735,24 @@ Test that:
 - `error` is set when `ERROR` fires
 - `show()` calls `ad.show()`
 
-- [ ] **Step 3: Write screen tests**
+- [ ] **Step 3: Write `use-coupon` tests**
+
+Mock `supabase.rpc('claim_coupon')`. Test that:
+- `claim()` sets `coupon` on success
+- `claim()` sets `error` on RPC failure
+- `loading` is `true` during fetch and `false` after
+
+- [ ] **Step 4: Write scratch-card screen tests**
 
 Test that:
-- Watch button renders and is disabled while ad is loading
+- Watch button is disabled while ad or coupon is loading
 - Pressing watch button calls `show()`
 - After reward earned, overlay fades and scratch hint appears
+- After scratching, coupon code and Redeem/Copy buttons render
+- Copy button copies code to clipboard
+- Redeem button calls `Linking.openURL` with tracking URL
 - Done button navigates back
+- Graceful fallback renders when `claim_coupon` returns no rows
 
 ---
 
@@ -495,4 +761,5 @@ Test that:
 - [ ] `pnpm typecheck` — no errors
 - [ ] `pnpm lint` — no errors
 - [ ] `pnpm test` — all tests pass
-- [ ] Manual: settle a debt on Android emulator → scratch card screen appears → watch ad → card reveals → scratch → prize shown
+- [ ] Seed at least one test coupon row into Supabase locally before manual testing
+- [ ] Manual: settle a debt on Android emulator → scratch card screen appears → watch ad → card reveals → scratch → coupon shown → copy and redeem buttons work
