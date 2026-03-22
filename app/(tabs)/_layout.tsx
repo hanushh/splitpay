@@ -33,16 +33,6 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="ai"
-        options={{
-          title: t('tabs.ai'),
-          href: AI_MODE_ENABLED ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="auto-awesome" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: t('tabs.groups'),
@@ -75,6 +65,16 @@ export default function TabLayout() {
           title: t('tabs.account'),
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="account-circle" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: t('tabs.ai'),
+          href: AI_MODE_ENABLED ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="auto-awesome" size={size} color={color} />
           ),
         }}
       />
