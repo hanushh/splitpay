@@ -27,10 +27,20 @@ settle-up.tsx  →  record_settlement RPC succeeds
 
 **No coins.** No coin balance, no coin hook, no wallet UI.
 
-**Affiliate networks (India-focused):**
-- **Cuelinks** — Flipkart, Amazon IN, Myntra, Swiggy
-- **vCommission** — Zomato, MakeMyTrip, Nykaa
-- **EarnKaro** — Amazon IN, Meesho, Ajio
+**Affiliate networks (region-aware mix):**
+
+| Region | Network | Key Brands |
+|--------|---------|------------|
+| India (`IN`) | Cuelinks | Flipkart, Amazon IN, Myntra, Swiggy |
+| India (`IN`) | vCommission | Zomato, MakeMyTrip, Nykaa |
+| India (`IN`) | EarnKaro | Amazon IN, Meesho, Ajio |
+| Global (`GLOBAL`) | Impact | Uber Eats, Booking.com, Nike, Adidas |
+| Global (`GLOBAL`) | CJ Affiliate | Expedia, Dell, GoPro |
+| Middle East (`AE`) | Admitad | Noon, Namshi, Careem |
+
+**Rollout strategy:** Launch with **Cuelinks** (India) + hardcoded `GLOBAL` fallback coupons. Add Impact/CJ/Admitad once approved — flip `region` in the table, no app update needed.
+
+**Region detection:** Device locale (`expo-localization`) → `regionCode` (e.g. `IN`, `US`, `AE`). Falls back to `'GLOBAL'`. Coupons shown are `WHERE region = p_region OR region = 'GLOBAL'`, weighted by `priority`.
 
 **Tech Stack:** React Native 0.81 + Expo ~54, Google AdMob (`react-native-google-mobile-ads`), Supabase (coupon table + RPC), TypeScript strict, Expo Router, pnpm
 
@@ -74,7 +84,13 @@ Add to `app.json` under `expo.plugins`:
 **Files:**
 - Create: `supabase/migrations/20260322100000_add_coupons.sql`
 
-The `coupons` table stores affiliate coupon inventory pre-loaded by the developer. Each row is one coupon offer from a brand. Coupons can be shared (one code used by many users) or single-use — the `single_use` flag controls this. A `claim_coupon` RPC returns a random active coupon and, for single-use coupons, marks it claimed.
+The `coupons` table stores affiliate coupon inventory pre-loaded by the developer. Each row is one coupon offer from a brand. Coupons can be shared (one code used by many users) or single-use — the `single_use` flag controls this.
+
+**New columns vs. original plan:**
+- `region` — ISO country code (`'IN'`, `'US'`, `'AE'`) or `'GLOBAL'` for region-agnostic coupons. Coupons are served when `region = user_region OR region = 'GLOBAL'`.
+- `priority` — integer weight (1–10). Higher priority coupons are picked more often via weighted random selection.
+
+The `claim_coupon(p_region)` RPC accepts the user's detected region, filters eligible coupons, picks one via weighted random, and for single-use coupons marks it claimed.
 
 - [ ] **Step 1: Create migration**
 
@@ -88,6 +104,8 @@ CREATE TABLE public.coupons (
   discount_text   TEXT        NOT NULL,   -- e.g. "20% off your next order"
   code            TEXT        NOT NULL,
   tracking_url    TEXT        NOT NULL,   -- affiliate deep link / tracking URL
+  region          TEXT        NOT NULL DEFAULT 'GLOBAL', -- 'IN', 'US', 'AE', 'GLOBAL', etc.
+  priority        INTEGER     NOT NULL DEFAULT 5,        -- 1 (low) – 10 (high), used for weighted pick
   single_use      BOOLEAN     NOT NULL DEFAULT false,
   claimed_by      UUID        REFERENCES public.profiles(id),
   active          BOOLEAN     NOT NULL DEFAULT true,
@@ -104,16 +122,19 @@ CREATE POLICY "authenticated users can read active coupons"
   USING (active = true AND (expires_at IS NULL OR expires_at > NOW()));
 
 -- RPC: claim_coupon
--- Returns a random active coupon. For single-use coupons, marks claimed_by.
+-- p_region: ISO country code from client (e.g. 'IN', 'US') or 'GLOBAL'
+-- Returns a weighted-random active coupon matching the user's region or GLOBAL.
+-- For single-use coupons, marks claimed_by.
 -- SECURITY DEFINER so it can update claimed_by regardless of RLS.
-CREATE OR REPLACE FUNCTION public.claim_coupon()
+CREATE OR REPLACE FUNCTION public.claim_coupon(p_region TEXT DEFAULT 'GLOBAL')
 RETURNS TABLE (
   id              UUID,
   brand_name      TEXT,
   brand_logo_url  TEXT,
   discount_text   TEXT,
   code            TEXT,
-  tracking_url    TEXT
+  tracking_url    TEXT,
+  region          TEXT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -122,14 +143,17 @@ AS $$
 DECLARE
   v_coupon public.coupons%ROWTYPE;
 BEGIN
-  -- Pick a random active coupon not already claimed by this user
+  -- Pick a weighted-random active coupon matching region or GLOBAL,
+  -- not already claimed by this user.
+  -- Weighted random: ORDER BY -log(RANDOM()) / priority (Efraimidis-Spirakis reservoir trick).
   SELECT * INTO v_coupon
   FROM public.coupons
   WHERE active = true
     AND (expires_at IS NULL OR expires_at > NOW())
+    AND (region = p_region OR region = 'GLOBAL')
     AND (single_use = false OR claimed_by IS NULL)
     AND (claimed_by IS DISTINCT FROM auth.uid())
-  ORDER BY RANDOM()
+  ORDER BY -ln(RANDOM()) / priority
   LIMIT 1;
 
   IF v_coupon.id IS NULL THEN
@@ -149,7 +173,8 @@ BEGIN
     v_coupon.brand_logo_url,
     v_coupon.discount_text,
     v_coupon.code,
-    v_coupon.tracking_url;
+    v_coupon.tracking_url,
+    v_coupon.region;
 END;
 $$;
 ```
@@ -162,12 +187,44 @@ $$;
 
 ---
 
-## Chunk 3: Coupon Hook
+## Chunk 3: Region Detection Utility
 
-### Task 3: Create `hooks/use-coupon.ts`
+### Task 3: Create `lib/detect-region.ts`
+
+**Files:**
+- Create: `lib/detect-region.ts`
+
+Reads the device locale via `expo-localization` and returns an ISO country code (e.g. `'IN'`, `'US'`, `'AE'`). Falls back to `'GLOBAL'` if the region cannot be determined.
+
+- [ ] **Step 1: Implement the utility**
+
+```typescript
+// lib/detect-region.ts
+import * as Localization from 'expo-localization';
+
+/**
+ * Returns an ISO 3166-1 alpha-2 country code derived from the device locale
+ * (e.g. 'IN', 'US', 'AE'), or 'GLOBAL' if the region cannot be determined.
+ * Used to filter affiliate coupons to the user's market.
+ */
+export function detectRegion(): string {
+  const locale = Localization.getLocales()[0];
+  return locale?.regionCode ?? 'GLOBAL';
+}
+```
+
+> **Note:** `expo-localization` is already in the project (included with Expo). No new dependency needed.
+
+---
+
+## Chunk 4: Coupon Hook
+
+### Task 4: Create `hooks/use-coupon.ts`
 
 **Files:**
 - Create: `hooks/use-coupon.ts`
+
+The hook detects the user's region and passes it to `claim_coupon(p_region)`. This ensures Indian users receive Indian brand coupons, while users elsewhere get GLOBAL coupons (or their own regional ones once those networks are onboarded).
 
 - [ ] **Step 1: Implement the hook**
 
@@ -175,6 +232,7 @@ $$;
 // hooks/use-coupon.ts
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { detectRegion } from '@/lib/detect-region';
 
 export interface Coupon {
   id: string;
@@ -183,6 +241,7 @@ export interface Coupon {
   discount_text: string;
   code: string;
   tracking_url: string;
+  region: string;
 }
 
 interface UseCouponReturn {
@@ -201,7 +260,10 @@ export function useCoupon(): UseCouponReturn {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: rpcError } = await supabase.rpc('claim_coupon');
+      const region = detectRegion();
+      const { data, error: rpcError } = await supabase.rpc('claim_coupon', {
+        p_region: region,
+      });
       if (rpcError) throw rpcError;
       setCoupon((data as Coupon[])?.[0] ?? null);
     } catch (err: any) {
@@ -217,9 +279,9 @@ export function useCoupon(): UseCouponReturn {
 
 ---
 
-## Chunk 4: Rewarded Ad Hook
+## Chunk 5: Rewarded Ad Hook
 
-### Task 4: Create `hooks/use-rewarded-ad.ts`
+### Task 5: Create `hooks/use-rewarded-ad.ts`
 
 **Files:**
 - Create: `hooks/use-rewarded-ad.ts`
@@ -290,9 +352,9 @@ export function useRewardedAd(onEarned: () => void): UseRewardedAdReturn {
 
 ---
 
-## Chunk 5: Scratch Card Screen
+## Chunk 6: Scratch Card Screen
 
-### Task 5: Create `app/scratch-card.tsx`
+### Task 6: Create `app/scratch-card.tsx`
 
 **Files:**
 - Create: `app/scratch-card.tsx`
@@ -645,9 +707,9 @@ Add inside the `<Stack>`:
 
 ---
 
-## Chunk 6: Wire Settle-Up to Scratch Card
+## Chunk 7: Wire Settle-Up to Scratch Card
 
-### Task 6: Navigate to scratch card after settlement
+### Task 7: Navigate to scratch card after settlement
 
 **Files:**
 - Modify: `app/settle-up.tsx`
@@ -664,9 +726,9 @@ router.replace('/scratch-card');
 
 ---
 
-## Chunk 7: i18n Strings
+## Chunk 8: i18n Strings
 
-### Task 7: Add translation keys to all 17 locale files
+### Task 8: Add translation keys to all 17 locale files
 
 **Files:**
 - Modify: `locales/en.json` (and all 16 other locale files)
@@ -695,13 +757,14 @@ Use the same key structure. Translate values appropriately for each language.
 
 ---
 
-## Chunk 8: Unit Tests
+## Chunk 9: Unit Tests
 
-### Task 8: Tests for hooks and ScratchCardScreen
+### Task 9: Tests for hooks and ScratchCardScreen
 
 **Files:**
 - Create: `__tests__/hooks/use-rewarded-ad.test.ts`
 - Create: `__tests__/hooks/use-coupon.test.ts`
+- Create: `__tests__/lib/detect-region.test.ts`
 - Create: `__tests__/screens/scratch-card.test.tsx`
 
 - [ ] **Step 1: Mock `react-native-google-mobile-ads`**
@@ -735,14 +798,23 @@ Test that:
 - `error` is set when `ERROR` fires
 - `show()` calls `ad.show()`
 
-- [ ] **Step 3: Write `use-coupon` tests**
+- [ ] **Step 3: Write `detect-region` tests**
 
-Mock `supabase.rpc('claim_coupon')`. Test that:
-- `claim()` sets `coupon` on success
+Mock `expo-localization`. Test that:
+- Returns `regionCode` when locale has one (e.g. `'IN'`, `'US'`)
+- Returns `'GLOBAL'` when `regionCode` is null/undefined
+- Returns `'GLOBAL'` when locale list is empty
+
+- [ ] **Step 4: Write `use-coupon` tests**
+
+Mock `supabase.rpc('claim_coupon')` and `detectRegion`. Test that:
+- `claim()` calls `supabase.rpc` with `{ p_region: 'IN' }` when region is `'IN'`
+- `claim()` calls `supabase.rpc` with `{ p_region: 'GLOBAL' }` when region is `'GLOBAL'`
+- `claim()` sets `coupon` on success (including the `region` field)
 - `claim()` sets `error` on RPC failure
 - `loading` is `true` during fetch and `false` after
 
-- [ ] **Step 4: Write scratch-card screen tests**
+- [ ] **Step 5: Write scratch-card screen tests**
 
 Test that:
 - Watch button is disabled while ad or coupon is loading
