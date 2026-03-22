@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { formatCentsWithCurrency } from '@/context/currency';
+import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, useGroups } from '@/hooks/use-groups';
@@ -144,44 +144,56 @@ function GroupCard({ group }: { group: Group }) {
 function TotalBalanceDisplay({ balances }: { balances: CurrencyBalance[] }) {
   const { t } = useTranslation();
   const isSettled = balances.length === 0;
+  const isMulti = balances.length > 1;
   const hasDebt = balances.some((b) => b.balance_cents < 0);
+  const allOwed = balances.every((b) => b.balance_cents > 0);
+  const allOwes = balances.every((b) => b.balance_cents < 0);
+
+  const summaryLabel = allOwed
+    ? t('groups.youAreOwedMulti')
+    : allOwes
+      ? t('groups.youOweMulti')
+      : t('groups.mixedBalances');
 
   return (
     <View style={s.balanceCard}>
       <View style={s.balanceCardBg}>
-        <MaterialIcons
-          name="account-balance-wallet"
-          size={64}
-          color={C.white}
-        />
+        <MaterialIcons name="account-balance-wallet" size={64} color={C.white} />
       </View>
       <Text style={s.balanceLabel}>{t('groups.totalBalance')}</Text>
       {isSettled ? (
         <Text style={s.balanceAmount}>{t('groups.allSettled')}</Text>
-      ) : (
-        balances.map((b) => (
-          <Text
-            key={b.currency_code}
-            style={[
-              s.balanceAmount,
-              b.balance_cents < 0 && { color: C.orange },
-            ]}
-          >
-            {b.balance_cents > 0
-              ? t('groups.youAreOwed', {
-                  amount: formatCentsWithCurrency(
-                    b.balance_cents,
-                    b.currency_code,
-                  ),
-                })
-              : t('groups.youOwe', {
-                  amount: formatCentsWithCurrency(
-                    Math.abs(b.balance_cents),
-                    b.currency_code,
-                  ),
-                })}
+      ) : isMulti ? (
+        <>
+          <Text style={[s.balanceAmount, hasDebt && !allOwes && { color: C.white }, allOwes && { color: C.orange }]}>
+            {summaryLabel}
           </Text>
-        ))
+          <View style={s.currencyChips}>
+            {balances.map((b) => (
+              <View
+                key={b.currency_code}
+                style={[s.currencyChip, b.balance_cents < 0 && s.currencyChipDebt]}
+              >
+                <Text style={[s.currencyChipAmount, b.balance_cents < 0 && { color: C.orange }]}>
+                  {formatCentsWithCurrency(Math.abs(b.balance_cents), b.currency_code)}
+                </Text>
+                <Text style={[s.currencyChipCode, b.balance_cents < 0 && { color: C.orange }]}>
+                  {b.currency_code}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <Text style={[s.balanceAmount, hasDebt && { color: C.orange }]}>
+          {balances[0].balance_cents > 0
+            ? t('groups.youAreOwed', {
+                amount: formatCentsWithCurrency(balances[0].balance_cents, balances[0].currency_code),
+              })
+            : t('groups.youOwe', {
+                amount: formatCentsWithCurrency(Math.abs(balances[0].balance_cents), balances[0].currency_code),
+              })}
+        </Text>
       )}
       <View style={s.balanceTrend}>
         <MaterialIcons
@@ -529,6 +541,35 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: -0.5,
+  },
+  currencyChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(23, 232, 107, 0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  currencyChipDebt: {
+    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+  },
+  currencyChipAmount: {
+    color: C.primary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  currencyChipCode: {
+    color: C.primary,
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.7,
   },
   balanceTrend: {
     flexDirection: 'row',

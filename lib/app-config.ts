@@ -58,4 +58,4 @@ export const AI_DAILY_PROMPT_LIMIT = 50;
  * Set to false to completely hide the AI tab from the bottom navigation.
  * No user-facing setting — change this at the code level to toggle the feature.
  */
-export const AI_MODE_ENABLED = false;
+export const AI_MODE_ENABLED = true;

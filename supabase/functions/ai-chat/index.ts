@@ -7,6 +7,13 @@ import {
   SchemaType,
 } from 'npm:@google/generative-ai@0.24.1';
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const DAILY_LIMIT = 50; // per user per day
+const MAX_USER_MESSAGE_LENGTH = 1000;
+const MAX_HISTORY_ITEMS = 40;
+const MAX_SYSTEM_PROMPT_LENGTH = 8000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface GeminiMessage {
@@ -20,7 +27,7 @@ interface RequestBody {
   systemPrompt: string;
 }
 
-// ── Tool declarations (same as client-side) ───────────────────────────────────
+// ── Tool declarations ─────────────────────────────────────────────────────────
 
 const appTools = [
   {
@@ -78,28 +85,42 @@ const appTools = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 function json(status: number, payload: Record<string, unknown>) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   if (req.method !== 'POST') {
     return json(405, { error: 'Method not allowed' });
   }
 
-  // ── Auth: validate JWT ────────────────────────────────────────────────────
+  // ── Env vars ──────────────────────────────────────────────────────────────
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
 
-  if (!supabaseUrl || !anonKey) {
-    return json(500, { error: 'Missing Supabase env vars' });
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !geminiKey) {
+    return json(500, { error: 'Server misconfiguration' });
   }
 
+  // ── Auth: validate JWT ────────────────────────────────────────────────────
   const authHeader = req.headers.get('Authorization') ?? '';
   const accessToken = authHeader.toLowerCase().startsWith('bearer ')
     ? authHeader.slice(7).trim()
@@ -109,17 +130,40 @@ Deno.serve(async (req) => {
     return json(401, { error: 'Missing access token' });
   }
 
+  // Use anon client with explicit token to validate the user session
   const authClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
 
-  const { data: userData, error: authError } = await authClient.auth.getUser();
+  const { data: userData, error: authError } = await authClient.auth.getUser(accessToken);
   if (authError || !userData.user) {
-    return json(401, { error: 'Invalid access token' });
+    return json(401, { error: 'Invalid or expired access token' });
   }
 
-  // ── Parse body ────────────────────────────────────────────────────────────
+  const userId = userData.user.id;
+
+  // ── Server-side rate limiting ─────────────────────────────────────────────
+  // Use service role to bypass RLS for usage tracking
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+  // ── Per-user daily limit ──────────────────────────────────────────────────
+  const { data: newCount, error: rateError } = await adminClient.rpc('increment_ai_usage', {
+    p_user_id: userId,
+    p_date: today,
+  });
+
+  if (rateError) {
+    // Fail open — don't block valid users if the rate limit table is unavailable
+    console.error('[ai-chat] rate limit error:', rateError.message);
+  } else if (newCount > DAILY_LIMIT) {
+    return json(429, { error: 'Daily limit reached', limit: DAILY_LIMIT });
+  }
+
+  // ── Parse + validate body ─────────────────────────────────────────────────
   let body: RequestBody;
   try {
     body = await req.json() as RequestBody;
@@ -128,17 +172,27 @@ Deno.serve(async (req) => {
   }
 
   const { history, userMessage, systemPrompt } = body;
+
   if (!userMessage || typeof userMessage !== 'string') {
     return json(400, { error: 'userMessage is required' });
   }
-
-  // ── Call Gemini ───────────────────────────────────────────────────────────
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiKey) {
-    return json(500, { error: 'Gemini API key not configured' });
+  if (userMessage.length > MAX_USER_MESSAGE_LENGTH) {
+    return json(400, { error: `userMessage exceeds ${MAX_USER_MESSAGE_LENGTH} character limit` });
+  }
+  if (systemPrompt && systemPrompt.length > MAX_SYSTEM_PROMPT_LENGTH) {
+    return json(400, { error: `systemPrompt exceeds ${MAX_SYSTEM_PROMPT_LENGTH} character limit` });
   }
 
-  const geminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash-lite';
+  // Sanitize history: cap items and enforce per-message length
+  const safeHistory: GeminiMessage[] = Array.isArray(history)
+    ? history.slice(-MAX_HISTORY_ITEMS).map((msg) => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: String(msg.parts?.[0]?.text ?? '').slice(0, MAX_USER_MESSAGE_LENGTH) }],
+      }))
+    : [];
+
+  // ── Call Gemini ───────────────────────────────────────────────────────────
+  const geminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash-lite';
 
   try {
     const genAI = new GoogleGenerativeAI(geminiKey);
@@ -148,7 +202,7 @@ Deno.serve(async (req) => {
       tools: appTools,
     });
 
-    const chat = model.startChat({ history: history ?? [] });
+    const chat = model.startChat({ history: safeHistory });
     const result = await chat.sendMessage(userMessage);
     const response = result.response;
 
@@ -171,6 +225,6 @@ Deno.serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Gemini request failed';
     console.error('[ai-chat] Gemini error:', message);
-    return json(502, { error: message });
+    return json(502, { error: 'AI service unavailable. Please try again.' });
   }
 });

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 interface GroupRow {
   id: string;
   name: string;
-  balance_cents: number;
+  balances: { balance_cents: number; currency_code: string }[];
   members: string[];
 }
 
@@ -17,13 +17,23 @@ interface RecentExpense {
   description: string;
   group_name: string;
   amount_cents: number;
+  currency_code: string;
   paid_by_name: string;
   created_at: string;
 }
 
-function formatCents(cents: number): string {
+function formatCents(cents: number, currencyCode: string): string {
   const abs = Math.abs(cents / 100);
-  return `$${abs.toFixed(2)}`;
+  const symbols: Record<string, { symbol: string; noDecimals?: boolean }> = {
+    USD: { symbol: '$' }, EUR: { symbol: '€' }, GBP: { symbol: '£' },
+    INR: { symbol: '₹' }, JPY: { symbol: '¥', noDecimals: true },
+    CAD: { symbol: 'C$' }, AUD: { symbol: 'A$' }, CHF: { symbol: 'CHF ' },
+    SGD: { symbol: 'S$' }, MXN: { symbol: 'MX$' },
+  };
+  const cfg = symbols[currencyCode] ?? { symbol: currencyCode + ' ' };
+  return cfg.noDecimals
+    ? `${cfg.symbol}${Math.round(abs).toLocaleString()}`
+    : `${cfg.symbol}${abs.toFixed(2)}`;
 }
 
 function formatDate(iso: string): string {
@@ -71,10 +81,7 @@ export async function buildRagContext(
 
       for (const row of groupRows ?? []) {
         const balanceRows = Array.isArray(row.group_balances) ? (row.group_balances as RawBalance[]) : [];
-        const primary = balanceRows
-          .filter((b) => b.balance_cents !== 0)
-          .sort((a, b) => Math.abs(b.balance_cents) - Math.abs(a.balance_cents))[0];
-        const balanceCents = primary?.balance_cents ?? 0;
+        const balances = balanceRows.filter((b) => b.balance_cents !== 0);
 
         const members = ((row.group_members as RawMember[]) ?? [])
           .filter((m) => m.user_id !== userId)
@@ -83,7 +90,7 @@ export async function buildRagContext(
         groups.push({
           id: row.id as string,
           name: row.name as string,
-          balance_cents: balanceCents,
+          balances,
           members,
         });
       }
@@ -94,18 +101,18 @@ export async function buildRagContext(
       lines.push('You have no active groups.');
     } else {
       for (const g of groups) {
-        const balanceLine =
-          g.balance_cents > 0
-            ? `you are owed ${formatCents(g.balance_cents)}`
-            : g.balance_cents < 0
-              ? `you owe ${formatCents(g.balance_cents)}`
-              : 'settled';
+        const balanceLine = g.balances.length === 0
+          ? 'settled'
+          : g.balances
+              .map((b) =>
+                b.balance_cents > 0
+                  ? `you are owed ${formatCents(b.balance_cents, b.currency_code)}`
+                  : `you owe ${formatCents(Math.abs(b.balance_cents), b.currency_code)}`,
+              )
+              .join(', ');
 
-        const membersStr =
-          g.members.length > 0 ? g.members.join(', ') : 'just you';
-        lines.push(
-          `- ${g.name} | Group ID: ${g.id} | ${balanceLine} | Members: ${membersStr}`,
-        );
+        const membersStr = g.members.length > 0 ? g.members.join(', ') : 'just you';
+        lines.push(`- ${g.name} | Group ID: ${g.id} | ${balanceLine} | Members: ${membersStr}`);
       }
     }
     lines.push('');
@@ -135,8 +142,8 @@ export async function buildRagContext(
       for (const f of friends) {
         const dir =
           f.balance_cents > 0
-            ? `you are owed ${formatCents(f.balance_cents)} ${f.currency_code}`
-            : `you owe ${formatCents(f.balance_cents)} ${f.currency_code}`;
+            ? `you are owed ${formatCents(f.balance_cents, f.currency_code)}`
+            : `you owe ${formatCents(f.balance_cents, f.currency_code)}`;
         lines.push(`- ${f.name}: ${dir}`);
       }
     }
@@ -149,7 +156,7 @@ export async function buildRagContext(
       const { data: expenseRows } = await supabase
         .from('expenses')
         .select(
-          `description, amount_cents, created_at,
+          `description, amount_cents, currency_code, created_at,
            groups ( name ),
            group_members!paid_by_member_id ( display_name )`,
         )
@@ -164,6 +171,7 @@ export async function buildRagContext(
           description: (row.description as string) ?? '',
           group_name: grp?.name ?? 'Unknown group',
           amount_cents: Number(row.amount_cents ?? 0),
+          currency_code: (row.currency_code as string) ?? 'INR',
           paid_by_name: paidBy?.display_name ?? 'Unknown',
           created_at: (row.created_at as string) ?? '',
         });
@@ -176,20 +184,25 @@ export async function buildRagContext(
     } else {
       for (const e of recentExpenses) {
         lines.push(
-          `- "${e.description}" in ${e.group_name} — ${formatCents(e.amount_cents)} paid by ${e.paid_by_name} on ${formatDate(e.created_at)}`,
+          `- "${e.description}" in ${e.group_name} — ${formatCents(e.amount_cents, e.currency_code)} paid by ${e.paid_by_name} on ${formatDate(e.created_at)}`,
         );
       }
     }
     lines.push('');
 
-    // ── Overall balance ────────────────────────────────────────────────────
-    const totalCents = groups.reduce((sum, g) => sum + g.balance_cents, 0);
-    const totalLine =
-      totalCents > 0
-        ? `You are owed ${formatCents(totalCents)} overall.`
-        : totalCents < 0
-          ? `You owe ${formatCents(totalCents)} overall.`
-          : 'You are all settled up overall.';
+    // ── Overall balance (per currency) ────────────────────────────────────
+    const currencyTotals = new Map<string, number>();
+    for (const g of groups) {
+      for (const b of g.balances) {
+        currencyTotals.set(b.currency_code, (currencyTotals.get(b.currency_code) ?? 0) + b.balance_cents);
+      }
+    }
+    const totalLines: string[] = [];
+    for (const [code, cents] of currencyTotals) {
+      if (cents > 0) totalLines.push(`You are owed ${formatCents(cents, code)} (${code}).`);
+      else if (cents < 0) totalLines.push(`You owe ${formatCents(cents, code)} (${code}).`);
+    }
+    const totalLine = totalLines.length > 0 ? totalLines.join(' ') : 'You are all settled up overall.';
 
     lines.push(`## Overall Balance`);
     lines.push(totalLine);
@@ -211,6 +224,6 @@ Guidelines:
 - Use the provided tools to open screens when the user wants to take an action.
 - Before calling a tool, briefly tell the user what you are about to do.
 - Keep responses concise and friendly.
-- Refer to money amounts using the values from the data (already formatted in USD).
+- Amounts include their currency symbol and code — use them exactly as shown in the data.
 - If data is missing, ask the user for clarification rather than guessing IDs.`;
 }

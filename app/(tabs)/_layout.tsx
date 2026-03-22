@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AI_MODE_ENABLED } from '@/lib/app-config';
 
@@ -8,6 +9,7 @@ const PRIMARY = '#17e86b';
 const SURFACE_DARK = '#1a3324';
 const SURFACE_HL = '#244732';
 const SLATE_400 = '#94a3b8';
+const AI_COLOR = '#f97316'; // orange highlight for AI tab
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -51,6 +53,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai"
+        options={{
+          title: t('tabs.ai'),
+          href: AI_MODE_ENABLED ? undefined : null,
+          tabBarActiveTintColor: AI_COLOR,
+          tabBarInactiveTintColor: 'rgba(249, 115, 22, 0.45)',
+          tabBarIcon: ({ size, focused }) => (
+            <View style={[styles.aiIconWrapper, focused && styles.aiIconWrapperActive]}>
+              <MaterialIcons name="auto-awesome" size={size - 2} color={AI_COLOR} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="activity"
         options={{
           title: t('tabs.activity'),
@@ -68,16 +84,20 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="ai"
-        options={{
-          title: t('tabs.ai'),
-          href: AI_MODE_ENABLED ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="auto-awesome" size={size} color={color} />
-          ),
-        }}
-      />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  aiIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+  },
+  aiIconWrapperActive: {
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+  },
+});
