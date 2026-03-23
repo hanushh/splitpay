@@ -25,7 +25,15 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "PaySplit",
+      "shortName": "PaySplit",
+      "description": "Split bills with friends and groups",
+      "themeColor": "#112117",
+      "backgroundColor": "#112117",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en"
     },
     "plugins": [
       "expo-router",

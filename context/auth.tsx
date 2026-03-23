@@ -5,11 +5,13 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import {
   AUTH_CALLBACK_PATH,
   AUTH_CALLBACK_URL,
   INVITE_LINK_PREFIX,
   INVITE_WEB_LINK_BASE,
+  WEB_AUTH_CALLBACK_URL,
 } from '@/lib/app-config';
 import { normalizePhone } from '@/lib/phone';
 import {
@@ -96,15 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setSession(session);
         if (session?.user?.id) {
-          const [complete, { status }] = await Promise.all([
-            fetchPhoneComplete(session.user.id),
-            Contacts.getPermissionsAsync(),
-          ]);
+          const complete = await fetchPhoneComplete(session.user.id);
+          let contactsGranted = false;
+          if (Platform.OS !== 'web') {
+            const { status } = await Contacts.getPermissionsAsync();
+            contactsGranted = status === Contacts.PermissionStatus.GRANTED;
+          }
           if (!cancelled) {
             setPhoneComplete(complete);
-            setContactsPermissionGranted(
-              status === Contacts.PermissionStatus.GRANTED,
-            );
+            setContactsPermissionGranted(contactsGranted);
           }
         }
         if (!cancelled) setLoading(false);
@@ -149,7 +151,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
           if (token) {
-            await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
+            if (Platform.OS === 'web') {
+              (globalThis as any).localStorage?.setItem(INVITE_TOKEN_KEY, token);
+            } else {
+              await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
+            }
             setPendingInviteToken(token);
           }
         } catch {}
@@ -266,12 +272,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id, session?.user?.email]);
 
   const navigatePostAuth = async (userId: string) => {
-    const [complete, { status }] = await Promise.all([
-      fetchPhoneComplete(userId),
-      Contacts.getPermissionsAsync(),
-    ]);
+    const complete = await fetchPhoneComplete(userId);
     setPhoneComplete(complete);
-    const contactsGranted = status === Contacts.PermissionStatus.GRANTED;
+    let contactsGranted = false;
+    if (Platform.OS !== 'web') {
+      const { status } = await Contacts.getPermissionsAsync();
+      contactsGranted = status === Contacts.PermissionStatus.GRANTED;
+    }
     setContactsPermissionGranted(contactsGranted);
     if (!complete) {
       router.replace('/auth/setup-phone');
@@ -290,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshContactsPermission = async () => {
+    if (Platform.OS === 'web') return;
     const { status } = await Contacts.getPermissionsAsync();
     setContactsPermissionGranted(status === Contacts.PermissionStatus.GRANTED);
   };
@@ -329,6 +337,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
+    // On web, redirect the page directly to the OAuth URL instead of using WebBrowser.
+    if (Platform.OS === 'web') {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: WEB_AUTH_CALLBACK_URL, skipBrowserRedirect: true },
+      });
+      if (error || !data.url) {
+        return { error: error?.message ?? 'Failed to start Google sign-in' };
+      }
+      (globalThis as any).location.href = data.url;
+      return { error: null };
+    }
+
     // Linking.createURL returns the correct scheme for the current environment:
     // 'exp://...' in Expo Go, 'paysplit://auth/callback' in native builds.
     const redirectTo = Linking.createURL(AUTH_CALLBACK_PATH);
@@ -412,11 +433,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const getPendingInviteToken = async () =>
-    SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+  const getPendingInviteToken = async () => {
+    if (Platform.OS === 'web') {
+      return (globalThis as any).localStorage?.getItem(INVITE_TOKEN_KEY) ?? null;
+    }
+    return SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+  };
   const clearPendingInviteToken = async () => {
     setPendingInviteToken(null);
-    await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+    if (Platform.OS === 'web') {
+      (globalThis as any).localStorage?.removeItem(INVITE_TOKEN_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+    }
   };
 
   return (
