@@ -12,6 +12,7 @@ import {
   INVITE_LINK_PREFIX,
   INVITE_WEB_LINK_BASE,
   WEB_AUTH_CALLBACK_URL,
+  WEB_INVITE_URL,
 } from '@/lib/app-config';
 import { normalizePhone } from '@/lib/phone';
 import {
@@ -146,7 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isInviteDeepLink = url.startsWith(INVITE_LINK_PREFIX);
       const isInviteWebLink =
         INVITE_WEB_LINK_BASE !== '' && url.startsWith(INVITE_WEB_LINK_BASE);
-      if (isInviteDeepLink || isInviteWebLink) {
+      const isWebPWAInvite =
+        WEB_INVITE_URL !== '' && url.startsWith(WEB_INVITE_URL);
+      if (isInviteDeepLink || isInviteWebLink || isWebPWAInvite) {
         try {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');

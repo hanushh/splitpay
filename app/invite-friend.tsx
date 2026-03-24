@@ -25,6 +25,7 @@ import {
   APP_DISPLAY_NAME,
   APP_STORE_URL,
   INVITE_LINK_PREFIX,
+  WEB_INVITE_URL,
 } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
@@ -223,7 +224,9 @@ export default function InviteFriendScreen() {
       if (!inviteErr) {
         invites.push({
           contactName: contact.name,
-          shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
+          shareUrl: Platform.OS === 'web'
+          ? `${WEB_INVITE_URL}?token=${encodeURIComponent(token)}`
+          : `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
         });
       }
     }
@@ -239,14 +242,18 @@ export default function InviteFriendScreen() {
     try {
       if (pendingInvites.length === 1) {
         await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
+          message: Platform.OS === 'web'
+            ? `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nJoin here: ${pendingInvites[0].shareUrl}`
+            : `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       } else {
         const links = pendingInvites
           .map((p) => `${p.contactName}: ${p.shareUrl}`)
           .join('\n');
         await Share.share({
-          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
+          message: Platform.OS === 'web'
+            ? `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}`
+            : `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
         });
       }
     } catch {}
