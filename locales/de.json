@@ -315,5 +315,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "Freunde",
   "tabs.groups": "Gruppen",
-  "memberPicker.searching": "Suche…"
+  "memberPicker.searching": "Suche…",
+  "onboarding.addExpenseDesc": "Nutze diesen Button, um schnell eine geteilte Ausgabe in einer Gruppe zu erfassen.",
+  "onboarding.addExpenseTitle": "Ausgaben schnell hinzufügen",
+  "onboarding.balanceDesc": "Diese Karte zeigt deinen Gesamtsaldo über alle Gruppen auf einen Blick.",
+  "onboarding.balanceTitle": "Dein Gesamtsaldo",
+  "onboarding.createGroupDesc": "Tippe hier, um eine neue Gruppe zu erstellen und Ausgaben aufzuteilen.",
+  "onboarding.createGroupTitle": "Gruppe erstellen",
+  "onboarding.done": "Verstanden!",
+  "onboarding.next": "Weiter",
+  "onboarding.skip": "Überspringen",
+  "onboarding.stepOf": "{{step}} von {{total}}",
+  "onboarding.welcomeDesc": "Wir zeigen dir die wichtigsten Funktionen, damit du loslegen kannst.",
+  "onboarding.welcomeTitle": "Willkommen bei PaySplit!"
 }

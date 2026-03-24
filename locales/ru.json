@@ -315,5 +315,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "Друзья",
   "tabs.groups": "Группы",
-  "memberPicker.searching": "Поиск…"
+  "memberPicker.searching": "Поиск…",
+  "onboarding.addExpenseDesc": "Используйте эту кнопку для быстрой записи общего расхода в любой группе.",
+  "onboarding.addExpenseTitle": "Быстрое добавление расходов",
+  "onboarding.balanceDesc": "Эта карточка показывает ваш общий баланс по всем группам.",
+  "onboarding.balanceTitle": "Ваш общий баланс",
+  "onboarding.createGroupDesc": "Нажмите эту кнопку, чтобы создать новую группу и делить расходы.",
+  "onboarding.createGroupTitle": "Создать группу",
+  "onboarding.done": "Понятно!",
+  "onboarding.next": "Далее",
+  "onboarding.skip": "Пропустить",
+  "onboarding.stepOf": "{{step}} из {{total}}",
+  "onboarding.welcomeDesc": "Давайте познакомим вас с основными функциями приложения.",
+  "onboarding.welcomeTitle": "Добро пожаловать в PaySplit!"
 }

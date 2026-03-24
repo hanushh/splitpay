@@ -315,5 +315,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "الأصدقاء",
   "tabs.groups": "المجموعات",
-  "memberPicker.searching": "جارٍ البحث…"
+  "memberPicker.searching": "جارٍ البحث…",
+  "onboarding.addExpenseDesc": "استخدم هذا الزر لتسجيل نفقة مشتركة بسرعة في أي مجموعة.",
+  "onboarding.addExpenseTitle": "إضافة النفقات بسرعة",
+  "onboarding.balanceDesc": "تعرض هذه البطاقة رصيدك الصافي عبر جميع المجموعات دفعة واحدة.",
+  "onboarding.balanceTitle": "رصيدك الإجمالي",
+  "onboarding.createGroupDesc": "اضغط هنا لإنشاء مجموعة جديدة وتقسيم النفقات.",
+  "onboarding.createGroupTitle": "إنشاء مجموعة",
+  "onboarding.done": "حسناً!",
+  "onboarding.next": "التالي",
+  "onboarding.skip": "تخطي",
+  "onboarding.stepOf": "{{step}} من {{total}}",
+  "onboarding.welcomeDesc": "سنرشدك عبر الميزات الرئيسية للبدء.",
+  "onboarding.welcomeTitle": "!مرحباً بك في PaySplit"
 }

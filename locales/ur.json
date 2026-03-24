@@ -315,5 +315,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "دوست",
   "tabs.groups": "گروپس",
-  "memberPicker.searching": "تلاش ہو رہی ہے…"
+  "memberPicker.searching": "تلاش ہو رہی ہے…",
+  "onboarding.addExpenseDesc": "کسی بھی گروپ میں مشترکہ اخراجات جلدی درج کرنے کے لیے یہ بٹن استعمال کریں۔",
+  "onboarding.addExpenseTitle": "جلدی اخراجات شامل کریں",
+  "onboarding.balanceDesc": "یہ کارڈ تمام گروپس میں آپ کا خالص بیلنس ایک نظر میں دکھاتا ہے۔",
+  "onboarding.balanceTitle": "آپ کا کل بیلنس",
+  "onboarding.createGroupDesc": "نیا گروپ بنانے اور اخراجات تقسیم کرنے کے لیے اس بٹن پر ٹیپ کریں۔",
+  "onboarding.createGroupTitle": "گروپ بنائیں",
+  "onboarding.done": "سمجھ گیا!",
+  "onboarding.next": "اگلا",
+  "onboarding.skip": "چھوڑیں",
+  "onboarding.stepOf": "{{step}} / {{total}}",
+  "onboarding.welcomeDesc": "شروع کرنے کے لیے آئیں آپ کو اہم خصوصیات سے آشنا کرائیں۔",
+  "onboarding.welcomeTitle": "PaySplit میں خوش آمدید!"
 }

@@ -312,5 +312,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "Friends",
   "tabs.groups": "Groups",
-  "memberPicker.searching": "Searching…"
+  "memberPicker.searching": "Searching…",
+  "onboarding.addExpenseDesc": "Use this button to quickly log a shared expense to any group.",
+  "onboarding.addExpenseTitle": "Add Expenses Fast",
+  "onboarding.balanceDesc": "This card shows your net balance across all groups at a glance.",
+  "onboarding.balanceTitle": "Your Total Balance",
+  "onboarding.createGroupDesc": "Tap this button to create a new group and start splitting expenses.",
+  "onboarding.createGroupTitle": "Create a Group",
+  "onboarding.done": "Got it!",
+  "onboarding.next": "Next",
+  "onboarding.skip": "Skip",
+  "onboarding.stepOf": "{{step}} of {{total}}",
+  "onboarding.welcomeDesc": "Let's walk you through the key features to get you started.",
+  "onboarding.welcomeTitle": "Welcome to PaySplit!"
 }

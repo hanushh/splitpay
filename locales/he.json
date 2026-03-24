@@ -315,5 +315,17 @@
   "tabs.ai": "AI",
   "tabs.friends": "חברים",
   "tabs.groups": "קבוצות",
-  "memberPicker.searching": "מחפש…"
+  "memberPicker.searching": "מחפש…",
+  "onboarding.addExpenseDesc": "השתמש בכפתור זה כדי לרשום הוצאה משותפת במהירות בכל קבוצה.",
+  "onboarding.addExpenseTitle": "הוסף הוצאות במהירות",
+  "onboarding.balanceDesc": "כרטיס זה מציג את היתרה הנטו שלך בכל הקבוצות במבט אחד.",
+  "onboarding.balanceTitle": "היתרה הכוללת שלך",
+  "onboarding.createGroupDesc": "הקש כאן כדי ליצור קבוצה חדשה ולחלוק הוצאות.",
+  "onboarding.createGroupTitle": "יצירת קבוצה",
+  "onboarding.done": "הבנתי!",
+  "onboarding.next": "הבא",
+  "onboarding.skip": "דלג",
+  "onboarding.stepOf": "{{step}} מתוך {{total}}",
+  "onboarding.welcomeDesc": "בואו נכיר לך את התכונות המרכזיות כדי להתחיל.",
+  "onboarding.welcomeTitle": "!ברוכים הבאים ל-PaySplit"
 }

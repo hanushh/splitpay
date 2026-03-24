@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
+import { OnboardingProvider } from '@/context/onboarding';
 import SplashScreen from '@/components/SplashScreen';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
@@ -121,7 +122,9 @@ export default function RootLayout() {
   return (
     <CurrencyProvider>
       <AuthProvider>
-        <RootNavigator />
+        <OnboardingProvider>
+          <RootNavigator />
+        </OnboardingProvider>
       </AuthProvider>
     </CurrencyProvider>
   );
