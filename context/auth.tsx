@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         if (session?.user?.id) {
           const complete = await fetchPhoneComplete(session.user.id);
-          let contactsGranted = false;
+          let contactsGranted = Platform.OS === 'web';
           if (Platform.OS !== 'web') {
             const { status } = await Contacts.getPermissionsAsync();
             contactsGranted = status === Contacts.PermissionStatus.GRANTED;
@@ -274,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigatePostAuth = async (userId: string) => {
     const complete = await fetchPhoneComplete(userId);
     setPhoneComplete(complete);
-    let contactsGranted = false;
+    let contactsGranted = Platform.OS === 'web';
     if (Platform.OS !== 'web') {
       const { status } = await Contacts.getPermissionsAsync();
       contactsGranted = status === Contacts.PermissionStatus.GRANTED;
