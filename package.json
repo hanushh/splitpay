@@ -19,6 +19,7 @@
     "test:watch": "jest --watch",
     "postinstall": "patch-package",
     "build:android": "cd android && NODE_ENV=production ./gradlew bundleRelease",
+    "build:web": "expo export --platform web",
     "e2e:build": "detox build --configuration android.emu.debug",
     "e2e:test": "detox test --configuration android.emu.debug",
     "e2e:test:release": "detox test --configuration android.emu.release",

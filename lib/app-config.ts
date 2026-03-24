@@ -17,6 +17,12 @@ export const APP_LINK_BASE = `${APP_SCHEME}://`;
 export const AUTH_CALLBACK_PATH = 'auth/callback';
 export const AUTH_CALLBACK_URL = `${APP_LINK_BASE}${AUTH_CALLBACK_PATH}`;
 
+/** OAuth redirect URL for web (PWA). Reads EXPO_PUBLIC_WEB_URL env var; update to your Vercel domain. */
+export const WEB_AUTH_CALLBACK_URL =
+  (process.env.EXPO_PUBLIC_WEB_URL
+    ? `${process.env.EXPO_PUBLIC_WEB_URL}/${AUTH_CALLBACK_PATH}`
+    : null) ?? `https://paysplit.vercel.app/${AUTH_CALLBACK_PATH}`;
+
 /** Auth deep link prefix for handling callback (e.g. paysplit://auth) */
 export const AUTH_LINK_PREFIX = `${APP_LINK_BASE}auth`;
 
