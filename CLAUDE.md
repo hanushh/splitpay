@@ -11,6 +11,7 @@ This file provides Claude Code and other AI assistants with the context needed t
 - **App name**: PaySplit
 - **Bundle ID**: `com.hanushh.paysplit`
 - **Deep-link scheme**: `paysplit://`
+- **PWA (web)**: https://paysplit-ai.vercel.app
 
 ---
 
@@ -27,7 +28,8 @@ This file provides Claude Code and other AI assistants with the context needed t
 | E2E tests    | Detox 20 (Android emulator)                         |
 | Linting      | ESLint 9 (flat config, `eslint-config-expo`)        |
 | Formatting   | Prettier 3                                          |
-| CI/CD        | GitHub Actions → Google Play                        |
+| CI/CD        | GitHub Actions → Google Play + Vercel (PWA)         |
+| PWA hosting  | Vercel (https://paysplit-ai.vercel.app)             |
 
 ---
 
@@ -106,6 +108,7 @@ Create `.env.local` (or `.env.production` for release builds):
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+EXPO_PUBLIC_WEB_URL=https://paysplit-ai.vercel.app   # PWA deployment URL (web only)
 ```
 
 ---
@@ -114,7 +117,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 
 ```bash
 pnpm dev                 # Expo dev server
+pnpm web                 # Expo web dev server (browser)
 pnpm build:android       # Local Android AAB release build
+pnpm build:web           # Static web export → dist/ (PWA)
 pnpm lint                # ESLint
 pnpm format              # Prettier check
 pnpm format:fix          # Prettier write (auto-fix)
@@ -140,7 +145,19 @@ pnpm typecheck   # TypeScript
 pnpm lint        # ESLint
 ```
 
-Visual verification requires running the app on an Android emulator via `pnpm dev`.
+Visual verification:
+- **Android**: run the app on an Android emulator via `pnpm dev`
+- **Web (PWA)**: run `pnpm web` and open in a browser, or `pnpm build:web && npx serve dist/`
+
+### Platform-specific coding rules
+
+The codebase targets both **Android/iOS** and **Web (PWA)**. When writing code that touches native APIs:
+
+- **`expo-secure-store`** — not available on web. `lib/supabase.ts` uses `localStorage` on web via a platform-conditional adapter. Follow the same pattern elsewhere.
+- **`expo-contacts`** — not available on web. Guard all calls with `if (Platform.OS !== 'web')`.
+- **`expo-notifications` / `expo-haptics` / `expo-device`** — not available on web. `lib/push-notifications.ts` already guards with `Platform.OS === 'web'`; follow the same pattern.
+- **Auth callbacks** — native uses the `paysplit://` deep-link scheme; web uses `https://paysplit-ai.vercel.app/auth/callback`. `lib/app-config.ts` exports both `AUTH_CALLBACK_URL` and `WEB_AUTH_CALLBACK_URL`. Use `Platform.OS === 'web'` to select the correct one.
+- **`(globalThis as any).localStorage`** — use this pattern (not bare `localStorage`) to avoid TypeScript DOM type errors when storing data on web.
 
 ---
 
@@ -158,6 +175,7 @@ Run additionally when applicable:
 
 - **E2E tests** – when UI flows change: `pnpm e2e:build && pnpm e2e:test`
 - **Android build** – when native/Android-specific code changes: `pnpm build:android`
+- **Web build** – when web-facing code changes: `pnpm build:web`
 
 ---
 
@@ -261,7 +279,8 @@ export function useGroups() {
 - `context/auth.tsx` is the single source of truth for auth state.
 - Screens use `useAuth()` from that context — never call `supabase.auth` directly in screens.
 - Auth methods: email/password and Google OAuth (PKCE via `expo-web-browser`).
-- Tokens are persisted with `expo-secure-store`.
+- Tokens are persisted with `expo-secure-store` on native and `localStorage` on web (platform-conditional adapter in `lib/supabase.ts`).
+- Google OAuth on web redirects via `window.location.href` to `WEB_AUTH_CALLBACK_URL`; the `app/auth/callback.tsx` screen exchanges the code.
 
 ### Navigation (Expo Router)
 
@@ -373,6 +392,8 @@ Follow `.agents/workflows/create-ui-component.md`. Key steps:
 
 ## CI/CD
 
+### Android — Google Play
+
 Pipeline: `.github/workflows/google-play-release.yml`
 
 **Trigger**: push to `main`, `beta`, `alpha`, or `internal` branches.
@@ -386,7 +407,21 @@ Pipeline: `.github/workflows/google-play-release.yml`
 | `alpha`    | alpha            |
 | `internal` | internal         |
 
-**Required GitHub secrets**: `ANDROID_SIGNING_KEY`, `ANDROID_ALIAS`, `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `PLAY_STORE_CREDENTIALS_JSON`.
+**Required GitHub secrets** (in `internal` environment): `ANDROID_SIGNING_KEY`, `ANDROID_ALIAS`, `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `PLAY_STORE_CREDENTIALS_JSON`.
+
+### Web — Vercel PWA
+
+Pipeline: `.github/workflows/vercel-deploy.yml`
+
+**Trigger**: push to `main`.
+
+**Steps**: lint → typecheck → unit tests → `expo export --platform web` → deploy to Vercel.
+
+**Live URL**: https://paysplit-ai.vercel.app
+
+**Required GitHub secrets** (in `internal` environment): `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_WEB_URL`.
+
+**Supabase redirect URL** (must be registered): `https://paysplit-ai.vercel.app/auth/callback`
 
 ---
 
