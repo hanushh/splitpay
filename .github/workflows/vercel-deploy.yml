@@ -16,6 +16,7 @@ jobs:
   deploy:
     name: Build & Deploy Web
     runs-on: ubuntu-latest
+    environment: internal
 
     steps:
       - name: Checkout repository
