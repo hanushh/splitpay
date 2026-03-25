@@ -220,12 +220,17 @@ export default function InviteFriendScreen() {
         status: 'pending',
       });
 
-      if (!inviteErr) {
-        invites.push({
-          contactName: contact.name,
-          shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
-        });
+      if (inviteErr) {
+        console.warn('[InviteFriend] Failed to create invitation for', contact.name, inviteErr.message);
+        setError(inviteErr.message ?? t('invite.failedCreateInvite', { name: contact.name }));
+        setSending(false);
+        return;
       }
+
+      invites.push({
+        contactName: contact.name,
+        shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
+      });
     }
 
     setAddedUsersCount(addedCount);
@@ -264,8 +269,8 @@ export default function InviteFriendScreen() {
 
   const sentSub =
     pendingInvites.length > 0
-      ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${activeGroupName}".`
-      : `They've been added to "${activeGroupName}".`;
+      ? t('invite.shareInviteSub', { count: pendingInvites.length, groupName: activeGroupName })
+      : t('invite.addedToGroup', { groupName: activeGroupName });
 
   if (sent) {
     return (
@@ -338,7 +343,7 @@ export default function InviteFriendScreen() {
         {activeGroupName ? (
           <Text style={s.groupBadgeText}>{activeGroupName}</Text>
         ) : (
-          <Text style={s.groupBadgePlaceholder}>Select a group…</Text>
+          <Text style={s.groupBadgePlaceholder}>{t('invite.selectGroup')}</Text>
         )}
         {!paramGroupId && (
           <MaterialIcons
@@ -356,7 +361,7 @@ export default function InviteFriendScreen() {
           <MaterialIcons name="person" size={16} color={C.primary} />
           <Text style={s.preselectedName}>{paramName}</Text>
           <View style={s.preselectedChip}>
-            <Text style={s.preselectedChipText}>Selected</Text>
+            <Text style={s.preselectedChipText}>{t('invite.selected')}</Text>
           </View>
         </View>
       ) : null}
@@ -385,7 +390,7 @@ export default function InviteFriendScreen() {
         {!activeGroupId && (
           <View style={s.errorRow}>
             <MaterialIcons name="error-outline" size={16} color={C.orange} />
-            <Text style={s.errorText}>Please select a group first.</Text>
+            <Text style={s.errorText}>{t('invite.selectGroupFirst')}</Text>
           </View>
         )}
 
@@ -471,7 +476,7 @@ export default function InviteFriendScreen() {
             ))}
             {userGroups.length === 0 && (
               <Text style={s.noGroupsText}>
-                {"You haven't joined any groups yet."}
+                {t('invite.noGroups')}
               </Text>
             )}
           </ScrollView>

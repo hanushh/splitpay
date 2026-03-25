@@ -158,7 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             setPendingInviteToken(token);
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[Auth] Failed to parse invite deep link:', err);
+        }
         return;
       }
 
@@ -331,7 +333,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return { error: error.message };
     // Save phone to profile immediately (profile row is created by DB trigger on auth.users insert)
     if (data.user?.id && phone) {
-      await supabase.from('profiles').update({ phone }).eq('id', data.user.id);
+      const normalized = normalizePhone(phone) ?? phone;
+      await supabase.from('profiles').update({ phone: normalized }).eq('id', data.user.id);
     }
     return { error: null };
   };

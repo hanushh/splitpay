@@ -68,7 +68,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrency = useCallback((c: Currency) => {
     setCurrencyState(c);
-    SecureStore.setItemAsync(STORAGE_KEY, c.code);
+    SecureStore.setItemAsync(STORAGE_KEY, c.code).catch((err) => {
+      console.warn('[Currency] Failed to persist currency preference:', err);
+    });
   }, []);
 
   const formatAbs = useCallback(

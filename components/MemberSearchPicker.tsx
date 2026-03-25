@@ -119,15 +119,20 @@ export function MemberSearchPicker({
     setSearchLoading(true);
     supabase
       .rpc('search_app_users', { p_query: debouncedQuery.trim() })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return;
-        setSearchResults(
-          (data ?? []).map((r: { user_id: string; name: string; avatar_url: string | null }) => ({
-            userId: r.user_id,
-            name: r.name ?? 'Unknown',
-            avatarUrl: r.avatar_url,
-          })),
-        );
+        if (error) {
+          console.warn('[MemberSearchPicker] Search failed:', error.message);
+          setSearchResults([]);
+        } else {
+          setSearchResults(
+            (data ?? []).map((r: { user_id: string; name: string; avatar_url: string | null }) => ({
+              userId: r.user_id,
+              name: r.name ?? 'Unknown',
+              avatarUrl: r.avatar_url,
+            })),
+          );
+        }
         setSearchLoading(false);
       });
     return () => { cancelled = true; };
