@@ -210,6 +210,7 @@ export default function ActivityScreen() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
 
   const filters = useMemo(
@@ -229,10 +230,12 @@ export default function ActivityScreen() {
       p_limit: 50,
     });
     if (error) {
+      setFetchError(error.message ?? t('toast.genericError'));
       setLoading(false);
       setRefreshing(false);
       return;
     }
+    setFetchError(null);
 
     const seen = new Set<string>();
     const grouped: Record<string, ActivityRow[]> = {};
@@ -307,6 +310,14 @@ export default function ActivityScreen() {
         ))}
       </View>
 
+      {fetchError && (
+        <Pressable style={s.errorBanner} onPress={onRefresh}>
+          <MaterialIcons name="error-outline" size={18} color={C.red} />
+          <Text style={s.errorText}>{fetchError}</Text>
+          <Text style={s.retryText}>{t('common.retry')}</Text>
+        </Pressable>
+      )}
+
       {loading ? (
         <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
       ) : (
@@ -352,6 +363,21 @@ export default function ActivityScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,82,82,0.1)',
+    borderWidth: 1,
+    borderColor: C.red,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorText: { color: C.red, fontSize: 13, fontWeight: '500', flex: 1 },
+  retryText: { color: C.primary, fontSize: 13, fontWeight: '600' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

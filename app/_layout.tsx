@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
+import { ToastProvider, useToast } from '@/context/toast';
 import SplashScreen from '@/components/SplashScreen';
 import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +25,7 @@ export const unstable_settings = {
 function InviteRedeemRedirect() {
   const { session, pendingInviteToken, clearPendingInviteToken } = useAuth();
   const { t } = useTranslation();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!session || !pendingInviteToken) return;
@@ -32,7 +34,6 @@ function InviteRedeemRedirect() {
         'redeem_invitation_for_current_user',
         { p_token: pendingInviteToken },
       );
-      await clearPendingInviteToken();
       if (redeemErr) {
         Alert.alert(
           t('invite.redeemError'),
@@ -40,15 +41,17 @@ function InviteRedeemRedirect() {
         );
         return;
       }
+      await clearPendingInviteToken();
       const row = Array.isArray(data) && data[0];
       if (row?.group_id_out) {
+        showToast('success', t('toast.inviteRedeemed'));
         router.replace({
           pathname: '/group/[id]',
           params: { id: row.group_id_out },
         });
       }
     })();
-  }, [session, pendingInviteToken, clearPendingInviteToken]);
+  }, [session, pendingInviteToken, clearPendingInviteToken, showToast]);
 
   return null;
 }
@@ -123,7 +126,9 @@ export default function RootLayout() {
   return (
     <CurrencyProvider>
       <AuthProvider>
-        <RootNavigator />
+        <ToastProvider>
+          <RootNavigator />
+        </ToastProvider>
       </AuthProvider>
     </CurrencyProvider>
   );
