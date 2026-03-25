@@ -13,6 +13,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
 import SplashScreen from '@/components/SplashScreen';
+import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
 
@@ -102,6 +103,7 @@ function RootNavigator() {
         />
       </Stack>
       {!session && <Redirect href="/auth/sign-in" />}
+      <MobileInstallPrompt />
       <StatusBar style="auto" />
     </ThemeProvider>
   );

@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "நண்பர்கள்",
   "tabs.groups": "குழுக்கள்",
-  "memberPicker.searching": "தேடுகிறது…"
+  "memberPicker.searching": "தேடுகிறது…",
+  "installPrompt.androidTitle": "PaySplit செயலியைப் பெறுங்கள்",
+  "installPrompt.androidSubtitle": "சிறந்த அனுபவத்திற்கு Google Play இலிருந்து நேட்டிவ் செயலியை பதிவிறக்கவும்.",
+  "installPrompt.iosTitle": "PaySplit-ஐ முகப்புத் திரையில் சேர்க்கவும்",
+  "installPrompt.iosSubtitle": "Safari இல் பகிர் பொத்தானை அழுத்தி, பிறகு \"முகப்புத் திரையில் சேர்\" என்பதைத் தேர்ந்தெடுக்கவும்.",
+  "installPrompt.getApp": "Google Play இல் பெறுங்கள்",
+  "installPrompt.dismiss": "இப்போது வேண்டாம்"
 }

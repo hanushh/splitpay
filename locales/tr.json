@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "Arkadaşlar",
   "tabs.groups": "Gruplar",
-  "memberPicker.searching": "Aranıyor…"
+  "memberPicker.searching": "Aranıyor…",
+  "installPrompt.androidTitle": "PaySplit uygulamasını edinin",
+  "installPrompt.androidSubtitle": "En iyi deneyim için Google Play'dan yerel uygulamayı indirin.",
+  "installPrompt.iosTitle": "PaySplit'i Ana Ekrana ekleyin",
+  "installPrompt.iosSubtitle": "Safari'de Paylaş düğmesine dokunun, ardından \"Ana Ekrana Ekle\" seçeneğini seçin.",
+  "installPrompt.getApp": "Google Play'da edinin",
+  "installPrompt.dismiss": "Şimdi değil"
 }
