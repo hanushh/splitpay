@@ -18,12 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
-import { useOnboarding } from '@/context/onboarding';
-import OnboardingTooltip, { type TargetLayout } from '@/components/ui/OnboardingTooltip';
+import OnboardingTooltip from '@/components/ui/OnboardingTooltip';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, useGroups } from '@/hooks/use-groups';
 import { useArchivedGroups } from '@/hooks/use-archived-groups';
+import { useHomeOnboarding } from '@/hooks/use-home-onboarding';
 
 const C = {
   primary: '#17e86b',
@@ -213,8 +213,6 @@ function TotalBalanceDisplay({ balances }: { balances: CurrencyBalance[] }) {
 
 type StatusFilter = 'all' | 'owed' | 'owes' | 'settled';
 
-const ONBOARDING_TOTAL_STEPS = 4;
-
 export default function GroupsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -231,79 +229,15 @@ export default function GroupsScreen() {
   const [archivedExpanded, setArchivedExpanded] = useState(false);
   const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
-  // Onboarding state
-  const { isOnboardingVisible, completeOnboarding } = useOnboarding();
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [balanceCardLayout, setBalanceCardLayout] = useState<TargetLayout | null>(null);
-  const [createGroupBtnLayout, setCreateGroupBtnLayout] = useState<TargetLayout | null>(null);
-  const [fabLayout, setFabLayout] = useState<TargetLayout | null>(null);
-  const balanceCardRef = useRef<React.ElementRef<typeof View>>(null);
-  const createGroupBtnRef = useRef<React.ElementRef<typeof View>>(null);
-  const fabRef = useRef<React.ElementRef<typeof View>>(null);
-
-  const measureView = useCallback(
-    (
-      ref: React.RefObject<React.ElementRef<typeof View>>,
-      setter: (layout: TargetLayout) => void,
-    ) => {
-      const node = ref.current as unknown as {
-        measureInWindow?: (cb: (x: number, y: number, w: number, h: number) => void) => void;
-      } | null;
-      node?.measureInWindow?.((x, y, w, h) => setter({ x, y, width: w, height: h }));
-    },
-    [],
-  );
-
-  const measureBalanceCard = useCallback(() => {
-    measureView(balanceCardRef, setBalanceCardLayout);
-  }, [measureView]);
-
-  const measureCreateGroupBtn = useCallback(() => {
-    measureView(createGroupBtnRef, setCreateGroupBtnLayout);
-  }, [measureView]);
-
-  const measureFab = useCallback(() => {
-    measureView(fabRef, setFabLayout);
-  }, [measureView]);
-
-  const handleOnboardingNext = useCallback(() => {
-    if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
-      setOnboardingStep((s) => s + 1);
-    } else {
-      completeOnboarding();
-    }
-  }, [onboardingStep, completeOnboarding]);
-
-  const handleOnboardingSkip = useCallback(() => {
-    completeOnboarding();
-  }, [completeOnboarding]);
-
-  const currentTooltipTarget = useMemo((): TargetLayout | null => {
-    if (onboardingStep === 1) return balanceCardLayout;
-    if (onboardingStep === 2) return createGroupBtnLayout;
-    if (onboardingStep === 3) return fabLayout;
-    return null;
-  }, [onboardingStep, balanceCardLayout, createGroupBtnLayout, fabLayout]);
-
-  const currentArrowDirection = useMemo((): 'up' | 'down' | 'none' => {
-    if (onboardingStep === 1 || onboardingStep === 2) return 'up';
-    if (onboardingStep === 3) return 'down';
-    return 'none';
-  }, [onboardingStep]);
-
-  const currentTooltipTitle = useMemo((): string => {
-    if (onboardingStep === 0) return t('onboarding.welcomeTitle');
-    if (onboardingStep === 1) return t('onboarding.balanceTitle');
-    if (onboardingStep === 2) return t('onboarding.createGroupTitle');
-    return t('onboarding.addExpenseTitle');
-  }, [onboardingStep, t]);
-
-  const currentTooltipDesc = useMemo((): string => {
-    if (onboardingStep === 0) return t('onboarding.welcomeDesc');
-    if (onboardingStep === 1) return t('onboarding.balanceDesc');
-    if (onboardingStep === 2) return t('onboarding.createGroupDesc');
-    return t('onboarding.addExpenseDesc');
-  }, [onboardingStep, t]);
+  const {
+    tooltipProps,
+    balanceCardRef,
+    createGroupBtnRef,
+    fabRef,
+    measureBalanceCard,
+    measureCreateGroupBtn,
+    measureFab,
+  } = useHomeOnboarding();
 
   const statusFilters = useMemo(
     () => [
@@ -568,17 +502,7 @@ export default function GroupsScreen() {
       </View>
 
       {/* Onboarding tooltip overlay */}
-      <OnboardingTooltip
-        visible={isOnboardingVisible}
-        step={onboardingStep}
-        totalSteps={ONBOARDING_TOTAL_STEPS}
-        title={currentTooltipTitle}
-        description={currentTooltipDesc}
-        targetLayout={currentTooltipTarget}
-        arrowDirection={currentArrowDirection}
-        onNext={handleOnboardingNext}
-        onSkip={handleOnboardingSkip}
-      />
+      <OnboardingTooltip {...tooltipProps} />
     </View>
   );
 }
