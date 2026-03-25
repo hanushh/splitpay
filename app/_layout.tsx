@@ -6,7 +6,7 @@ import {
 import { Redirect, Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
 import { OnboardingProvider } from '@/context/onboarding';
 import SplashScreen from '@/components/SplashScreen';
+import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
 
@@ -70,7 +71,7 @@ function RootNavigator() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       {session && !phoneComplete && <Redirect href="/auth/setup-phone" />}
-      {session && phoneComplete && !contactsPermissionGranted && (
+      {session && phoneComplete && !contactsPermissionGranted && Platform.OS !== 'web' && (
         <Redirect href="/auth/setup-contacts" />
       )}
       {session && <InviteRedeemRedirect />}
@@ -103,6 +104,7 @@ function RootNavigator() {
         />
       </Stack>
       {!session && <Redirect href="/auth/sign-in" />}
+      <MobileInstallPrompt />
       <StatusBar style="auto" />
     </ThemeProvider>
   );

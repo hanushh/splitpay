@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import * as ExpoCrypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 // Polyfill global.crypto for Supabase PKCE (getRandomValues / randomUUID).
 // expo-crypto provides the native implementation; we expose it as the Web
@@ -17,6 +18,20 @@ if (typeof global.crypto === 'undefined') {
       ExpoCrypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`,
   };
 }
+
+// On web, use localStorage for session persistence (expo-secure-store is native only).
+const WebLocalStorageAdapter = {
+  getItem: (key: string): Promise<string | null> =>
+    Promise.resolve((globalThis as any).localStorage?.getItem(key) ?? null),
+  setItem: (key: string, value: string): Promise<void> => {
+    (globalThis as any).localStorage?.setItem(key, value);
+    return Promise.resolve();
+  },
+  removeItem: (key: string): Promise<void> => {
+    (globalThis as any).localStorage?.removeItem(key);
+    return Promise.resolve();
+  },
+};
 
 // SecureStore has a ~2048-byte value limit. Large Supabase session JWTs can
 // exceed this, silently dropping writes and breaking PKCE token retrieval.
@@ -79,7 +94,7 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage: Platform.OS === 'web' ? WebLocalStorageAdapter : ExpoSecureStoreAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

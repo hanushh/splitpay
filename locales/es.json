@@ -327,5 +327,11 @@
   "onboarding.skip": "Omitir",
   "onboarding.stepOf": "{{step}} de {{total}}",
   "onboarding.welcomeDesc": "Te guiaremos por las funciones principales para que empieces.",
-  "onboarding.welcomeTitle": "¡Bienvenido a PaySplit!"
+  "onboarding.welcomeTitle": "¡Bienvenido a PaySplit!",
+  "installPrompt.androidTitle": "Obtén la app PaySplit",
+  "installPrompt.androidSubtitle": "Descarga la app nativa de Google Play para la mejor experiencia.",
+  "installPrompt.iosTitle": "Añade PaySplit a tu pantalla de inicio",
+  "installPrompt.iosSubtitle": "Toca el botón Compartir en Safari y selecciona \"Añadir a pantalla de inicio\".",
+  "installPrompt.getApp": "Obtener en Google Play",
+  "installPrompt.dismiss": "Ahora no"
 }

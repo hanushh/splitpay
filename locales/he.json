@@ -327,5 +327,11 @@
   "onboarding.skip": "דלג",
   "onboarding.stepOf": "{{step}} מתוך {{total}}",
   "onboarding.welcomeDesc": "בואו נכיר לך את התכונות המרכזיות כדי להתחיל.",
-  "onboarding.welcomeTitle": "!ברוכים הבאים ל-PaySplit"
+  "onboarding.welcomeTitle": "!ברוכים הבאים ל-PaySplit",
+  "installPrompt.androidTitle": "הורד את אפליקציית PaySplit",
+  "installPrompt.androidSubtitle": "הורד את האפליקציה המקורית מ-Google Play לחוויה הטובה ביותר.",
+  "installPrompt.iosTitle": "הוסף את PaySplit למסך הבית",
+  "installPrompt.iosSubtitle": "לחץ על כפתור השיתוף ב-Safari ואז בחר \"הוסף למסך הבית\".",
+  "installPrompt.getApp": "קבל ב-Google Play",
+  "installPrompt.dismiss": "לא עכשיו"
 }

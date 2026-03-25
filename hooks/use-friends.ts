@@ -1,6 +1,7 @@
 import * as Contacts from 'expo-contacts';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { useAuth } from '@/context/auth';
 import { normalizePhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
@@ -71,6 +72,74 @@ export function useFriends(): UseFriendsResult {
     setLoading(true);
     setError(null);
     setPermissionDenied(false);
+
+    // expo-contacts is not available on web — skip to Supabase-only friend data
+    if (Platform.OS === 'web') {
+      try {
+        const [
+          { data: balanceRows, error: balanceErr },
+          { data: groupFriendRows, error: groupFriendErr },
+        ] = await Promise.all([
+          supabase.rpc('get_friend_balances', { p_user_id: user.id }),
+          supabase.rpc('get_group_friends', { p_user_id: user.id }),
+        ]);
+        if (balanceErr) throw new Error(balanceErr.message);
+        if (groupFriendErr) throw new Error(groupFriendErr.message);
+
+        const balanceByUserId = new Map<string, CurrencyBalance[]>();
+        for (const row of (balanceRows as {
+          user_id: string;
+          currency_code: string;
+          balance_cents: number;
+        }[]) ?? []) {
+          if (!row.user_id) continue;
+          if (!balanceByUserId.has(row.user_id))
+            balanceByUserId.set(row.user_id, []);
+          balanceByUserId.get(row.user_id)!.push({
+            currency_code: row.currency_code,
+            balance_cents: Number(row.balance_cents),
+          });
+        }
+
+        const profileMap = new Map<
+          string,
+          { id: string; name: string; avatar_url: string | null }
+        >();
+        for (const gf of (groupFriendRows as {
+          user_id: string;
+          name: string;
+          avatar_url: string | null;
+        }[]) ?? []) {
+          if (gf.user_id) profileMap.set(gf.user_id, { id: gf.user_id, name: gf.name, avatar_url: gf.avatar_url });
+        }
+
+        const matchedFriends: MatchedFriend[] = Array.from(profileMap.values())
+          .map((profile) => {
+            const rawBalances = balanceByUserId.get(profile.id);
+            const balances: CurrencyBalance[] = rawBalances ? sortBalancesDesc(rawBalances) : [];
+            return {
+              userId: profile.id,
+              name: profile.name,
+              avatarUrl: profile.avatar_url,
+              balances,
+              balanceStatus: rawBalances ? deriveBalanceStatus(balances) : 'no_groups' as const,
+            };
+          })
+          .sort((a, b) => {
+            const sumA = a.balances.reduce((s, b) => s + Math.abs(b.balance_cents), 0);
+            const sumB = b.balances.reduce((s, b) => s + Math.abs(b.balance_cents), 0);
+            return sumB - sumA;
+          });
+
+        setMatched(matchedFriends);
+        setUnmatched([]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load friends');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const { status } = await Contacts.requestPermissionsAsync();
     if (status !== Contacts.PermissionStatus.GRANTED) {

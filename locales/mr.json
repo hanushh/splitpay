@@ -327,5 +327,11 @@
   "onboarding.skip": "वगळा",
   "onboarding.stepOf": "{{step}} / {{total}}",
   "onboarding.welcomeDesc": "सुरुवात करण्यासाठी आपल्याला मुख्य वैशिष्ट्यांची ओळख करून देतो.",
-  "onboarding.welcomeTitle": "PaySplit मध्ये आपले स्वागत!"
+  "onboarding.welcomeTitle": "PaySplit मध्ये आपले स्वागत!",
+  "installPrompt.androidTitle": "PaySplit अॅप मिळवा",
+  "installPrompt.androidSubtitle": "सर्वोत्तम अनुभवासाठी Google Play वरून नेटिव्ह अॅप डाउनलोड करा.",
+  "installPrompt.iosTitle": "PaySplit होम स्क्रीनवर जोडा",
+  "installPrompt.iosSubtitle": "Safari मध्ये शेअर बटण दाबा, नंतर \"होम स्क्रीनवर जोडा\" निवडा.",
+  "installPrompt.getApp": "Google Play वर मिळवा",
+  "installPrompt.dismiss": "आत्ता नाही"
 }

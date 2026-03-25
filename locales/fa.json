@@ -327,5 +327,11 @@
   "onboarding.skip": "رد کردن",
   "onboarding.stepOf": "{{step}} از {{total}}",
   "onboarding.welcomeDesc": "بیایید ویژگی‌های اصلی را برای شروع به شما معرفی کنیم.",
-  "onboarding.welcomeTitle": "!به PaySplit خوش آمدید"
+  "onboarding.welcomeTitle": "!به PaySplit خوش آمدید",
+  "installPrompt.androidTitle": "اپ PaySplit را دریافت کنید",
+  "installPrompt.androidSubtitle": "برای بهترین تجربه، اپ بومی را از Google Play دانلود کنید.",
+  "installPrompt.iosTitle": "PaySplit را به صفحه اصلی اضافه کنید",
+  "installPrompt.iosSubtitle": "در Safari دکمه اشتراک‌گذاری را بزنید و سپس «افزودن به صفحه اصلی» را انتخاب کنید.",
+  "installPrompt.getApp": "دریافت از Google Play",
+  "installPrompt.dismiss": "نه الان"
 }
