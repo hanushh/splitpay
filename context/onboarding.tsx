@@ -1,9 +1,8 @@
-import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 import { useAuth } from '@/context/auth';
 import { supabase } from '@/lib/supabase';
+import { getItem, setItem } from '@/lib/storage';
 
 const ONBOARDING_KEY = 'onboarding_complete_v1';
 
@@ -16,21 +15,6 @@ const OnboardingContext = createContext<OnboardingContextType>({
   isOnboardingVisible: false,
   completeOnboarding: async () => {},
 });
-
-async function getFlag(key: string): Promise<string | null> {
-  if (Platform.OS === 'web') {
-    return (globalThis as any).localStorage?.getItem(key) ?? null;
-  }
-  return SecureStore.getItemAsync(key);
-}
-
-async function setFlag(key: string, value: string): Promise<void> {
-  if (Platform.OS === 'web') {
-    (globalThis as any).localStorage?.setItem(key, value);
-    return;
-  }
-  await SecureStore.setItemAsync(key, value);
-}
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -47,7 +31,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     (async () => {
       try {
         // Already completed the tour — skip
-        const flag = await getFlag(ONBOARDING_KEY);
+        const flag = await getItem(ONBOARDING_KEY);
         if (flag) return;
 
         // Existing user who already has groups — auto-complete
@@ -59,7 +43,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         if (cancelled) return;
 
         if (count && count > 0) {
-          await setFlag(ONBOARDING_KEY, '1');
+          await setItem(ONBOARDING_KEY, '1');
         } else {
           setIsOnboardingVisible(true);
         }
@@ -75,7 +59,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, [user]);
 
   const completeOnboarding = useCallback(async () => {
-    await setFlag(ONBOARDING_KEY, '1');
+    await setItem(ONBOARDING_KEY, '1');
     setIsOnboardingVisible(false);
   }, []);
 

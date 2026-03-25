@@ -1,6 +1,5 @@
 import { Session, User } from '@supabase/supabase-js';
 import * as Contacts from 'expo-contacts';
-import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
@@ -19,6 +18,7 @@ import {
   removePushToken,
 } from '@/lib/push-notifications';
 import { clearCategoryCache } from '@/hooks/use-category-cache';
+import { getItem, setItem, removeItem } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -151,11 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
           if (token) {
-            if (Platform.OS === 'web') {
-              (globalThis as any).localStorage?.setItem(INVITE_TOKEN_KEY, token);
-            } else {
-              await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
-            }
+            await setItem(INVITE_TOKEN_KEY, token);
             setPendingInviteToken(token);
           }
         } catch {}
@@ -434,18 +430,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getPendingInviteToken = async () => {
-    if (Platform.OS === 'web') {
-      return (globalThis as any).localStorage?.getItem(INVITE_TOKEN_KEY) ?? null;
-    }
-    return SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+    return getItem(INVITE_TOKEN_KEY);
   };
   const clearPendingInviteToken = async () => {
     setPendingInviteToken(null);
-    if (Platform.OS === 'web') {
-      (globalThis as any).localStorage?.removeItem(INVITE_TOKEN_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
-    }
+    await removeItem(INVITE_TOKEN_KEY);
   };
 
   return (

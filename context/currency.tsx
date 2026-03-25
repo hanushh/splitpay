@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import React, {
   createContext,
   useCallback,
@@ -6,7 +5,8 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+
+import { getItem, setItem } from '@/lib/storage';
 
 const STORAGE_KEY = 'app_currency';
 
@@ -59,11 +59,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<Currency>(DEFAULT_CURRENCY);
 
   useEffect(() => {
-    const load = Platform.OS === 'web'
-      ? Promise.resolve((globalThis as any).localStorage?.getItem(STORAGE_KEY) ?? null)
-      : SecureStore.getItemAsync(STORAGE_KEY);
-
-    load.then((code: string | null) => {
+    getItem(STORAGE_KEY).then((code) => {
       if (code) {
         const found = CURRENCIES.find((c) => c.code === code);
         if (found) setCurrencyState(found);
@@ -73,11 +69,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrency = useCallback((c: Currency) => {
     setCurrencyState(c);
-    if (Platform.OS === 'web') {
-      (globalThis as any).localStorage?.setItem(STORAGE_KEY, c.code);
-    } else {
-      SecureStore.setItemAsync(STORAGE_KEY, c.code);
-    }
+    setItem(STORAGE_KEY, c.code);
   }, []);
 
   const formatAbs = useCallback(
