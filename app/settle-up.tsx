@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { useToast } from '@/context/toast';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -33,6 +34,7 @@ type PaymentMethod = 'cash' | 'venmo' | 'other';
 
 export default function SettleUpScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { currency: appCurrency } = useCurrency();
   const {
@@ -100,6 +102,7 @@ export default function SettleUpScreen() {
     setSaving(false);
     if (ok) {
       settlementEvents.emit();
+      showToast('success', t('toast.settlementRecorded'));
       router.back();
     }
   };

@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { useToast } from '@/context/toast';
 import { useCategoryCache } from '@/hooks/use-category-cache';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
@@ -63,6 +64,7 @@ interface Member {
 
 export default function AddExpenseScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { currency: appCurrency } = useCurrency();
@@ -631,6 +633,7 @@ export default function AddExpenseScreen() {
       }
 
       setSaving(false);
+      showToast('success', t('toast.expenseUpdated'));
       router.back();
       return;
     }
@@ -667,6 +670,7 @@ export default function AddExpenseScreen() {
     } else if (customCategory.trim()) {
       saveMapping(description, customCategory.trim().toLowerCase());
     }
+    showToast('success', t('toast.expenseCreated'));
     router.back();
   };
 

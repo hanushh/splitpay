@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency } from '@/context/currency';
+import { useToast } from '@/context/toast';
 import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
 import { supabase } from '@/lib/supabase';
 import { APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
@@ -86,6 +87,7 @@ function groupByMonth(expenses: Expense[]) {
 
 export default function GroupDetailScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -340,12 +342,13 @@ export default function GroupDetailScreen() {
             }
             setDeletingExpense(false);
             setSelectedExpense(null);
+            showToast('success', t('toast.expenseDeleted'));
             fetchGroup();
           },
         },
       ],
     );
-  }, [selectedExpense, fetchGroup, t]);
+  }, [selectedExpense, fetchGroup, showToast, t]);
 
   const handleEditExpense = useCallback(() => {
     if (!selectedExpense) return;
