@@ -312,5 +312,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "Friends",
   "tabs.groups": "Groups",
-  "memberPicker.searching": "Searching…"
+  "memberPicker.searching": "Searching…",
+  "installPrompt.androidTitle": "Get the PaySplit app",
+  "installPrompt.androidSubtitle": "Download the native app from Google Play for the best experience.",
+  "installPrompt.iosTitle": "Add PaySplit to your Home Screen",
+  "installPrompt.iosSubtitle": "Tap the Share button in Safari, then choose \"Add to Home Screen\".",
+  "installPrompt.getApp": "Get on Google Play",
+  "installPrompt.dismiss": "Not now"
 }

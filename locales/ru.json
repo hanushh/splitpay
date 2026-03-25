@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "Друзья",
   "tabs.groups": "Группы",
-  "memberPicker.searching": "Поиск…"
+  "memberPicker.searching": "Поиск…",
+  "installPrompt.androidTitle": "Установите приложение PaySplit",
+  "installPrompt.androidSubtitle": "Скачайте нативное приложение из Google Play для наилучшего опыта.",
+  "installPrompt.iosTitle": "Добавьте PaySplit на главный экран",
+  "installPrompt.iosSubtitle": "Нажмите кнопку «Поделиться» в Safari, затем выберите «На экран «Домой»».",
+  "installPrompt.getApp": "Скачать в Google Play",
+  "installPrompt.dismiss": "Не сейчас"
 }

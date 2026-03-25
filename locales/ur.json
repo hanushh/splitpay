@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "دوست",
   "tabs.groups": "گروپس",
-  "memberPicker.searching": "تلاش ہو رہی ہے…"
+  "memberPicker.searching": "تلاش ہو رہی ہے…",
+  "installPrompt.androidTitle": "PaySplit ایپ حاصل کریں",
+  "installPrompt.androidSubtitle": "بہترین تجربے کے لیے Google Play سے نیٹیو ایپ ڈاؤنلوڈ کریں۔",
+  "installPrompt.iosTitle": "PaySplit کو ہوم اسکرین پر شامل کریں",
+  "installPrompt.iosSubtitle": "Safari میں شیئر بٹن دبائیں، پھر «ہوم اسکرین پر شامل کریں» منتخب کریں۔",
+  "installPrompt.getApp": "Google Play پر حاصل کریں",
+  "installPrompt.dismiss": "ابھی نہیں"
 }

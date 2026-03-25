@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "मित्र",
   "tabs.groups": "गट",
-  "memberPicker.searching": "शोधत आहे…"
+  "memberPicker.searching": "शोधत आहे…",
+  "installPrompt.androidTitle": "PaySplit अॅप मिळवा",
+  "installPrompt.androidSubtitle": "सर्वोत्तम अनुभवासाठी Google Play वरून नेटिव्ह अॅप डाउनलोड करा.",
+  "installPrompt.iosTitle": "PaySplit होम स्क्रीनवर जोडा",
+  "installPrompt.iosSubtitle": "Safari मध्ये शेअर बटण दाबा, नंतर \"होम स्क्रीनवर जोडा\" निवडा.",
+  "installPrompt.getApp": "Google Play वर मिळवा",
+  "installPrompt.dismiss": "आत्ता नाही"
 }

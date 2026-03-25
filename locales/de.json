@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "Freunde",
   "tabs.groups": "Gruppen",
-  "memberPicker.searching": "Suche…"
+  "memberPicker.searching": "Suche…",
+  "installPrompt.androidTitle": "Hol dir die PaySplit-App",
+  "installPrompt.androidSubtitle": "Lade die native App aus Google Play für das beste Erlebnis herunter.",
+  "installPrompt.iosTitle": "Füge PaySplit zu deinem Startbildschirm hinzu",
+  "installPrompt.iosSubtitle": "Tippe in Safari auf Teilen und wähle dann \"Zum Home-Bildschirm\".",
+  "installPrompt.getApp": "Bei Google Play holen",
+  "installPrompt.dismiss": "Nicht jetzt"
 }

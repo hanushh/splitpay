@@ -315,5 +315,11 @@
   "tabs.ai": "AI",
   "tabs.friends": "חברים",
   "tabs.groups": "קבוצות",
-  "memberPicker.searching": "מחפש…"
+  "memberPicker.searching": "מחפש…",
+  "installPrompt.androidTitle": "הורד את אפליקציית PaySplit",
+  "installPrompt.androidSubtitle": "הורד את האפליקציה המקורית מ-Google Play לחוויה הטובה ביותר.",
+  "installPrompt.iosTitle": "הוסף את PaySplit למסך הבית",
+  "installPrompt.iosSubtitle": "לחץ על כפתור השיתוף ב-Safari ואז בחר \"הוסף למסך הבית\".",
+  "installPrompt.getApp": "קבל ב-Google Play",
+  "installPrompt.dismiss": "לא עכשיו"
 }
