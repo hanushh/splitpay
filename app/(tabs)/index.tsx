@@ -18,10 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
+import OnboardingTooltip from '@/components/ui/OnboardingTooltip';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, useGroups } from '@/hooks/use-groups';
 import { useArchivedGroups } from '@/hooks/use-archived-groups';
+import { useHomeOnboarding } from '@/hooks/use-home-onboarding';
 
 const C = {
   primary: '#17e86b',
@@ -227,6 +229,16 @@ export default function GroupsScreen() {
   const [archivedExpanded, setArchivedExpanded] = useState(false);
   const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
+  const {
+    tooltipProps,
+    balanceCardRef,
+    createGroupBtnRef,
+    fabRef,
+    measureBalanceCard,
+    measureCreateGroupBtn,
+    measureFab,
+  } = useHomeOnboarding();
+
   const statusFilters = useMemo(
     () => [
       { key: 'all' as const, label: t('groups.filterAll') },
@@ -328,19 +340,25 @@ export default function GroupsScreen() {
               >
                 <MaterialIcons name="search" size={24} color={C.slate400} />
               </Pressable>
-              <Pressable
-                style={s.iconBtn}
-                hitSlop={8}
-                onPress={() => router.push('/create-group')}
-                testID="create-group-header-btn"
-              >
-                <MaterialIcons name="group-add" size={24} color={C.primary} />
-              </Pressable>
+              <View ref={createGroupBtnRef} onLayout={measureCreateGroupBtn}>
+                <Pressable
+                  style={s.iconBtn}
+                  hitSlop={8}
+                  onPress={() => router.push('/create-group')}
+                  testID="create-group-header-btn"
+                >
+                  <MaterialIcons name="group-add" size={24} color={C.primary} />
+                </Pressable>
+              </View>
             </View>
           </View>
         )}
 
-        {!showSearch && <TotalBalanceDisplay balances={totalBalances} />}
+        {!showSearch && (
+          <View ref={balanceCardRef} onLayout={measureBalanceCard}>
+            <TotalBalanceDisplay balances={totalBalances} />
+          </View>
+        )}
       </View>
 
       {/* Main Content */}
@@ -462,21 +480,29 @@ export default function GroupsScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable
-        style={({ pressed }: { pressed: boolean }) => [
-          s.fab,
-          { bottom: insets.bottom + 72 },
-          pressed && { opacity: 0.85 },
-        ]}
-        onPress={() =>
-          groups.length === 0
-            ? router.push('/create-group')
-            : router.push('/add-expense')
-        }
-        testID="fab-add-expense"
+      <View
+        ref={fabRef}
+        onLayout={measureFab}
+        style={[s.fabWrapper, { bottom: insets.bottom + 72 }]}
       >
-        <MaterialIcons name="add" size={32} color={C.bg} />
-      </Pressable>
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [
+            s.fab,
+            pressed && { opacity: 0.85 },
+          ]}
+          onPress={() =>
+            groups.length === 0
+              ? router.push('/create-group')
+              : router.push('/add-expense')
+          }
+          testID="fab-add-expense"
+        >
+          <MaterialIcons name="add" size={32} color={C.bg} />
+        </Pressable>
+      </View>
+
+      {/* Onboarding tooltip overlay */}
+      <OnboardingTooltip {...tooltipProps} />
     </View>
   );
 }
@@ -723,9 +749,13 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   newGroupText: { color: C.slate400, fontSize: 14, fontWeight: '500' },
-  fab: {
+  fabWrapper: {
     position: 'absolute',
     right: 16,
+    width: 56,
+    height: 56,
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,

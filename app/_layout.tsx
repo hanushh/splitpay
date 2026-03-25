@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
+import { OnboardingProvider } from '@/context/onboarding';
 import { ToastProvider, useToast } from '@/context/toast';
 import SplashScreen from '@/components/SplashScreen';
 import MobileInstallPrompt from '@/components/MobileInstallPrompt';
@@ -126,9 +127,11 @@ export default function RootLayout() {
   return (
     <CurrencyProvider>
       <AuthProvider>
-        <ToastProvider>
-          <RootNavigator />
-        </ToastProvider>
+        <OnboardingProvider>
+          <ToastProvider>
+            <RootNavigator />
+          </ToastProvider>
+        </OnboardingProvider>
       </AuthProvider>
     </CurrencyProvider>
   );
