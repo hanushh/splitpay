@@ -60,10 +60,12 @@ splitpay/
 │   └── ui/                     # Generic reusable building blocks
 ├── context/
 │   ├── auth.tsx                # Auth state (Supabase session)
-│   └── currency.tsx            # Selected display currency
+│   ├── currency.tsx            # Selected display currency
+│   └── onboarding.tsx          # First-run onboarding tour state
 ├── hooks/                      # Custom hooks (useGroups, useColorScheme, …)
 ├── lib/
 │   ├── supabase.ts             # Supabase client (single export)
+│   ├── storage.ts              # Platform-safe key-value storage (SecureStore / localStorage)
 │   ├── database.types.ts       # Auto-generated Supabase DB types
 │   ├── push-notifications.ts   # Push token registration helpers
 │   └── app-config.ts           # Shared app config constants
@@ -153,11 +155,10 @@ Visual verification:
 
 The codebase targets both **Android/iOS** and **Web (PWA)**. When writing code that touches native APIs:
 
-- **`expo-secure-store`** — not available on web. `lib/supabase.ts` uses `localStorage` on web via a platform-conditional adapter. Follow the same pattern elsewhere.
+- **`expo-secure-store`** — not available on web. **Never import `expo-secure-store` directly.** Use `@/lib/storage` (`getItem`, `setItem`, `removeItem`) which automatically switches between `SecureStore` (native) and `localStorage` (web). The only exception is `lib/supabase.ts` which needs a chunked adapter for large JWTs.
 - **`expo-contacts`** — not available on web. Guard all calls with `if (Platform.OS !== 'web')`.
 - **`expo-notifications` / `expo-haptics` / `expo-device`** — not available on web. `lib/push-notifications.ts` already guards with `Platform.OS === 'web'`; follow the same pattern.
 - **Auth callbacks** — native uses the `paysplit://` deep-link scheme; web uses `https://paysplit-ai.vercel.app/auth/callback`. `lib/app-config.ts` exports both `AUTH_CALLBACK_URL` and `WEB_AUTH_CALLBACK_URL`. Use `Platform.OS === 'web'` to select the correct one.
-- **`(globalThis as any).localStorage`** — use this pattern (not bare `localStorage`) to avoid TypeScript DOM type errors when storing data on web.
 
 ---
 

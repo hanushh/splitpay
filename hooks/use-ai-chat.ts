@@ -67,14 +67,16 @@ export function useAiChat() {
     getDailyUsage().then((u) => setPromptsUsed(u.count));
   }, []);
 
-  /** Convert internal messages to Gemini history (exclude action cards) */
+  /** Convert internal messages to Gemini history.
+   *  Action cards are mapped to 'model' turns so the history always alternates
+   *  user/model — a requirement of the Gemini chat API. */
   const toGeminiHistory = useCallback(
     (msgs: ChatMessage[]): GeminiMessage[] =>
       msgs
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'action')
         .map((m) => ({
           role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }],
+          parts: [{ text: m.role === 'action' ? `[Performed action: ${m.content}]` : m.content }],
         })),
     [],
   );
@@ -214,9 +216,7 @@ export function useAiChat() {
         const systemPrompt = buildSystemPrompt(context, today);
 
         // Get current history before this message for Gemini
-        const historyBeforeThisMsg = toGeminiHistory(
-          messages.filter((m) => m.role !== 'action'),
-        );
+        const historyBeforeThisMsg = toGeminiHistory(messages);
 
         const response = await sendChatMessage(
           historyBeforeThisMsg,

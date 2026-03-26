@@ -48,11 +48,11 @@ export default function AiTab() {
             params: {
               groupId: String(actionParams.groupId ?? ''),
               groupName: String(actionParams.groupName ?? ''),
-              ...(actionParams.prefillDescription
-                ? { prefillDescription: String(actionParams.prefillDescription) }
+              ...(actionParams.description
+                ? { prefillDescription: String(actionParams.description) }
                 : {}),
-              ...(actionParams.prefillAmountCents
-                ? { prefillAmountCents: String(actionParams.prefillAmountCents) }
+              ...(actionParams.amountCents
+                ? { prefillAmountCents: String(actionParams.amountCents) }
                 : {}),
             },
           });

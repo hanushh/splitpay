@@ -88,6 +88,11 @@ export async function registerPushTokenForCurrentUser(): Promise<
 
   const projectId = getProjectId();
   if (!projectId) {
+    console.error(
+      '[Push] Cannot register push token: Expo project ID not found. ' +
+        'Add extra.eas.projectId to app.json (get the UUID from expo.dev/accounts/hanushh/projects/paysplit) ' +
+        'or set EXPO_PUBLIC_EAS_PROJECT_ID in the build environment.',
+    );
     return null;
   }
   const tokenResult = await N.getExpoPushTokenAsync({ projectId });
