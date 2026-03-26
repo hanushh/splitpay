@@ -246,7 +246,8 @@ export function MemberSearchPicker({
   const searching = searchLoading && q.length >= 2;
   const hasSelection =
     selectedAppUsers.length > 0 || selectedContacts.length > 0;
-  const showResults = q.length > 0;
+  // Show the results panel when there are friends to display OR when the user is searching
+  const showResults = allAppUsers.length > 0 || q.length > 0;
 
   return (
     <View style={s.container}>
@@ -336,7 +337,7 @@ export function MemberSearchPicker({
             </>
           )}
 
-          {filteredContacts.length > 0 && (
+          {q.length > 0 && filteredContacts.length > 0 && (
             <>
               <Text
                 style={[
@@ -369,7 +370,7 @@ export function MemberSearchPicker({
 
           {q.length > 0 &&
             filteredAppUsers.length === 0 &&
-            filteredContacts.length === 0 && (
+            (q.length < 2 || filteredContacts.length === 0) && (
               <Text style={s.hint}>
                 {t('memberPicker.noMatches', { query: debouncedQuery })}
               </Text>
