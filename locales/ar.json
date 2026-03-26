@@ -201,6 +201,8 @@
   "group.deleteWarning": "سيؤدي هذا إلى حذف {{name}} وجميع نفقاتها بشكل دائم. لا يمكن التراجع عن هذا.",
   "group.deleting": "جارٍ الحذف…",
   "group.expenses": "النفقات",
+  "group.exportCsv": "تصدير كـ CSV",
+  "group.exporting": "جارٍ التصدير…",
   "group.leaveGroup": "مغادرة المجموعة",
   "group.leaveTitle": "مغادرة المجموعة",
   "group.leaveWarning": "ستتم إزالتك من {{name}}. يمكنك الانضمام مجدداً عبر رابط دعوة.",

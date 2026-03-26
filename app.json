@@ -21,7 +21,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.hanushh.paysplit",
       "googleServicesFile": "./google-services.json",
-      "edgeToEdge": true
+      "edgeToEdge": true,
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "output": "static",
@@ -68,6 +72,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "64ac8993-bb81-4702-a213-a47bdd987709"
+      }
+    },
+    "owner": "hanushh"
   }
 }

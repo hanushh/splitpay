@@ -201,6 +201,8 @@
   "group.deleteWarning": "Isso excluirá permanentemente {{name}} e todas as suas despesas. Não pode ser desfeito.",
   "group.deleting": "Excluindo…",
   "group.expenses": "Despesas",
+  "group.exportCsv": "Exportar como CSV",
+  "group.exporting": "Exportando…",
   "group.leaveGroup": "Sair do grupo",
   "group.leaveTitle": "Sair do grupo",
   "group.leaveWarning": "Você será removido de {{name}}. Você pode entrar novamente com um link de convite.",

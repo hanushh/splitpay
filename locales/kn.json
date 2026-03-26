@@ -201,6 +201,8 @@
   "group.deleteWarning": "ಇದು {{name}} ಮತ್ತು ಅದರ ಎಲ್ಲಾ ಖರ್ಚುಗಳನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸುತ್ತದೆ. ಇದನ್ನು ರದ್ದುಗೊಳಿಸಲಾಗುವುದಿಲ್ಲ.",
   "group.deleting": "ಅಳಿಸಲಾಗುತ್ತಿದೆ…",
   "group.expenses": "ಖರ್ಚುಗಳು",
+  "group.exportCsv": "CSV ಆಗಿ ರಫ್ತು ಮಾಡಿ",
+  "group.exporting": "ರಫ್ತು ಮಾಡಲಾಗುತ್ತಿದೆ…",
   "group.leaveGroup": "ಗುಂಪು ಬಿಡಿ",
   "group.leaveTitle": "ಗುಂಪು ಬಿಡಿ",
   "group.leaveWarning": "ನೀವು {{name}} ನಿಂದ ತೆಗೆದುಹಾಕಲ್ಪಡುತ್ತೀರಿ. ಆಹ್ವಾನ ಲಿಂಕ್ ಮೂಲಕ ಮತ್ತೆ ಸೇರಬಹುದು.",

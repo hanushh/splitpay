@@ -201,6 +201,8 @@
   "group.deleteWarning": "Это навсегда удалит {{name}} и все её расходы. Это действие нельзя отменить.",
   "group.deleting": "Удаление…",
   "group.expenses": "Расходы",
+  "group.exportCsv": "Экспорт в CSV",
+  "group.exporting": "Экспорт…",
   "group.leaveGroup": "Покинуть группу",
   "group.leaveTitle": "Покинуть группу",
   "group.leaveWarning": "Вы будете удалены из {{name}}. Вы можете снова присоединиться по ссылке-приглашению.",

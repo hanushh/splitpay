@@ -201,6 +201,8 @@
   "group.deleteWarning": "हे {{name}} आणि त्याचे सर्व खर्च कायमचे हटवेल. हे पूर्ववत करता येणार नाही.",
   "group.deleting": "हटवले जात आहे…",
   "group.expenses": "खर्च",
+  "group.exportCsv": "CSV म्हणून निर्यात करा",
+  "group.exporting": "निर्यात होत आहे…",
   "group.leaveGroup": "गट सोडा",
   "group.leaveTitle": "गट सोडा",
   "group.leaveWarning": "तुम्हाला {{name}} मधून काढले जाईल. आमंत्रण दुव्याद्वारे पुन्हा सामील होऊ शकता.",

@@ -201,6 +201,8 @@
   "group.deleteWarning": "ఇది {{name}} మరియు దాని అన్ని ఖర్చులను శాశ్వతంగా తొలగిస్తుంది. ఇది రద్దు చేయలేదు.",
   "group.deleting": "తొలగిస్తోంది…",
   "group.expenses": "ఖర్చులు",
+  "group.exportCsv": "CSV గా ఎగుమతి చేయండి",
+  "group.exporting": "ఎగుమతి చేస్తోంది…",
   "group.leaveGroup": "గ్రూప్ వదిలిపెట్టండి",
   "group.leaveTitle": "గ్రూప్ వదిలిపెట్టండి",
   "group.leaveWarning": "మీరు {{name}} నుండి తొలగించబడతారు. ఆహ్వాన లింక్ ద్వారా మళ్ళీ చేరవచ్చు.",

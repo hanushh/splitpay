@@ -201,6 +201,8 @@
   "group.deleteWarning": "यह {{name}} और उसके सभी खर्चों को स्थायी रूप से हटा देगा। इसे वापस नहीं किया जा सकता।",
   "group.deleting": "हटाया जा रहा है…",
   "group.expenses": "खर्च",
+  "group.exportCsv": "CSV के रूप में निर्यात करें",
+  "group.exporting": "निर्यात हो रहा है…",
   "group.leaveGroup": "समूह छोड़ें",
   "group.leaveTitle": "समूह छोड़ें",
   "group.leaveWarning": "आपको {{name}} से हटा दिया जाएगा। आप आमंत्रण लिंक के माध्यम से फिर से जुड़ सकते हैं।",
