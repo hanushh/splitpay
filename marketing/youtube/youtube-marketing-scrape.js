@@ -38,6 +38,29 @@ if (!Array.isArray(QUERIES) || QUERIES.length === 0) {
   process.exit(1);
 }
 
+// Detect language from Unicode script ranges. Returns a BCP-47 language code or 'en'.
+const LANGUAGE_SCRIPTS = [
+  { range: [0x0900, 0x097F], lang: 'hi' },  // Devanagari — Hindi / Marathi
+  { range: [0x0B80, 0x0BFF], lang: 'ta' },  // Tamil
+  { range: [0x0C00, 0x0C7F], lang: 'te' },  // Telugu
+  { range: [0x0C80, 0x0CFF], lang: 'kn' },  // Kannada
+  { range: [0x0D00, 0x0D7F], lang: 'ml' },  // Malayalam
+  { range: [0x0980, 0x09FF], lang: 'bn' },  // Bengali
+  { range: [0x0A80, 0x0AFF], lang: 'gu' },  // Gujarati
+  { range: [0x0600, 0x06FF], lang: 'ar' },  // Arabic / Urdu
+];
+
+function detectLanguage(text) {
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    for (const { range, lang } of LANGUAGE_SCRIPTS) {
+      if (code >= range[0] && code <= range[1]) return lang;
+    }
+  }
+  return 'en';
+}
+
+
 const STOP_WORDS = new Set(["a","about","after","again","all","am","an","and","any","are","as","at","be","because","been","before","being","below","between","both","but","by","can","cannot","could","did","do","does","doing","down","during","each","few","for","from","further","had","has","have","having","he","her","here","hers","herself","him","himself","his","how","i","if","in","into","is","it","its","itself","me","more","most","my","myself","no","nor","not","of","off","on","once","only","or","other","our","ours","ourselves","out","over","own","same","she","should","so","some","such","than","that","the","their","theirs","them","themselves","then","there","these","they","this","those","through","to","too","under","until","up","very","was","we","were","what","when","where","which","while","who","whom","why","with","would","you","your","yours","yourself","yourselves","app","video","review","tutorial","guide","best","top"]);
 
 function loadEnvFile(filepath) {
@@ -152,6 +175,27 @@ function getExistingUrls() {
   return urls;
 }
 
+// Fetch a short excerpt from auto-generated captions using YouTube's public timedtext endpoint.
+// Returns the first ~300 chars of spoken text, or null if unavailable.
+async function fetchTranscriptExcerpt(videoId, lang = 'en') {
+  try {
+    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const events = data.events || [];
+    const text = events
+      .flatMap(e => (e.segs || []).map(s => s.utf8 || ''))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text) return null;
+    return text.slice(0, 300) + (text.length > 300 ? '…' : '');
+  } catch {
+    return null;
+  }
+}
+
 async function fetchYouTube(endpoint, params) {
   params.key = API_KEY;
   const url = new URL(`https://www.googleapis.com/youtube/v3/${endpoint}`);
@@ -235,18 +279,23 @@ async function run() {
         const uploadDate = snippet.publishedAt.split('T')[0];
         const scores = calculateScore(item, query);
 
-        // Save title to mine text for keyword expansion later
-        processedTitles.push(snippet.title.replace(/&amp;/g, '&'));
+        const title = snippet.title.replace(/&amp;/g, '&');
 
-        // Standardized pitch layout matching the SOP
-        const hook = `Great video on ${query.replace(/"/g, '')}!`;
-        const disclosure = `Full disclosure: I'm building PaySplit.`;
-        const pitch = `If you're on Android and want a modern app for tracking shared expenses with equal, exact, and percentage splits, feel free to try it: https://play.google.com/store/apps/details?id=com.hanushh.paysplit`;
-        const suggestedComment = `${hook} ${disclosure} ${pitch}`;
+        // Save title to mine text for keyword expansion later
+        processedTitles.push(title);
+
+        const detectedLang = detectLanguage(title);
+
+        // Fetch transcript so the LLM has context to write a personalized comment
+        const transcriptExcerpt = await fetchTranscriptExcerpt(videoId, detectedLang !== 'en' ? detectedLang : 'en');
+
+        const whyItFits = transcriptExcerpt
+          ? `Matched query: [${query}]. Transcript excerpt: "${transcriptExcerpt}"`
+          : `Matched query: [${query}]. No transcript available.`;
 
         const row = [
           escapeCsvField(snippet.channelTitle),
-          escapeCsvField(snippet.title.replace(/&amp;/g, '&')),
+          escapeCsvField(title),
           url,
           uploadDate,
           scores.priority,
@@ -257,9 +306,9 @@ async function run() {
           scores.android,
           scores.total,
           'not_commented', // status
-          escapeCsvField(`Matched keyword search: [${query}]. Explicitly pulled via recent API run.`), // why_it_fits
-          escapeCsvField(suggestedComment), // suggested_comment
-          escapeCsvField(`Automated API pull.`) // notes
+          escapeCsvField(whyItFits), // why_it_fits
+          '', // suggested_comment — filled in by LLM at review time
+          escapeCsvField(`Automated API pull. Detected language: ${detectedLang}.`) // notes
         ];
 
         newRows.push(row);

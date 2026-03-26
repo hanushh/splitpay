@@ -85,26 +85,36 @@ Requirements:
 
 The scraper fetches the top 5 most relevant videos per query published in the last 90 days, scores them, and appends new rows to `marketing/youtube/youtube-marketing-posts.csv`. It skips URLs already in the sheet.
 
-Use this as the default first pass, not the only pass.
+### 2. Generate personalized comments
 
-### 2. Add manual sourcing
+After the scraper finishes, read `marketing/youtube/youtube-marketing-posts.csv` and fill in `suggested_comment` for every row where it is empty.
 
-After the scraper run, manually look for videos the automated pass may miss:
-- older but still active videos with recent comments (especially evergreen Splitwise-alternative or roommate content)
-- strong behavioral or etiquette videos where the title is broad but the comment section shows real shared-expense pain
+For each such row, write a YouTube comment that:
+1. Opens with one sentence reacting to what the video specifically covers — use the transcript excerpt in `why_it_fits` to be concrete
+2. Discloses that you are building PaySplit — vary the phrasing naturally across comments
+3. Connects PaySplit to the exact pain in the video and includes the Play Store link: `https://play.google.com/store/apps/details?id=com.hanushh.paysplit`
+
+Write the comment in the language shown as `Detected language` in the `notes` field. If the video is in Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati, or Arabic — write in that language. English otherwise.
+
+Keep it to 3 sentences. No emoji. Transparent and helpful — never pose as a regular user. Invite honest feedback rather than pushing hard for installs.
+
+Save the updated CSV when done.
+
+### 3. Add manual sourcing
+
+After the scraper run, also manually look for videos it may have missed:
+- older but still active videos with recent comments
+- strong behavioral or etiquette videos where the title is broad but the comments show real shared-expense pain
 - app comparison or review videos from the past year that still have active threads
 
-### 3. Review auto-learned keywords
+### 4. Review auto-learned keywords
 
-After each run, the scraper performs N-gram analysis on surfaced video titles and appends candidate phrases to `youtube-queries.json`. These are starting points, not final decisions.
-
-Review new entries before the next run:
+After each run, the scraper appends N-gram candidate phrases to `youtube-queries.json`. Review these before the next run:
 - Keep phrases that map to a real PaySplit use case or describe an audience in a shared-expense situation.
-- Remove phrases that are too generic, off-topic, or heavily overlap with existing queries.
-- Prefer phrases that describe a situation or behavior ("roommate won't pay rent") over pure competitor names.
-- Note which new phrases consistently surface good leads versus noise, and prune accordingly.
+- Remove phrases that are too generic, off-topic, or overlap heavily with existing queries.
+- Prefer phrases that describe a situation or behavior over pure competitor names.
 
-### 4. Review candidate rows
+### 5. Review candidate rows
 
 Open [`marketing/youtube/youtube-marketing-posts.csv`](marketing/youtube/youtube-marketing-posts.csv) and review each unreviewed candidate.
 
