@@ -3,36 +3,77 @@
 const fs = require('fs');
 const path = require('path');
 
+const ENV_PATH = path.join(process.cwd(), '.env.development');
+loadEnvFile(ENV_PATH);
+
 const API_KEY = process.env.YOUTUBE_API_KEY;
 
 if (!API_KEY) {
-  console.error("❌ Error: Please set the YOUTUBE_API_KEY environment variable.");
-  console.error("Usage: YOUTUBE_API_KEY=your_key node marketing/youtube-marketing-scrape.js");
+  console.error("❌ Error: YOUTUBE_API_KEY was not found.");
+  console.error("Expected it in the environment or in .env.development at the project root.");
+  console.error("Usage: node marketing/youtube/youtube-marketing-scrape.js");
   process.exit(1);
 }
 
-const CSV_PATH = path.join(process.cwd(), 'marketing', 'youtube-marketing-posts.csv');
-const QUERIES_PATH = path.join(process.cwd(), 'marketing', 'youtube-queries.json');
+const CSV_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-marketing-posts.csv');
+const QUERIES_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-queries.json');
 
 // Strict freshness: only get videos from the last 90 days (per your priority feedback)
 const NINETY_DAYS_AGO = new Date();
 NINETY_DAYS_AGO.setDate(NINETY_DAYS_AGO.getDate() - 90);
 const PUBLISHED_AFTER = NINETY_DAYS_AGO.toISOString();
 
-// Create default queries file if it doesn't exist
 if (!fs.existsSync(QUERIES_PATH)) {
-  fs.writeFileSync(QUERIES_PATH, JSON.stringify([
-    '"Splitwise" alternative',
-    '"split bills" app',
-    'roommate expenses app',
-    'travel expense sharing'
-  ], null, 2));
+  console.error(`❌ Missing query file: ${QUERIES_PATH}`);
+  console.error('Create marketing/youtube/youtube-queries.json and manage search terms there.');
+  process.exit(1);
 }
 
 // Load active queries
 const QUERIES = JSON.parse(fs.readFileSync(QUERIES_PATH, 'utf8'));
 
+if (!Array.isArray(QUERIES) || QUERIES.length === 0) {
+  console.error(`❌ No YouTube queries found in ${QUERIES_PATH}`);
+  console.error('Add one or more search phrases to marketing/youtube/youtube-queries.json before running the scraper.');
+  process.exit(1);
+}
+
 const STOP_WORDS = new Set(["a","about","after","again","all","am","an","and","any","are","as","at","be","because","been","before","being","below","between","both","but","by","can","cannot","could","did","do","does","doing","down","during","each","few","for","from","further","had","has","have","having","he","her","here","hers","herself","him","himself","his","how","i","if","in","into","is","it","its","itself","me","more","most","my","myself","no","nor","not","of","off","on","once","only","or","other","our","ours","ourselves","out","over","own","same","she","should","so","some","such","than","that","the","their","theirs","them","themselves","then","there","these","they","this","those","through","to","too","under","until","up","very","was","we","were","what","when","where","which","while","who","whom","why","with","would","you","your","yours","yourself","yourselves","app","video","review","tutorial","guide","best","top"]);
+
+function loadEnvFile(filepath) {
+  if (!fs.existsSync(filepath)) {
+    return;
+  }
+
+  const envText = fs.readFileSync(filepath, 'utf8');
+
+  envText.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      return;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) {
+      return;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    if (!key || process.env[key] !== undefined) {
+      return;
+    }
+
+    let value = trimmed.slice(separatorIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    process.env[key] = value;
+  });
+}
 
 // Helper to extract top n-grams from successful titles
 function getTopPhrases(titles) {
