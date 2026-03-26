@@ -6,7 +6,7 @@ const os = require('os');
 const readline = require('readline');
 const { spawnSync } = require('child_process');
 
-const DEFAULT_CSV = path.join(process.cwd(), 'marketing', 'youtube-marketing-posts.csv');
+const DEFAULT_CSV = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-marketing-posts.csv');
 const REQUIRED_REVIEW_COLUMNS = ['reviewed', 'reviewed_at'];
 
 function parseArgs(argv) {
@@ -46,11 +46,11 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log(`Usage:
-  node marketing/youtube-marketing-review.js
-  node marketing/youtube-marketing-review.js --priority high
-  node marketing/youtube-marketing-review.js --index 2
-  node marketing/youtube-marketing-review.js --dry-run
-  node marketing/youtube-marketing-review.js --include-reviewed
+  node marketing/youtube/youtube-marketing-review.js
+  node marketing/youtube/youtube-marketing-review.js --priority high
+  node marketing/youtube/youtube-marketing-review.js --index 2
+  node marketing/youtube/youtube-marketing-review.js --dry-run
+  node marketing/youtube/youtube-marketing-review.js --include-reviewed
 
 What it does:
   - Reads marketing/youtube-marketing-posts.csv
