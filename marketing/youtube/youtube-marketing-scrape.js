@@ -110,13 +110,46 @@ function escapeCsvField(value) {
   return text;
 }
 
-// Get already tracked URLs so we don't duplicate
+// Split a single CSV line into fields, handling quoted fields correctly
+function splitCsvLine(line) {
+  const fields = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (c === ',' && !inQuotes) {
+      fields.push(field);
+      field = '';
+    } else {
+      field += c;
+    }
+  }
+  fields.push(field);
+  return fields;
+}
+
+// Get already tracked URLs from the video_url column only, so we don't duplicate
 function getExistingUrls() {
   if (!fs.existsSync(CSV_PATH)) return new Set();
-  const text = fs.readFileSync(CSV_PATH, 'utf8');
-  // Simple regex extraction for the URL column (assuming it's column 3, but this grabs any youtube link)
-  const matches = text.match(/https:\/\/www\.youtube\.com\/watch\?v=[\w-]+/g) || [];
-  return new Set(matches);
+  const lines = fs.readFileSync(CSV_PATH, 'utf8').split(/\r?\n/);
+  if (lines.length < 2) return new Set();
+
+  const header = splitCsvLine(lines[0]);
+  const urlColIndex = header.indexOf('video_url');
+  if (urlColIndex === -1) return new Set();
+
+  const urls = new Set();
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const fields = splitCsvLine(line);
+    const url = fields[urlColIndex];
+    if (url) urls.add(url.trim());
+  }
+  return urls;
 }
 
 async function fetchYouTube(endpoint, params) {
