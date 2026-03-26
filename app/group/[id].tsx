@@ -21,9 +21,9 @@ import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency } from '@/context/currency';
 import { useToast } from '@/context/toast';
 import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
+import { shareExpenseCsv } from '@/lib/export-csv';
 import { supabase } from '@/lib/supabase';
 import { APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
-import { shareExpenseCsv } from '@/lib/export-csv';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 
 const C = {
@@ -877,34 +877,6 @@ export default function GroupDetailScreen() {
               <Text style={s.errorText}>{actionError}</Text>
             ) : null}
 
-            {/* Export expenses as CSV */}
-            {expenses.length > 0 && (
-              <Pressable
-                style={({ pressed }: { pressed: boolean }) => [
-                  s.sheetRow,
-                  pressed && { opacity: 0.7 },
-                ]}
-                onPress={handleExportCsv}
-                disabled={exporting}
-              >
-                <View
-                  style={[
-                    s.sheetIconWrap,
-                    { backgroundColor: 'rgba(23,232,107,0.12)' },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="file-download"
-                    size={20}
-                    color={C.primary}
-                  />
-                </View>
-                <Text style={s.sheetRowText}>
-                  {exporting ? t('group.exporting') : t('group.exportCsv')}
-                </Text>
-              </Pressable>
-            )}
-
             {isCreator ? (
               <>
                 {group?.archived ? (
@@ -952,6 +924,32 @@ export default function GroupDetailScreen() {
                       />
                     </View>
                     <Text style={s.sheetRowText}>{t('group.archiveGroup')}</Text>
+                  </Pressable>
+                )}
+                {expenses.length > 0 && (
+                  <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [
+                      s.sheetRow,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                    onPress={handleExportCsv}
+                    disabled={exporting}
+                  >
+                    <View
+                      style={[
+                        s.sheetIconWrap,
+                        { backgroundColor: 'rgba(23,232,107,0.12)' },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="file-download"
+                        size={20}
+                        color={C.primary}
+                      />
+                    </View>
+                    <Text style={s.sheetRowText}>
+                      {exporting ? t('group.exporting') : t('group.exportCsv')}
+                    </Text>
                   </Pressable>
                 )}
                 <Pressable
