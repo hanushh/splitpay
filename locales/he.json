@@ -201,6 +201,8 @@
   "group.deleteWarning": "פעולה זו תמחק לצמיתות את {{name}} ואת כל הוצאותיה. לא ניתן לבטל פעולה זו.",
   "group.deleting": "מוחק…",
   "group.expenses": "הוצאות",
+  "group.exportCsv": "ייצוא כ-CSV",
+  "group.exporting": "מייצא…",
   "group.leaveGroup": "עזוב קבוצה",
   "group.leaveTitle": "עזוב קבוצה",
   "group.leaveWarning": "תוסר מ-{{name}}. תוכל להצטרף שוב דרך קישור הזמנה.",

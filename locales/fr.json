@@ -201,6 +201,8 @@
   "group.deleteWarning": "Ceci supprimera définitivement {{name}} et toutes ses dépenses. Cette action est irréversible.",
   "group.deleting": "Suppression…",
   "group.expenses": "Dépenses",
+  "group.exportCsv": "Exporter en CSV",
+  "group.exporting": "Exportation…",
   "group.leaveGroup": "Quitter le groupe",
   "group.leaveTitle": "Quitter le groupe",
   "group.leaveWarning": "Vous serez retiré de {{name}}. Vous pouvez rejoindre de nouveau via un lien d'invitation.",

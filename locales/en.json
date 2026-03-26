@@ -198,6 +198,8 @@
   "group.deleteWarning": "This will permanently delete {{name}} and all its expenses. This cannot be undone.",
   "group.deleting": "Deleting…",
   "group.expenses": "Expenses",
+  "group.exportCsv": "Export as CSV",
+  "group.exporting": "Exporting…",
   "group.leaveGroup": "Leave Group",
   "group.leaveTitle": "Leave Group",
   "group.leaveWarning": "You will be removed from {{name}}. You can rejoin via an invite link.",

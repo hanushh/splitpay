@@ -201,6 +201,8 @@
   "group.deleteWarning": "Bu işlem {{name}} grubunu ve tüm harcamaları kalıcı olarak silecek. Bu geri alınamaz.",
   "group.deleting": "Siliniyor…",
   "group.expenses": "Harcamalar",
+  "group.exportCsv": "CSV olarak dışa aktar",
+  "group.exporting": "Dışa aktarılıyor…",
   "group.leaveGroup": "Gruptan Çık",
   "group.leaveTitle": "Gruptan Çık",
   "group.leaveWarning": "{{name}} grubundan çıkarılacaksın. Davet bağlantısıyla tekrar katılabilirsin.",

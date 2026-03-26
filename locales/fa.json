@@ -201,6 +201,8 @@
   "group.deleteWarning": "این کار {{name}} و تمام هزینه‌هایش را به‌طور دائمی حذف می‌کند. این عمل قابل بازگشت نیست.",
   "group.deleting": "در حال حذف…",
   "group.expenses": "هزینه‌ها",
+  "group.exportCsv": "خروجی CSV",
+  "group.exporting": "در حال خروجی‌گیری…",
   "group.leaveGroup": "خروج از گروه",
   "group.leaveTitle": "خروج از گروه",
   "group.leaveWarning": "از {{name}} حذف خواهید شد. می‌توانید از طریق لینک دعوت مجدداً بپیوندید.",

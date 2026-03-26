@@ -201,6 +201,8 @@
   "group.deleteWarning": "Dies löscht {{name}} und alle zugehörigen Ausgaben dauerhaft. Dies kann nicht rückgängig gemacht werden.",
   "group.deleting": "Löschen…",
   "group.expenses": "Ausgaben",
+  "group.exportCsv": "Als CSV exportieren",
+  "group.exporting": "Exportieren…",
   "group.leaveGroup": "Gruppe verlassen",
   "group.leaveTitle": "Gruppe verlassen",
   "group.leaveWarning": "Du wirst aus {{name}} entfernt. Du kannst über einen Einladungslink wieder beitreten.",
