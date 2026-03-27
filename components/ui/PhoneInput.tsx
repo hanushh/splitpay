@@ -85,9 +85,7 @@ function parseE164(e164: string): { country: Country; localDigits: string } {
   for (const c of PARSE_ORDER) {
     const dialDigits = c.dial.slice(1);
     if (stripped.startsWith(dialDigits)) {
-      const country =
-        c.dial === '+1' ? COUNTRIES.find((x) => x.code === 'US')! : c;
-      return { country, localDigits: stripped.slice(dialDigits.length) };
+      return { country: c, localDigits: stripped.slice(dialDigits.length) };
     }
   }
   return { country: PINNED, localDigits: stripped };

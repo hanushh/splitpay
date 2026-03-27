@@ -24,11 +24,20 @@ export default function AuthCallbackScreen() {
         return;
       }
 
-      if (params.code) {
-        await supabase.auth.exchangeCodeForSession(params.code);
+      try {
+        if (params.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+          if (error) {
+            console.error('[AuthCallback] Code exchange failed:', error.message);
+            router.replace('/auth/sign-in');
+            return;
+          }
+        }
+        router.replace('/(tabs)');
+      } catch (err) {
+        console.error('[AuthCallback] Unexpected error:', err);
+        router.replace('/auth/sign-in');
       }
-
-      router.replace('/(tabs)');
     };
 
     handleCallback();
