@@ -46,7 +46,14 @@ app-example
 
 # generated native folders
 /ios
-/android
+# android/ is now committed as bare workflow (expo prebuild output)
+# Ignore only sensitive/local files within android/
+/android/local.properties
+/android/app/google-services.json
+/android/.gradle
+/android/app/.cxx
+/android/app/build
+/android/build
 
 .env*
 
