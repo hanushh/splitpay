@@ -100,6 +100,11 @@ function RootNavigator() {
           name="settle-up"
           options={{ headerShown: false, presentation: 'modal' }}
         />
+        <Stack.Screen name="recurring-payments" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="create-recurring-payment"
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
         <Stack.Screen name="invite" options={{ headerShown: false }} />
         <Stack.Screen
           name="modal"

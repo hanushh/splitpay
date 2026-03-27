@@ -582,7 +582,7 @@ export default function GroupDetailScreen() {
             <Text style={s.actionSecondaryText}>{t('group.balances')}</Text>
           </Pressable>
         </View>
-        <View style={s.actionsBottom}>
+        <View style={[s.actionsBottom, { flexDirection: 'row', gap: 12 }]}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [
               s.actionBtn,
@@ -600,6 +600,23 @@ export default function GroupDetailScreen() {
           >
             <MaterialIcons name="person-add" size={20} color={C.white} />
             <Text style={s.actionSecondaryText}>{t('group.addMember')}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [
+              s.actionBtn,
+              s.actionSecondary,
+              { flex: 1 },
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() =>
+              router.push({
+                pathname: '/recurring-payments',
+                params: { groupId: id, groupName: group.name },
+              })
+            }
+          >
+            <MaterialIcons name="repeat" size={20} color={C.white} />
+            <Text style={s.actionSecondaryText}>{t('group.recurring')}</Text>
           </Pressable>
         </View>
 
