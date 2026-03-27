@@ -273,6 +273,7 @@
   "invite.selected": "தேர்ந்தெடுக்கப்பட்டது",
   "invite.shareInviteLink": "அழைப்பு இணைப்பு{{plural}} பகிர்",
   "invite.shareInviteSub": "அவர்கள் \"{{groupName}}\" இல் சேர அழைப்பு இணைப்பைப் பகிரவும்.",
+  "invite.shareInviteSub_plural": "அவர்கள் \"{{groupName}}\" இல் சேர அழைப்பு இணைப்புகளைப் பகிரவும்.",
   "invite.title": "உறுப்பினர்களை சேர்",
   "memberPicker.add": "சேர்",
   "memberPicker.contact": "தொடர்பு",

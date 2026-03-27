@@ -273,6 +273,7 @@
   "invite.selected": "منتخب",
   "invite.shareInviteLink": "دعوتی لنک{{plural}} شیئر کریں",
   "invite.shareInviteSub": "دعوت کا لنک شیئر کریں تاکہ وہ \"{{groupName}}\" میں شامل ہو سکیں۔",
+  "invite.shareInviteSub_plural": "دعوت کے لنکس شیئر کریں تاکہ وہ \"{{groupName}}\" میں شامل ہو سکیں۔",
   "invite.title": "ارکان شامل کریں",
   "memberPicker.add": "شامل کریں",
   "memberPicker.contact": "رابطہ",

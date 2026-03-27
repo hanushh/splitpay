@@ -273,6 +273,7 @@
   "invite.selected": "ఎంపిక చేయబడింది",
   "invite.shareInviteLink": "ఆహ్వాన లింక్{{plural}} పంచుకోండి",
   "invite.shareInviteSub": "వారు \"{{groupName}}\" లో చేరడానికి ఆహ్వాన లింక్‌ను షేర్ చేయండి.",
+  "invite.shareInviteSub_plural": "వారు \"{{groupName}}\" లో చేరడానికి ఆహ్వాన లింక్‌లను షేర్ చేయండి.",
   "invite.title": "సభ్యులను జోడించండి",
   "memberPicker.add": "జోడించండి",
   "memberPicker.contact": "కాంటాక్ట్",

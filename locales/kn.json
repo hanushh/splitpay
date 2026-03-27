@@ -273,6 +273,7 @@
   "invite.selected": "ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ",
   "invite.shareInviteLink": "ಆಹ್ವಾನ ಲಿಂಕ್{{plural}} ಹಂಚಿ",
   "invite.shareInviteSub": "ಅವರು \"{{groupName}}\" ಗೆ ಸೇರಲು ಆಹ್ವಾನ ಲಿಂಕ್ ಹಂಚಿಕೊಳ್ಳಿ.",
+  "invite.shareInviteSub_plural": "ಅವರು \"{{groupName}}\" ಗೆ ಸೇರಲು ಆಹ್ವಾನ ಲಿಂಕ್‌ಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಿ.",
   "invite.title": "ಸದಸ್ಯರನ್ನು ಸೇರಿಸಿ",
   "memberPicker.add": "ಸೇರಿಸಿ",
   "memberPicker.contact": "ಸಂಪರ್ಕ",

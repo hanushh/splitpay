@@ -134,6 +134,12 @@ export function MemberSearchPicker({
           );
         }
         setSearchLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[MemberSearchPicker] Search rejected:', err);
+        setSearchResults([]);
+        setSearchLoading(false);
       });
     return () => { cancelled = true; };
   }, [debouncedQuery]);

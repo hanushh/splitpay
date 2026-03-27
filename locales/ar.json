@@ -273,6 +273,7 @@
   "invite.selected": "محدد",
   "invite.shareInviteLink": "مشاركة رابط الدعوة{{plural}}",
   "invite.shareInviteSub": "شارك رابط الدعوة ليتمكنوا من الانضمام إلى \"{{groupName}}\".",
+  "invite.shareInviteSub_plural": "شارك روابط الدعوة ليتمكنوا من الانضمام إلى \"{{groupName}}\".",
   "invite.title": "إضافة أعضاء",
   "memberPicker.add": "إضافة",
   "memberPicker.contact": "جهة اتصال",

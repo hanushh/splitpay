@@ -273,6 +273,7 @@
   "invite.selected": "Selecionado",
   "invite.shareInviteLink": "Compartilhar link de convite{{plural}}",
   "invite.shareInviteSub": "Compartilhe o link de convite para que possam entrar em \"{{groupName}}\".",
+  "invite.shareInviteSub_plural": "Compartilhe os links de convite para que possam entrar em \"{{groupName}}\".",
   "invite.title": "Adicionar membros",
   "memberPicker.add": "Adicionar",
   "memberPicker.contact": "Contato",

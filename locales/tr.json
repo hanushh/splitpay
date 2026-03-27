@@ -273,6 +273,7 @@
   "invite.selected": "Seçili",
   "invite.shareInviteLink": "Davet bağlantısı{{plural}} paylaş",
   "invite.shareInviteSub": "\"{{groupName}}\" grubuna katılabilmeleri için davet bağlantısını paylaşın.",
+  "invite.shareInviteSub_plural": "\"{{groupName}}\" grubuna katılabilmeleri için davet bağlantılarını paylaşın.",
   "invite.title": "Üye ekle",
   "memberPicker.add": "Ekle",
   "memberPicker.contact": "Kişi",

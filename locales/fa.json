@@ -273,6 +273,7 @@
   "invite.selected": "انتخاب شده",
   "invite.shareInviteLink": "اشتراک‌گذاری لینک دعوت{{plural}}",
   "invite.shareInviteSub": "لینک دعوت را به اشتراک بگذارید تا بتوانند به \"{{groupName}}\" بپیوندند.",
+  "invite.shareInviteSub_plural": "لینک‌های دعوت را به اشتراک بگذارید تا بتوانند به \"{{groupName}}\" بپیوندند.",
   "invite.title": "افزودن اعضا",
   "memberPicker.add": "افزودن",
   "memberPicker.contact": "مخاطب",

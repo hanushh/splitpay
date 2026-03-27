@@ -273,6 +273,7 @@
   "invite.selected": "निवडलेले",
   "invite.shareInviteLink": "आमंत्रण दुवा{{plural}} शेअर करा",
   "invite.shareInviteSub": "आमंत्रण लिंक शेअर करा जेणेकरून ते \"{{groupName}}\" मध्ये सामील होऊ शकतील.",
+  "invite.shareInviteSub_plural": "आमंत्रण लिंक शेअर करा जेणेकरून ते \"{{groupName}}\" मध्ये सामील होऊ शकतील.",
   "invite.title": "सदस्य जोडा",
   "memberPicker.add": "जोडा",
   "memberPicker.contact": "संपर्क",

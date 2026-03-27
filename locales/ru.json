@@ -273,6 +273,7 @@
   "invite.selected": "Выбрано",
   "invite.shareInviteLink": "Поделиться ссылкой-приглашением{{plural}}",
   "invite.shareInviteSub": "Поделитесь ссылкой-приглашением, чтобы они присоединились к \"{{groupName}}\".",
+  "invite.shareInviteSub_plural": "Поделитесь ссылками-приглашениями, чтобы они присоединились к \"{{groupName}}\".",
   "invite.title": "Добавить участников",
   "memberPicker.add": "Добавить",
   "memberPicker.contact": "Контакт",
