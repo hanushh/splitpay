@@ -62,6 +62,7 @@ What it does:
 What it does not do:
   - It does not log into YouTube
   - It does not submit comments for you
+  - It does not generate drafts; run youtube-comment-drafter.js first if suggested_comment is blank
   - It leaves the final post decision and edits to you
 `);
 }

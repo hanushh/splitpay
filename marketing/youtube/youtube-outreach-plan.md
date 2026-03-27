@@ -26,7 +26,7 @@ These viewers are not shopping for software yet. A comment that says "I built so
 
 ## Search Buckets
 
-Use multiple search buckets, not just app-intent keywords. Keep the active list in [`marketing/youtube/youtube-queries.json`](marketing/youtube/youtube-queries.json) — do not hard-code evolving search strategy into the scraper.
+Use multiple search buckets, not just app-intent keywords. Keep the main family structure in [`marketing/youtube/youtube-query-families.json`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-query-families.json). Use [`marketing/youtube/youtube-queries.json`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-queries.json) only for manual override queries or short-lived experiments — not as the main brain of the system.
 
 ### 1. Behavioral and etiquette ← highest-value adjacency
 - `how to handle money with roommates`
@@ -79,24 +79,38 @@ Use multiple search buckets, not just app-intent keywords. Keep the active list 
 node marketing/youtube/youtube-marketing-scrape.js
 ```
 
+Then run:
+
+```bash
+node marketing/youtube/youtube-comment-drafter.js
+```
+
 Requirements:
 - `YOUTUBE_API_KEY` must be set in `.env.development` at the project root
-- search terms must exist in `marketing/youtube/youtube-queries.json`
+- query families must exist in [`marketing/youtube/youtube-query-families.json`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-query-families.json)
+- optional manual overrides may exist in [`marketing/youtube/youtube-queries.json`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-queries.json)
 
-The scraper fetches the top 5 most relevant videos per query published in the last 90 days, scores them, and appends new rows to `marketing/youtube/youtube-marketing-posts.csv`. It skips URLs already in the sheet.
+The scraper rotates through a small set of prioritized query families each run instead of replaying the full keyword list daily. It fetches the top 5 most relevant videos per selected query published in the last 90 days, scores them, and appends new rows to [`marketing/youtube/youtube-marketing-posts.csv`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-marketing-posts.csv). It skips URLs already in the sheet.
 
-### 2. Generate personalized comments
+### 2. Generate and review AI-drafted comments
 
-After the scraper finishes, read `marketing/youtube/youtube-marketing-posts.csv` and fill in `suggested_comment` for every row where it is empty.
+After the scraper finishes, run `node marketing/youtube/youtube-comment-drafter.js`. The drafter reads `marketing/youtube/youtube-marketing-posts.csv` and fills `suggested_comment` for rows that still have an empty comment cell.
 
-For each such row, write a YouTube comment that:
-1. Opens with one sentence reacting to what the video specifically covers — use the transcript excerpt in `why_it_fits` to be concrete
-2. Discloses that you are building PaySplit — vary the phrasing naturally across comments
+For each row the drafter:
+1. Fetches the full video transcript from YouTube's timedtext API
+2. Sends it to Claude Haiku with a structured prompt to write a 3-sentence comment
+3. Falls back to a template-based comment if no transcript is available or the AI call fails
+
+The AI generates comments in the video's detected language automatically (Hindi, Tamil, Telugu, etc. are handled). You do not need to localize manually.
+
+Use the generated draft as the starting point, not the final version. Review each draft to confirm it:
+1. Opens with a specific reference to something the speaker actually said — not the title, not a generic hook
+2. Discloses that you are building PaySplit — the phrasing is varied automatically but adjust if it sounds off
 3. Connects PaySplit to the exact pain in the video and includes the Play Store link: `https://play.google.com/store/apps/details?id=com.hanushh.paysplit`
 
-Write the comment in the language shown as `Detected language` in the `notes` field. If the video is in Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati, or Arabic — write in that language. English otherwise.
-
 Keep it to 3 sentences. No emoji. Transparent and helpful — never pose as a regular user. Invite honest feedback rather than pushing hard for installs.
+
+To regenerate all drafts (e.g. after prompt changes): `node marketing/youtube/youtube-comment-drafter.js --overwrite`
 
 Save the updated CSV when done.
 
@@ -109,7 +123,7 @@ After the scraper run, also manually look for videos it may have missed:
 
 ### 4. Review auto-learned keywords
 
-After each run, the scraper appends N-gram candidate phrases to `youtube-queries.json`. Review these before the next run:
+After each run, the scraper may append candidate phrases to [`marketing/youtube/youtube-queries.json`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-queries.json). Review these before the next run:
 - Keep phrases that map to a real PaySplit use case or describe an audience in a shared-expense situation.
 - Remove phrases that are too generic, off-topic, or overlap heavily with existing queries.
 - Prefer phrases that describe a situation or behavior over pure competitor names.
@@ -200,7 +214,7 @@ Execution rule:
 
 Every comment should do three things in this order:
 
-1. **React to the actual video** — one sentence of useful observation or acknowledgment of the specific pain the video covers. Not the search query. The video.
+1. **React to the actual video** — one sentence of useful observation or thought based on what the speaker actually says in the transcript. Not the search query. The video.
 2. **Disclose affiliation** — vary the phrasing so it does not feel copy-pasted. Examples: "Full disclosure: I'm building PaySplit for this exact use case", "I actually built an app called PaySplit after running into this problem", "Developer of PaySplit here".
 3. **Connect to the use case** — one sentence linking PaySplit to their specific situation, with the Android link.
 
@@ -249,7 +263,7 @@ Choose **comments** when:
 
 ## Tracking
 
-Use [`marketing/youtube/youtube-marketing-posts.csv`](marketing/youtube/youtube-marketing-posts.csv) as the system of record. Every sourced video — posted or not — should have a row.
+Use [`marketing/youtube/youtube-marketing-posts.csv`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-marketing-posts.csv) as the system of record. Every sourced video — posted or not — should have a row.
 
 ### CSV columns
 

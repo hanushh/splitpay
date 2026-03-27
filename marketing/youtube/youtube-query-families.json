@@ -1,0 +1,91 @@
+[
+  {
+    "id": "behavior_roommates",
+    "bucket": "behavior",
+    "priority": 5,
+    "queries": [
+      "how to handle money with roommates",
+      "asking roommates for money",
+      "roommate not paying their share",
+      "how to talk about bills with roommates",
+      "roommate money boundaries"
+    ]
+  },
+  {
+    "id": "behavior_travel",
+    "bucket": "behavior",
+    "priority": 5,
+    "queries": [
+      "how to avoid money fights on a trip",
+      "group trip who pays for what",
+      "splitting costs on vacation",
+      "how to split money with friends without awkwardness",
+      "friends trip money issues"
+    ]
+  },
+  {
+    "id": "direct_alternatives",
+    "bucket": "direct_intent",
+    "priority": 4,
+    "queries": [
+      "\"Splitwise\" alternative",
+      "splitwise alternative",
+      "free splitwise alternative"
+    ]
+  },
+  {
+    "id": "direct_app_intent",
+    "bucket": "direct_intent",
+    "priority": 4,
+    "queries": [
+      "\"split bills\" app",
+      "expense sharing app",
+      "bill splitting app review",
+      "roommate expenses app"
+    ]
+  },
+  {
+    "id": "roommate_life",
+    "bucket": "roommate",
+    "priority": 3,
+    "queries": [
+      "split rent with roommates",
+      "utilities with roommates",
+      "shared house expenses",
+      "roommate budget tips",
+      "how we split bills at home"
+    ]
+  },
+  {
+    "id": "student_hostel",
+    "bucket": "student",
+    "priority": 3,
+    "queries": [
+      "hostel expenses with friends",
+      "college hostel budget",
+      "student budget with roommates",
+      "moving in with roommates checklist"
+    ]
+  },
+  {
+    "id": "travel_budget",
+    "bucket": "travel",
+    "priority": 3,
+    "queries": [
+      "group trip budget",
+      "friends trip expenses",
+      "travel etiquette with friends money",
+      "travel expense sharing",
+      "digital nomad travel budget"
+    ]
+  },
+  {
+    "id": "city_movein",
+    "bucket": "general",
+    "priority": 2,
+    "queries": [
+      "moving to a new city roommates",
+      "city life roommate expenses"
+    ]
+  }
+]

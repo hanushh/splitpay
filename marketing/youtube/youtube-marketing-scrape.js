@@ -17,6 +17,10 @@ if (!API_KEY) {
 
 const CSV_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-marketing-posts.csv');
 const QUERIES_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-queries.json');
+const QUERY_FAMILIES_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-query-families.json');
+const QUERY_STATE_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-query-state.json');
+const QUERY_COOLDOWN_HOURS = 72;
+const MAX_QUERIES_PER_RUN = 8;
 
 // Strict freshness: only get videos from the last 90 days (per your priority feedback)
 const NINETY_DAYS_AGO = new Date();
@@ -37,6 +41,10 @@ if (!Array.isArray(QUERIES) || QUERIES.length === 0) {
   console.error('Add one or more search phrases to marketing/youtube/youtube-queries.json before running the scraper.');
   process.exit(1);
 }
+
+const QUERY_FAMILIES = fs.existsSync(QUERY_FAMILIES_PATH)
+  ? JSON.parse(fs.readFileSync(QUERY_FAMILIES_PATH, 'utf8'))
+  : [];
 
 // Detect language from Unicode script ranges. Returns a BCP-47 language code or 'en'.
 const LANGUAGE_SCRIPTS = [
@@ -62,6 +70,287 @@ function detectLanguage(text) {
 
 
 const STOP_WORDS = new Set(["a","about","after","again","all","am","an","and","any","are","as","at","be","because","been","before","being","below","between","both","but","by","can","cannot","could","did","do","does","doing","down","during","each","few","for","from","further","had","has","have","having","he","her","here","hers","herself","him","himself","his","how","i","if","in","into","is","it","its","itself","me","more","most","my","myself","no","nor","not","of","off","on","once","only","or","other","our","ours","ourselves","out","over","own","same","she","should","so","some","such","than","that","the","their","theirs","them","themselves","then","there","these","they","this","those","through","to","too","under","until","up","very","was","we","were","what","when","where","which","while","who","whom","why","with","would","you","your","yours","yourself","yourselves","app","video","review","tutorial","guide","best","top"]);
+const KEYWORD_ANCHORS = new Set([
+  'split',
+  'splitting',
+  'bill',
+  'bills',
+  'expense',
+  'expenses',
+  'rent',
+  'roommate',
+  'roommates',
+  'utilities',
+  'shared',
+  'trip',
+  'travel',
+  'friends',
+  'budget',
+  'hostel',
+  'flatmate',
+  'flatmates',
+  'vacation',
+  'pay',
+  'paying',
+]);
+
+function normalizeQuery(query) {
+  return String(query || '')
+    .toLowerCase()
+    .replace(/["']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function dedupeQueries(queries) {
+  const uniqueQueries = [];
+  const seen = new Map();
+
+  for (const rawQuery of queries) {
+    const query = String(rawQuery || '').trim();
+    if (!query) {
+      continue;
+    }
+
+    const normalized = normalizeQuery(query);
+    if (seen.has(normalized)) {
+      console.log(`⏭️  Skipping duplicate query: ${query} (same as ${seen.get(normalized)})`);
+      continue;
+    }
+
+    seen.set(normalized, query);
+    uniqueQueries.push(query);
+  }
+
+  return { uniqueQueries, seenNormalized: seen };
+}
+
+function buildQueryPool(manualQueries, families) {
+  const pool = [];
+  const seen = new Set();
+
+  for (const family of families) {
+    const familyQueries = Array.isArray(family.queries) ? family.queries : [];
+    for (const rawQuery of familyQueries) {
+      const query = String(rawQuery || '').trim();
+      if (!query) {
+        continue;
+      }
+
+      const normalized = normalizeQuery(query);
+      if (seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      pool.push({
+        query,
+        familyId: family.id || 'unknown',
+        familyPriority: Number(family.priority || 0),
+        bucket: family.bucket || getQueryBucket(query),
+        source: 'family',
+      });
+    }
+  }
+
+  for (const rawQuery of manualQueries) {
+    const query = String(rawQuery || '').trim();
+    if (!query) {
+      continue;
+    }
+
+    const normalized = normalizeQuery(query);
+    if (seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    pool.push({
+      query,
+      familyId: 'manual_overrides',
+      familyPriority: 1,
+      bucket: getQueryBucket(query),
+      source: 'manual',
+    });
+  }
+
+  return pool;
+}
+
+function getQueryBucket(query) {
+  const normalized = normalizeQuery(query);
+
+  if (
+    normalized.includes('splitwise') ||
+    normalized.includes('split bills') ||
+    normalized.includes('expense sharing') ||
+    normalized.includes('bill splitting')
+  ) {
+    return 'direct_intent';
+  }
+
+  if (
+    normalized.includes('roommate') ||
+    normalized.includes('rent') ||
+    normalized.includes('utilities') ||
+    normalized.includes('shared house') ||
+    normalized.includes('flatmate')
+  ) {
+    return 'roommate';
+  }
+
+  if (
+    normalized.includes('trip') ||
+    normalized.includes('travel') ||
+    normalized.includes('vacation') ||
+    normalized.includes('nomad')
+  ) {
+    return 'travel';
+  }
+
+  if (
+    normalized.includes('hostel') ||
+    normalized.includes('student') ||
+    normalized.includes('college')
+  ) {
+    return 'student';
+  }
+
+  if (
+    normalized.includes('awkward') ||
+    normalized.includes('etiquette') ||
+    normalized.includes('money fights') ||
+    normalized.includes('talk about bills') ||
+    normalized.includes('asking roommates for money') ||
+    normalized.includes('not paying their share')
+  ) {
+    return 'behavior';
+  }
+
+  return 'general';
+}
+
+function getQueryPriority(query, state) {
+  const normalized = normalizeQuery(query);
+  const entry = state[normalized];
+
+  if (!entry) {
+    return 1000;
+  }
+
+  const newRowBoost = Number(entry.total_new_rows || 0) * 5;
+  const avgBoost = Number(entry.avg_new_rows || 0) * 10;
+  const staleBoost = Math.min(hoursSince(entry.last_checked_at), 24 * 14) / 24;
+  const penalty =
+    entry.last_run_status === 'no_results' ? 8 :
+    entry.last_run_status === 'quotaExceeded' ? 3 :
+    entry.last_run_status && entry.last_run_status !== 'ok' ? 5 :
+    0;
+
+  return newRowBoost + avgBoost + staleBoost - penalty;
+}
+
+function selectQueriesForRun(queryPool, state) {
+  const familyMap = new Map();
+
+  for (const candidate of queryPool) {
+    const { query, familyId } = candidate;
+    if (shouldSkipQueryByCooldown(query, state)) {
+      const entry = state[normalizeQuery(query)];
+      console.log(`⏭️  Skipping recently checked query: ${query} (last checked ${entry.last_checked_at})`);
+      continue;
+    }
+
+    if (!familyMap.has(familyId)) {
+      familyMap.set(familyId, []);
+    }
+    familyMap.get(familyId).push(candidate);
+  }
+
+  for (const familyQueries of familyMap.values()) {
+    familyQueries.sort((a, b) => {
+      const familyDelta = Number(b.familyPriority || 0) - Number(a.familyPriority || 0);
+      if (familyDelta !== 0) {
+        return familyDelta;
+      }
+      return getQueryPriority(b.query, state) - getQueryPriority(a.query, state);
+    });
+  }
+
+  const selected = [];
+  const families = Array.from(familyMap.keys()).sort((a, b) => {
+    const aBest = familyMap.get(a)?.[0];
+    const bBest = familyMap.get(b)?.[0];
+    const familyDelta = Number(bBest?.familyPriority || 0) - Number(aBest?.familyPriority || 0);
+    if (familyDelta !== 0) {
+      return familyDelta;
+    }
+    return getQueryPriority(bBest?.query, state) - getQueryPriority(aBest?.query, state);
+  });
+
+  while (selected.length < MAX_QUERIES_PER_RUN) {
+    let addedInPass = false;
+
+    for (const familyId of families) {
+      const familyQueries = familyMap.get(familyId);
+      if (!familyQueries || familyQueries.length === 0) {
+        continue;
+      }
+
+      selected.push(familyQueries.shift());
+      addedInPass = true;
+      if (selected.length >= MAX_QUERIES_PER_RUN) {
+        break;
+      }
+    }
+
+    if (!addedInPass) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+function loadQueryState() {
+  if (!fs.existsSync(QUERY_STATE_PATH)) {
+    return {};
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(QUERY_STATE_PATH, 'utf8'));
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveQueryState(state) {
+  fs.writeFileSync(QUERY_STATE_PATH, JSON.stringify(state, null, 2) + '\n', 'utf8');
+}
+
+function hoursSince(timestamp) {
+  if (!timestamp) {
+    return Infinity;
+  }
+
+  const parsed = Date.parse(timestamp);
+  if (Number.isNaN(parsed)) {
+    return Infinity;
+  }
+
+  return (Date.now() - parsed) / (1000 * 60 * 60);
+}
+
+function shouldSkipQueryByCooldown(query, state) {
+  const normalized = normalizeQuery(query);
+  const entry = state[normalized];
+  if (!entry || !entry.last_checked_at) {
+    return false;
+  }
+
+  return hoursSince(entry.last_checked_at) < QUERY_COOLDOWN_HOURS;
+}
 
 function loadEnvFile(filepath) {
   if (!fs.existsSync(filepath)) {
@@ -119,7 +408,15 @@ function getTopPhrases(titles) {
   // Sort by highest frequency and return phrases appearing >1 time
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
-    .filter(s => s[1] > 1 && s[0].length > 4)
+    .filter(s => {
+      const phrase = s[0];
+      const words = phrase.split(/\s+/);
+      return (
+        s[1] > 1 &&
+        phrase.length > 4 &&
+        words.some((word) => KEYWORD_ANCHORS.has(word))
+      );
+    })
     .slice(0, 3) // Take the top 3 best new phrases
     .map(s => s[0]);
 }
@@ -205,7 +502,10 @@ async function fetchYouTube(endpoint, params) {
   const data = await res.json();
   if (!res.ok) {
     console.error("❌ YouTube API Error Response:", JSON.stringify(data, null, 2));
-    throw new Error(`YouTube API Error: ${data.error?.message || res.statusText}`);
+    const error = new Error(`YouTube API Error: ${data.error?.message || res.statusText}`);
+    error.reason = data.error?.errors?.[0]?.reason || null;
+    error.status = res.status;
+    throw error;
   }
   return data;
 }
@@ -247,9 +547,22 @@ async function run() {
   const existingUrls = getExistingUrls();
   const newRows = [];
   const processedTitles = [];
+  const { uniqueQueries, seenNormalized } = dedupeQueries(QUERIES);
+  const queryPool = buildQueryPool(uniqueQueries, QUERY_FAMILIES);
+  const queryState = loadQueryState();
+  let quotaExceeded = false;
+  const queriesForRun = selectQueriesForRun(queryPool, queryState);
 
-  for (const query of QUERIES) {
-    console.log(`\n🔍 Searching: ${query}`);
+  console.log(`Running ${queriesForRun.length} query bucket(s) this pass (max ${MAX_QUERIES_PER_RUN}).`);
+
+  for (const queryCandidate of queriesForRun) {
+    const query = queryCandidate.query;
+    if (quotaExceeded) {
+      console.log(`⏹️  Stopping remaining queries after quota exhaustion.`);
+      break;
+    }
+
+    console.log(`\n🔍 Searching: ${query} [family=${queryCandidate.familyId}]`);
     try {
       // 1. Search for videos
       const searchData = await fetchYouTube('search', {
@@ -263,9 +576,15 @@ async function run() {
 
       if (!searchData.items || searchData.items.length === 0) {
         console.log(`  No recent videos found.`);
+        queryState[normalizeQuery(query)] = {
+          last_checked_at: new Date().toISOString(),
+          last_run_status: 'no_results',
+          last_new_rows: 0,
+        };
         continue;
       }
 
+      let addedForQuery = 0;
       for (const item of searchData.items) {
         const videoId = item.id.videoId;
         const url = `https://www.youtube.com/watch?v=${videoId}`;
@@ -282,7 +601,9 @@ async function run() {
         const title = snippet.title.replace(/&amp;/g, '&');
 
         // Save title to mine text for keyword expansion later
-        processedTitles.push(title);
+        if (scores.priority === 'high' || (scores.fit >= 5 && scores.intent >= 4)) {
+          processedTitles.push(title);
+        }
 
         const detectedLang = detectLanguage(title);
 
@@ -307,15 +628,46 @@ async function run() {
           scores.total,
           'not_commented', // status
           escapeCsvField(whyItFits), // why_it_fits
-          '', // suggested_comment — filled in by LLM at review time
+          '', // suggested_comment — generated later by youtube-comment-drafter.js
           escapeCsvField(`Automated API pull. Detected language: ${detectedLang}.`) // notes
         ];
 
         newRows.push(row);
         existingUrls.add(url);
+        addedForQuery += 1;
         console.log(`  ✅ Added [${scores.priority.toUpperCase()}]: ${snippet.title} (${uploadDate})`);
       }
+
+      queryState[normalizeQuery(query)] = {
+        last_checked_at: new Date().toISOString(),
+        last_run_status: 'ok',
+        last_new_rows: addedForQuery,
+        total_runs: Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1,
+        total_new_rows: Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) + addedForQuery,
+        avg_new_rows:
+          (
+            Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) + addedForQuery
+          ) /
+          (
+            Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1
+          ),
+      };
     } catch (err) {
+      if (err.reason === 'quotaExceeded') {
+        quotaExceeded = true;
+      }
+      queryState[normalizeQuery(query)] = {
+        last_checked_at: new Date().toISOString(),
+        last_run_status: err.reason || 'error',
+        last_new_rows: 0,
+        total_runs: Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1,
+        total_new_rows: Number(queryState[normalizeQuery(query)]?.total_new_rows || 0),
+        avg_new_rows:
+          Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1 > 0
+            ? Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) /
+              (Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1)
+            : 0,
+      };
       console.error(`  ❌ Failed query "${query}":`, err.message);
     }
   }
@@ -329,15 +681,18 @@ async function run() {
     console.log(`\n🤷 No new videos found to append this run. (You've extracted all the recent good ones!)`);
   }
 
+  saveQueryState(queryState);
+
   // Automate the Improvement Loop!
   if (processedTitles.length > 0) {
     const candidateKeywords = getTopPhrases(processedTitles);
     let addedCount = 0;
     
     candidateKeywords.forEach(phrase => {
-      // Avoid adding if it's already in the search pool or substring of existing
-      if (!QUERIES.some(q => q.toLowerCase().includes(phrase))) {
+      const normalizedPhrase = normalizeQuery(phrase);
+      if (!seenNormalized.has(normalizedPhrase)) {
         QUERIES.push(phrase);
+        seenNormalized.set(normalizedPhrase, phrase);
         addedCount++;
         console.log(`\n🤖 Auto-Learned Keyword: Added "${phrase}" to future searches!`);
       }
