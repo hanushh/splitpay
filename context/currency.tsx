@@ -69,13 +69,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrency = useCallback((c: Currency) => {
     setCurrencyState(c);
-<<<<<<< claude/audit-app-bugs-features-LMt2g
-    SecureStore.setItemAsync(STORAGE_KEY, c.code).catch((err) => {
-      console.warn('[Currency] Failed to persist currency preference:', err);
-    });
-=======
     setItem(STORAGE_KEY, c.code);
->>>>>>> main
   }, []);
 
   const formatAbs = useCallback(
