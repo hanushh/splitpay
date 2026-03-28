@@ -1,0 +1,20 @@
+{
+  "name": "native-token-bridge",
+  "version": "1.0.0",
+  "description": "Expo native module to bridge Supabase auth token from JS to Android SharedPreferences for App Functions",
+  "main": "index.ts",
+  "files": [
+    "android",
+    "index.ts"
+  ],
+  "expo": {
+    "autolinking": {
+      "android": {
+        "sourceDir": "android",
+        "modules": [
+          "com.hanushh.paysplit.nativetokenbridge.NativeTokenBridgeModule"
+        ]
+      }
+    }
+  }
+}

@@ -20,6 +20,7 @@ import {
 import { clearCategoryCache } from '@/hooks/use-category-cache';
 import { getItem, setItem, removeItem } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { saveTokenForNative, clearTokenForNative } from 'native-token-bridge';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -97,6 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async ({ data: { session } }) => {
         if (cancelled) return;
         setSession(session);
+        // Sync existing session token to native layer on app start.
+        if (Platform.OS === 'android' && session?.access_token) {
+          saveTokenForNative(session.access_token);
+        }
         if (session?.user?.id) {
           const complete = await fetchPhoneComplete(session.user.id);
           let contactsGranted = Platform.OS === 'web';
@@ -119,6 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      // Sync auth token to Android SharedPreferences for App Functions service.
+      if (Platform.OS === 'android') {
+        if (session?.access_token) {
+          saveTokenForNative(session.access_token);
+        } else {
+          clearTokenForNative();
+        }
+      }
       // When a new session arrives (e.g. Google OAuth callback), re-evaluate
       // phoneComplete so users without a phone are sent to setup-phone.
       if (session?.user?.id) {
@@ -429,6 +442,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearCategoryCache();
     await removePushToken(activePushToken.current);
     activePushToken.current = null;
+    if (Platform.OS === 'android') {
+      clearTokenForNative();
+    }
     await supabase.auth.signOut();
   };
 

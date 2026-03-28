@@ -92,6 +92,9 @@ importers:
       i18next:
         specifier: ^25.8.19
         version: 25.8.19(typescript@5.9.3)
+      native-token-bridge:
+        specifier: file:./modules/native-token-bridge
+        version: file:modules/native-token-bridge
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -4162,6 +4165,9 @@ packages:
     resolution: {integrity: sha512-PHI5f1O0EP5xJ9gQmFGMS6IZcrVvTjpXjz7Na41gTE7eE2hK11lg04CECCYEEjdc17EV4DO+fkGEtt7TpTaTiQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
     hasBin: true
+
+  native-token-bridge@file:modules/native-token-bridge:
+    resolution: {directory: modules/native-token-bridge, type: directory}
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
@@ -10760,6 +10766,8 @@ snapshots:
   nanoid@3.3.11: {}
 
   napi-postinstall@0.3.4: {}
+
+  native-token-bridge@file:modules/native-token-bridge: {}
 
   natural-compare@1.4.0: {}
 
