@@ -3,10 +3,14 @@ package com.hanushh.paysplit.appfunctions
 import android.content.Context
 import androidx.appfunctions.AppFunction
 import androidx.appfunctions.AppFunctionContext
+import java.util.UUID
 import com.hanushh.paysplit.appfunctions.models.ActivityFeedResult
 import com.hanushh.paysplit.appfunctions.models.ActivityItem
+import com.hanushh.paysplit.appfunctions.models.CreateGroupResult
 import com.hanushh.paysplit.appfunctions.models.ExpenseResult
 import com.hanushh.paysplit.appfunctions.models.GroupBalancesResult
+import com.hanushh.paysplit.appfunctions.models.GroupExpenseItem
+import com.hanushh.paysplit.appfunctions.models.GroupExpensesResult
 import com.hanushh.paysplit.appfunctions.models.GroupListResult
 import com.hanushh.paysplit.appfunctions.models.GroupResult
 import com.hanushh.paysplit.appfunctions.models.MemberBalanceResult
@@ -301,6 +305,133 @@ class AppFunctionsService(private val context: Context) {
             currencyCode = currencyCode,
             paymentMethod = paymentMethod,
         )
+    }
+
+    /**
+     * Returns all expenses for a specific group, including each expense's
+     * description, total amount, who paid, and the current user's share.
+     *
+     * @param appFunctionContext The App Function execution context.
+     * @param groupId The UUID of the group to fetch expenses for.
+     * @param groupName The display name of the group (used in the result label).
+     * @return A [GroupExpensesResult] listing every expense with amounts and payer info.
+     */
+    @AppFunction(isDescribedByKDoc = true)
+    suspend fun getGroupExpenses(
+        appFunctionContext: AppFunctionContext,
+        groupId: String,
+        groupName: String,
+    ): GroupExpensesResult {
+        val token = requireToken()
+
+        // get_group_expenses returns expenses with the current user's split amount
+        val raw = client.rpc(
+            functionName = "get_group_expenses",
+            body = mapOf("p_group_id" to groupId),
+            token = token,
+        )
+
+        val rows = client.parseRpcResult(raw)
+        val expenses = rows.map { row ->
+            GroupExpenseItem(
+                expenseId = row["id"]!!.jsonPrimitive.content,
+                description = row["description"]?.jsonPrimitive?.content ?: "",
+                amountCents = row["amount_cents"]?.jsonPrimitive?.long ?: 0L,
+                currencyCode = row["currency_code"]?.jsonPrimitive?.content ?: "USD",
+                category = row["category"]?.jsonPrimitive?.content ?: "general",
+                paidByMemberId = row["paid_by_member_id"]?.jsonPrimitive?.content ?: "",
+                paidByName = row["paid_by_name"]?.jsonPrimitive?.content ?: "",
+                userShareCents = row["user_share_cents"]?.jsonPrimitive?.long ?: 0L,
+                createdAt = row["created_at"]?.jsonPrimitive?.content ?: "",
+            )
+        }
+
+        val total = expenses.sumOf { it.amountCents }
+        return GroupExpensesResult(
+            groupId = groupId,
+            groupName = groupName,
+            expenses = expenses,
+            totalAmountCents = total,
+        )
+    }
+
+    /**
+     * Creates a new group with the signed-in user as the first member.
+     * Additional members can be invited after creation using the invite flow.
+     *
+     * @param appFunctionContext The App Function execution context.
+     * @param name The display name for the new group (e.g. "Weekend Trip").
+     * @param description Optional description for the group.
+     * @return A [CreateGroupResult] with the new group's id and creation timestamp.
+     */
+    @AppFunction(isDescribedByKDoc = true)
+    suspend fun createGroup(
+        appFunctionContext: AppFunctionContext,
+        name: String,
+        description: String = "",
+    ): CreateGroupResult {
+        val token = requireToken()
+
+        // Decode the user id from the JWT claims (sub field)
+        val userId = extractUserIdFromToken(token)
+            ?: throw AppFunctionException("Could not determine current user from auth token.")
+
+        val groupId = UUID.randomUUID().toString()
+
+        // Step 1: insert the group row (mirrors create-group.tsx)
+        val groupRaw = client.insert(
+            table = "groups",
+            body = mapOf(
+                "id" to groupId,
+                "name" to name.trim(),
+                "description" to description.trim().ifEmpty { null },
+                "created_by" to userId,
+                "archived" to false,
+            ),
+            token = token,
+        )
+
+        // Step 2: add creator as a member
+        client.insert(
+            table = "group_members",
+            body = mapOf("group_id" to groupId, "user_id" to userId),
+            token = token,
+        )
+
+        // Step 3: seed a zero balance row for the creator
+        client.insert(
+            table = "group_balances",
+            body = mapOf("group_id" to groupId, "user_id" to userId, "balance_cents" to 0),
+            token = token,
+        )
+
+        val rows = client.parseJsonArray(groupRaw)
+        val row = rows.firstOrNull()
+
+        return CreateGroupResult(
+            groupId = groupId,
+            name = name,
+            description = description,
+            createdAt = row?.get("created_at")?.jsonPrimitive?.content ?: "",
+        )
+    }
+
+    /**
+     * Extracts the `sub` (user id) claim from a JWT without a full JWT library.
+     * JWTs are base64url-encoded JSON — the payload is the second dot-separated segment.
+     */
+    private fun extractUserIdFromToken(token: String): String? {
+        return try {
+            val payload = token.split(".").getOrNull(1) ?: return null
+            // Base64url → base64 standard padding
+            val padded = payload.padEnd(payload.length + (4 - payload.length % 4) % 4, '=')
+                .replace('-', '+').replace('_', '/')
+            val decoded = String(android.util.Base64.decode(padded, android.util.Base64.DEFAULT))
+            val json = kotlinx.serialization.json.Json.parseToJsonElement(decoded).jsonObject
+            json["sub"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            null
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

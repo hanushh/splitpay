@@ -12,6 +12,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -104,6 +105,27 @@ class SupabaseNativeClient(private val context: Context) {
     }
 
     fun parseRpcResult(raw: String): List<JsonObject> = parseJsonArray(raw)
+
+    /**
+     * Inserts a row into a Supabase table and returns the created row.
+     * Uses `Prefer: return=representation` so Supabase echoes the inserted row.
+     */
+    suspend fun insert(
+        table: String,
+        body: Map<String, Any?>,
+        token: String,
+    ): String {
+        val response: HttpResponse = httpClient.post("$supabaseUrl/rest/v1/$table") {
+            header("Authorization", "Bearer $token")
+            header("Prefer", "return=representation")
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), buildJsonObject(body)))
+        }
+        if (response.status != HttpStatusCode.Created && response.status != HttpStatusCode.OK) {
+            throw AppFunctionException("Supabase insert into $table failed: ${response.status} - ${response.bodyAsText()}")
+        }
+        return response.bodyAsText()
+    }
 
     inline fun <reified T> decode(element: JsonElement): T = json.decodeFromJsonElement(element)
 
