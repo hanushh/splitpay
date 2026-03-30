@@ -20,7 +20,8 @@ const QUERIES_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-q
 const QUERY_FAMILIES_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-query-families.json');
 const QUERY_STATE_PATH = path.join(process.cwd(), 'marketing', 'youtube', 'youtube-query-state.json');
 const QUERY_COOLDOWN_HOURS = 72;
-const MAX_QUERIES_PER_RUN = 8;
+const MAX_QUERIES_PER_RUN = 5;       // Reduced from 8 → saves 300 units per run
+const DAILY_QUOTA_BUDGET = 8000;     // 10,000 unit daily limit minus 2,000 buffer
 
 // Strict freshness: only get videos from the last 90 days (per your priority feedback)
 const NINETY_DAYS_AGO = new Date();
@@ -493,11 +494,21 @@ async function fetchTranscriptExcerpt(videoId, lang = 'en') {
   }
 }
 
-async function fetchYouTube(endpoint, params) {
+async function fetchYouTube(endpoint, params, units = 100, quotaTracker = null) {
+  if (quotaTracker) {
+    if (quotaTracker.used_today + units > DAILY_QUOTA_BUDGET) {
+      const err = new Error(
+        `Daily quota budget (${DAILY_QUOTA_BUDGET} units) reached. Used: ${quotaTracker.used_today} units today.`
+      );
+      err.reason = 'quotaBudgetExhausted';
+      throw err;
+    }
+  }
+
   params.key = API_KEY;
   const url = new URL(`https://www.googleapis.com/youtube/v3/${endpoint}`);
   Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-  
+
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) {
@@ -507,16 +518,45 @@ async function fetchYouTube(endpoint, params) {
     error.status = res.status;
     throw error;
   }
+
+  if (quotaTracker) {
+    quotaTracker.used_today += units;
+  }
   return data;
 }
 
-function calculateScore(video, query) {
+// Fetch viewCount + commentCount for a batch of video IDs in a single API call (1 unit).
+async function fetchVideoStats(videoIds, quotaTracker) {
+  if (!videoIds.length) return {};
+  try {
+    const data = await fetchYouTube(
+      'videos',
+      { part: 'statistics', id: videoIds.join(',') },
+      1,
+      quotaTracker
+    );
+    const statsMap = {};
+    for (const item of data.items || []) {
+      statsMap[item.id] = {
+        viewCount: parseInt(item.statistics?.viewCount || '0', 10),
+        commentCount: parseInt(item.statistics?.commentCount || '0', 10),
+      };
+    }
+    return statsMap;
+  } catch (err) {
+    if (err.reason === 'quotaBudgetExhausted') throw err;
+    console.warn(`  ⚠️  Could not fetch video stats: ${err.message}`);
+    return {};
+  }
+}
+
+function calculateScore(video, query, stats = null) {
   let intent = 3;
   let fit = 3;
   let freshness = 3;
-  
+
   const title = video.snippet.title.toLowerCase();
-  
+
   // Intent Score
   if (title.includes('alternative') || title.includes('app') || title.includes('review')) intent = 5;
   else if (title.includes('how to') || title.includes('guide')) intent = 4;
@@ -528,13 +568,23 @@ function calculateScore(video, query) {
   const ageDays = (new Date() - new Date(video.snippet.publishedAt)) / (1000 * 60 * 60 * 24);
   if (ageDays <= 30) freshness = 5;
   else if (ageDays <= 60) freshness = 4;
-  else freshness = 3; // Max 90 days thanks to our API filter
+  else freshness = 3;
 
-  const promo_safety = 4; // Default assumption, manual review needed
-  const android = 4;      // Default assumption
+  // Promo safety: derived from real comment count when available, else default 4
+  let promo_safety = 4;
+  if (stats !== null) {
+    const c = stats.commentCount;
+    if (c >= 100) promo_safety = 5;
+    else if (c >= 20) promo_safety = 4;
+    else if (c >= 5) promo_safety = 3;
+    else if (c >= 1) promo_safety = 2;
+    else promo_safety = 1; // no comments — thread is dead
+  }
+
+  const android = 4; // No reliable signal from API alone
 
   const total = intent + fit + freshness + promo_safety + android;
-  
+
   let priority = 'low';
   if (total >= 20) priority = 'high';
   else if (total >= 14) priority = 'medium';
@@ -550,29 +600,38 @@ async function run() {
   const { uniqueQueries, seenNormalized } = dedupeQueries(QUERIES);
   const queryPool = buildQueryPool(uniqueQueries, QUERY_FAMILIES);
   const queryState = loadQueryState();
-  let quotaExceeded = false;
+
+  // Initialize daily quota tracker (resets automatically when the date changes)
+  const today = new Date().toISOString().split('T')[0];
+  const quotaTracker = queryState.__quota__ && queryState.__quota__.reset_date === today
+    ? queryState.__quota__
+    : { used_today: 0, reset_date: today };
+  queryState.__quota__ = quotaTracker;
+  console.log(`Quota budget: ${DAILY_QUOTA_BUDGET} units/day. Used so far today: ${quotaTracker.used_today}.`);
+
+  let stopReason = null;
   const queriesForRun = selectQueriesForRun(queryPool, queryState);
 
   console.log(`Running ${queriesForRun.length} query bucket(s) this pass (max ${MAX_QUERIES_PER_RUN}).`);
 
   for (const queryCandidate of queriesForRun) {
     const query = queryCandidate.query;
-    if (quotaExceeded) {
-      console.log(`⏹️  Stopping remaining queries after quota exhaustion.`);
+    if (stopReason) {
+      console.log(`⏹️  Stopping remaining queries: ${stopReason}`);
       break;
     }
 
     console.log(`\n🔍 Searching: ${query} [family=${queryCandidate.familyId}]`);
     try {
-      // 1. Search for videos
+      // 1. Search for videos (100 units)
       const searchData = await fetchYouTube('search', {
         part: 'snippet',
         q: query,
         type: 'video',
         publishedAfter: PUBLISHED_AFTER,
-        maxResults: 5, // Top 5 per query to keep quality high
+        maxResults: 5,
         order: 'relevance'
-      });
+      }, 100, quotaTracker);
 
       if (!searchData.items || searchData.items.length === 0) {
         console.log(`  No recent videos found.`);
@@ -584,11 +643,15 @@ async function run() {
         continue;
       }
 
+      // 2. Batch-fetch statistics for all returned video IDs (1 unit total)
+      const allVideoIds = searchData.items.map(item => item.id.videoId).filter(Boolean);
+      const statsMap = await fetchVideoStats(allVideoIds, quotaTracker);
+
       let addedForQuery = 0;
       for (const item of searchData.items) {
         const videoId = item.id.videoId;
         const url = `https://www.youtube.com/watch?v=${videoId}`;
-        
+
         if (existingUrls.has(url)) {
           console.log(`  ⏭️  Skipping existing: ${url}`);
           continue;
@@ -596,23 +659,26 @@ async function run() {
 
         const snippet = item.snippet;
         const uploadDate = snippet.publishedAt.split('T')[0];
-        const scores = calculateScore(item, query);
+        const stats = statsMap[videoId] || null;
+        const scores = calculateScore(item, query, stats);
 
         const title = snippet.title.replace(/&amp;/g, '&');
 
-        // Save title to mine text for keyword expansion later
         if (scores.priority === 'high' || (scores.fit >= 5 && scores.intent >= 4)) {
           processedTitles.push(title);
         }
 
         const detectedLang = detectLanguage(title);
 
-        // Fetch transcript so the LLM has context to write a personalized comment
         const transcriptExcerpt = await fetchTranscriptExcerpt(videoId, detectedLang !== 'en' ? detectedLang : 'en');
 
         const whyItFits = transcriptExcerpt
           ? `Matched query: [${query}]. Transcript excerpt: "${transcriptExcerpt}"`
           : `Matched query: [${query}]. No transcript available.`;
+
+        const commentInfo = stats
+          ? `comments=${stats.commentCount}, views=${stats.viewCount}`
+          : 'stats unavailable';
 
         const row = [
           escapeCsvField(snippet.channelTitle),
@@ -626,16 +692,17 @@ async function run() {
           scores.promo_safety,
           scores.android,
           scores.total,
-          'not_commented', // status
-          escapeCsvField(whyItFits), // why_it_fits
-          '', // suggested_comment — generated later by youtube-comment-drafter.js
-          escapeCsvField(`Automated API pull. Detected language: ${detectedLang}.`) // notes
+          'not_commented',
+          escapeCsvField(whyItFits),
+          '',  // suggested_comment — filled by youtube-comment-drafter.js
+          escapeCsvField(`Automated API pull. Detected language: ${detectedLang}. ${commentInfo}.`),
+          '',  // comment_result — filled manually after posting
         ];
 
         newRows.push(row);
         existingUrls.add(url);
         addedForQuery += 1;
-        console.log(`  ✅ Added [${scores.priority.toUpperCase()}]: ${snippet.title} (${uploadDate})`);
+        console.log(`  ✅ Added [${scores.priority.toUpperCase()}]: ${snippet.title} (${uploadDate}) promo_safety=${scores.promo_safety}`);
       }
 
       queryState[normalizeQuery(query)] = {
@@ -645,16 +712,18 @@ async function run() {
         total_runs: Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1,
         total_new_rows: Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) + addedForQuery,
         avg_new_rows:
-          (
-            Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) + addedForQuery
-          ) /
-          (
-            Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1
-          ),
+          (Number(queryState[normalizeQuery(query)]?.total_new_rows || 0) + addedForQuery) /
+          (Number(queryState[normalizeQuery(query)]?.total_runs || 0) + 1),
       };
     } catch (err) {
+      if (err.reason === 'quotaBudgetExhausted') {
+        stopReason = `daily budget of ${DAILY_QUOTA_BUDGET} units reached (used ${quotaTracker.used_today})`;
+        console.warn(`\n⚠️  ${err.message}`);
+        saveQueryState(queryState);
+        break;
+      }
       if (err.reason === 'quotaExceeded') {
-        quotaExceeded = true;
+        stopReason = 'YouTube API quota exceeded';
       }
       queryState[normalizeQuery(query)] = {
         last_checked_at: new Date().toISOString(),

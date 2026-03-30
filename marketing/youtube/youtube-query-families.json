@@ -28,7 +28,6 @@
     "bucket": "direct_intent",
     "priority": 4,
     "queries": [
-      "\"Splitwise\" alternative",
       "splitwise alternative",
       "free splitwise alternative"
     ]
@@ -38,7 +37,6 @@
     "bucket": "direct_intent",
     "priority": 4,
     "queries": [
-      "\"split bills\" app",
       "expense sharing app",
       "bill splitting app review",
       "roommate expenses app"

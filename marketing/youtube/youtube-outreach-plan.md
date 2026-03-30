@@ -73,7 +73,22 @@ Use multiple search buckets, not just app-intent keywords. Keep the main family 
 
 ## Workflow
 
-### 1. Run the scraper
+### 1. Run the keyword researcher (optional, before scraper)
+
+```bash
+node marketing/youtube/youtube-keyword-researcher.js
+```
+
+The researcher discovers new search query candidates at **zero quota cost** using YouTube's public autocomplete endpoint. It scores each candidate with Claude Haiku and auto-promotes any query scoring ≥ 4/5 into `youtube-queries.json`. Run this before the scraper when you want to refresh the keyword pool. Use `--dry-run` to preview promotions without writing.
+
+Scoring rubric Claude uses:
+- `5` — almost certainly about shared-expense friction (roommates, group trips, friends owing money)
+- `4` — likely surfaces videos about money tension with others
+- `3` — mixed signal
+- `2` — probably off-topic (solo finance, general budgeting)
+- `1` — clearly unrelated
+
+### 2. Run the scraper
 
 ```bash
 node marketing/youtube/youtube-marketing-scrape.js
@@ -92,12 +107,14 @@ Requirements:
 
 The scraper rotates through a small set of prioritized query families each run instead of replaying the full keyword list daily. It fetches the top 5 most relevant videos per selected query published in the last 90 days, scores them, and appends new rows to [`marketing/youtube/youtube-marketing-posts.csv`](/Users/hnair/Documents/Projects/splitwise/marketing/youtube/youtube-marketing-posts.csv). It skips URLs already in the sheet.
 
+**Quota management:** Each `search.list` call costs 100 units; each `videos.list` batch costs 1 unit. The scraper runs at most 5 queries per run (`MAX_QUERIES_PER_RUN = 5`) and enforces a daily budget of `DAILY_QUOTA_BUDGET = 8000` units (leaving a 2,000-unit buffer below the 10,000/day limit). Budget usage is persisted in `youtube-query-state.json` under `__quota__` and resets automatically at the start of each new calendar day. If the budget is reached mid-run, the scraper saves state and exits cleanly so the next run continues where it left off.
+
 ### 2. Generate and review AI-drafted comments
 
 After the scraper finishes, run `node marketing/youtube/youtube-comment-drafter.js`. The drafter reads `marketing/youtube/youtube-marketing-posts.csv` and fills `suggested_comment` for rows that still have an empty comment cell.
 
 For each row the drafter:
-1. Fetches the full video transcript from YouTube's timedtext API
+1. Fetches the full video transcript from YouTube's timedtext API (not part of the official API, no quota cost)
 2. Sends it to Claude Haiku with a structured prompt to write a 3-sentence comment
 3. Falls back to a template-based comment if no transcript is available or the AI call fails
 
@@ -188,13 +205,20 @@ Score each qualified video from 1 to 5 on each dimension:
 | `intent_score` | How clearly the audience wants a tool recommendation |
 | `fit_score` | How closely the topic matches what PaySplit actually does |
 | `freshness_score` | How recent the upload is |
-| `promo_safety_score` | How safe the comment section is for a transparent product mention |
-| `android_score` | Likelihood that an Android Play Store link is relevant to the audience |
+| `promo_safety_score` | How active the comment section is (computed from real `commentCount` via `videos.list`) |
+| `android_score` | Likelihood that an Android Play Store link is relevant to the audience (default 4) |
 
 Freshness guidelines:
 - `5` — uploaded within 30 days
 - `4` — uploaded within 60 days
 - `3` — uploaded within 90 days
+
+`promo_safety_score` is computed automatically from the video's real comment count:
+- `5` — 100+ comments (active thread)
+- `4` — 20–99 comments
+- `3` — 5–19 comments
+- `2` — 1–4 comments
+- `1` — 0 comments (dead thread — skip)
 
 Total score thresholds:
 - `high` — 20–25
@@ -284,6 +308,7 @@ Use [`marketing/youtube/youtube-marketing-posts.csv`](/Users/hnair/Documents/Pro
 | `why_it_fits` | Why this video was selected |
 | `suggested_comment` | Draft comment ready for review and editing |
 | `notes` | Manual observations or reasons for rejection |
+| `comment_result` | Outcome after posting: `reply`, `no_reply`, `deleted`, `click_reported` (fill manually) |
 
 Valid status values: `not_commented`, `commented`, `rejected`, `too_old`, `comments_off`, `forced_fit`, `competitor_promo`, `false_positive`
 
@@ -297,6 +322,7 @@ Valid status values: `not_commented`, `commented`, `rejected`, `too_old`, `comme
 ## Weekly Review
 
 Review performance once a week:
+- Update `comment_result` for any posted comments (check for replies, deletions, or reported clicks).
 - Which channels or video categories tolerate transparent founder comments?
 - Which video topics lead to replies, installs, or useful feedback?
 - Which hook style performs better — behavioral or app-intent?
