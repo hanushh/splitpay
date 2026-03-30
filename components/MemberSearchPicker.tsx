@@ -117,8 +117,9 @@ export function MemberSearchPicker({
     }
     let cancelled = false;
     setSearchLoading(true);
-    supabase
-      .rpc('search_app_users', { p_query: debouncedQuery.trim() })
+    Promise.resolve(
+      supabase.rpc('search_app_users', { p_query: debouncedQuery.trim() }),
+    )
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
@@ -135,7 +136,7 @@ export function MemberSearchPicker({
         }
         setSearchLoading(false);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (cancelled) return;
         console.warn('[MemberSearchPicker] Search rejected:', err);
         setSearchResults([]);
