@@ -20,6 +20,7 @@ import {
 import { clearCategoryCache } from '@/hooks/use-category-cache';
 import { getItem, setItem, removeItem } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -122,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // When a new session arrives (e.g. Google OAuth callback), re-evaluate
       // phoneComplete so users without a phone are sent to setup-phone.
       if (session?.user?.id) {
+        analytics.identify(session.user.id, { email: session.user.email ?? null });
         fetchPhoneComplete(session.user.id).then((complete) => {
           if (!cancelled) setPhoneComplete(complete);
         });
@@ -320,7 +322,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (error) return { error: error.message };
-    if (data.user?.id) await navigatePostAuth(data.user.id);
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_IN, { method: 'email' });
+      await navigatePostAuth(data.user.id);
+    }
     return { error: null };
   };
 
@@ -331,6 +337,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.user?.id && phone) {
       const normalized = normalizePhone(phone) ?? phone;
       await supabase.from('profiles').update({ phone: normalized }).eq('id', data.user.id);
+    }
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_UP, { method: 'email' });
     }
     return { error: null };
   };
@@ -392,7 +402,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: exchangeErr.message };
         }
         handlingOAuthCallback.current = false;
-        if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
+        if (codeData.user?.id) {
+          analytics.identify(codeData.user.id, { email: codeData.user.email ?? null });
+          analytics.track(AnalyticsEvents.SIGN_IN, { method: 'google' });
+          await navigatePostAuth(codeData.user.id);
+        }
         return { error: null };
       }
 
@@ -426,6 +440,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    analytics.track(AnalyticsEvents.SIGN_OUT);
+    analytics.reset();
     await clearCategoryCache();
     await removePushToken(activePushToken.current);
     activePushToken.current = null;

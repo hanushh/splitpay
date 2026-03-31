@@ -27,6 +27,7 @@ import { useToast } from '@/context/toast';
 import { useCategoryCache } from '@/hooks/use-category-cache';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   primary: '#17e86b',
@@ -632,6 +633,12 @@ export default function AddExpenseScreen() {
         return;
       }
 
+      analytics.track(AnalyticsEvents.EXPENSE_EDITED, {
+        group_id: groupId,
+        amount_cents: amtCents,
+        currency: expenseCurrency.code,
+        split_count: selectedMembers.size,
+      });
       setSaving(false);
       showToast('success', t('toast.expenseUpdated'));
       router.back();
@@ -661,6 +668,13 @@ export default function AddExpenseScreen() {
       return;
     }
 
+    analytics.track(AnalyticsEvents.EXPENSE_CREATED, {
+      group_id: groupId,
+      amount_cents: amtCents,
+      currency: expenseCurrency.code,
+      split_count: selectedMembers.size,
+      '$set_once': { first_expense_at: new Date().toISOString() },
+    });
     setSaving(false);
     // Fire-and-forget: notify other group members about the new expense
     dispatchPendingPushNotifications();

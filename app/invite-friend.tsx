@@ -28,6 +28,7 @@ import {
 } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   primary: '#17e86b',
@@ -233,6 +234,11 @@ export default function InviteFriendScreen() {
       });
     }
 
+    if (invites.length > 0) {
+      analytics.track(AnalyticsEvents.INVITE_SENT, {
+        invite_count: invites.length,
+      });
+    }
     setAddedUsersCount(addedCount);
     setPendingInvites(invites);
     setSent(true);
