@@ -19,6 +19,7 @@ import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
 import { PostHogProvider, getPostHogClient, analytics, AnalyticsEvents } from '@/lib/analytics';
+import { ensurePushNotificationHandler } from '@/lib/push-notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -122,6 +123,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
+    // Configure foreground notification display as early as possible
+    if (Platform.OS !== 'web') {
+      ensurePushNotificationHandler();
+    }
   }, []);
 
   if (!i18nReady) {
