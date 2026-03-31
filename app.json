@@ -8,7 +8,16 @@
     "scheme": "paysplit",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hanushh.paysplit",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSContactsUsageDescription": "Allow PaySplit to access your contacts to find friends on the app.",
+        "NSCameraUsageDescription": "Allow PaySplit to use the camera to scan receipts and take profile photos.",
+        "NSPhotoLibraryUsageDescription": "Allow PaySplit to access your photo library for profile photos.",
+        "NSPhotoLibraryAddUsageDescription": "Allow PaySplit to save images to your photo library.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "versionCode": 9999,
@@ -60,6 +69,13 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow PaySplit to access your photo library for profile photos and receipts.",
+          "cameraPermission": "Allow PaySplit to use the camera to scan receipts and take profile photos."
+        }
+      ],
       [
         "expo-contacts",
         {
