@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
+import { useFeatureFlag } from '@/lib/analytics';
 
 const C = {
   bg: '#112117',
@@ -41,9 +42,11 @@ export default function SignUpScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { t } = useTranslation();
+  const simplifiedSignup = useFeatureFlag('simplified_signup');
 
   const handleSignUp = async () => {
-    if (!email || !phone || !password || !confirmPassword) {
+    const requireConfirm = !simplifiedSignup;
+    if (!email || !phone || !password || (requireConfirm && !confirmPassword)) {
       setError(t('auth.fillAllFields'));
       return;
     }
@@ -52,7 +55,7 @@ export default function SignUpScreen() {
       setError(t('auth.invalidPhone'));
       return;
     }
-    if (password !== confirmPassword) {
+    if (requireConfirm && password !== confirmPassword) {
       setError(t('auth.passwordMismatch'));
       return;
     }
@@ -180,15 +183,17 @@ export default function SignUpScreen() {
           onChangeText={setPassword}
           testID="password-input"
         />
-        <TextInput
-          style={s.input}
-          placeholder={t('auth.confirmPassword')}
-          placeholderTextColor={C.slate500}
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          testID="confirm-password-input"
-        />
+        {!simplifiedSignup && (
+          <TextInput
+            style={s.input}
+            placeholder={t('auth.confirmPassword')}
+            placeholderTextColor={C.slate500}
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            testID="confirm-password-input"
+          />
+        )}
 
         <Pressable
           style={({ pressed }: { pressed: boolean }) => [

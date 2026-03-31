@@ -11,7 +11,7 @@
 import PostHog from 'posthog-react-native';
 
 export { PostHog };
-export { PostHogProvider } from 'posthog-react-native';
+export { PostHogProvider, useFeatureFlag } from 'posthog-react-native';
 
 // Mirror of EventProperties from @posthog/core (JSON-serialisable values).
 type JsonPrimitive = string | number | boolean | null;
@@ -48,6 +48,10 @@ export const AnalyticsEvents = {
   INVITE_SENT: 'invite_sent',
   INVITE_ACCEPTED: 'invite_accepted',
   SETTLEMENT_CREATED: 'settlement_created',
+
+  // Onboarding
+  ONBOARDING_COMPLETED: 'onboarding_completed',
+  FIRST_SPLIT_STARTED: 'first_split_started',
 } as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
