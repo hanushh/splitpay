@@ -685,7 +685,15 @@ export default function AddExpenseScreen() {
       saveMapping(description, customCategory.trim().toLowerCase());
     }
     showToast('success', t('toast.expenseCreated'));
-    router.back();
+    // Viral moment: if the user is alone in the group, nudge them to invite someone
+    if (members.length <= 1 && groupId && groupName) {
+      router.replace({
+        pathname: '/invite-friend',
+        params: { groupId, groupName },
+      });
+    } else {
+      router.back();
+    }
   };
 
   const handleGroupSelect = (g: GroupOption) => {

@@ -25,6 +25,7 @@ import {
   APP_DISPLAY_NAME,
   APP_STORE_URL,
   INVITE_LINK_PREFIX,
+  INVITE_WEB_LINK_BASE,
 } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
@@ -228,9 +229,10 @@ export default function InviteFriendScreen() {
         return;
       }
 
+      const base = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
       invites.push({
         contactName: contact.name,
-        shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
+        shareUrl: `${base}?token=${encodeURIComponent(token)}`,
       });
     }
 
@@ -249,16 +251,23 @@ export default function InviteFriendScreen() {
     if (pendingInvites.length === 0) return;
     try {
       if (pendingInvites.length === 1) {
-        await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
-        });
+        const { shareUrl, contactName } = pendingInvites[0];
+        const message = `Hey ${contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.${Platform.OS === 'ios' ? '' : `\n\nOpen the app: ${shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`}`;
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { message, title: `Join ${activeGroupName ?? APP_DISPLAY_NAME}`, url: shareUrl }
+            : { message },
+        );
       } else {
         const links = pendingInvites
           .map((p) => `${p.contactName}: ${p.shareUrl}`)
           .join('\n');
-        await Share.share({
-          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
-        });
+        const message = `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!${Platform.OS === 'ios' ? '' : `\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`}`;
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { message, title: `Join ${activeGroupName ?? APP_DISPLAY_NAME}`, url: pendingInvites[0].shareUrl }
+            : { message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}` },
+        );
       }
     } catch {}
   };
