@@ -20,6 +20,8 @@
     "postinstall": "patch-package",
     "build:android": "cd android && NODE_ENV=production ./gradlew bundleRelease",
     "build:web": "expo export --platform web",
+    "marketing:aso": "node marketing/aso/keyword-autoresearch.js",
+    "marketing:aso:offline": "node marketing/aso/keyword-autoresearch.js --offline",
     "e2e:build": "detox build --configuration android.emu.debug",
     "e2e:test": "detox test --configuration android.emu.debug",
     "e2e:test:release": "detox test --configuration android.emu.release",

@@ -1,0 +1,76 @@
+{
+  "social_phrases": [
+    "split bills without awkwardness",
+    "how to ask roommates for money app",
+    "roommate not paying their share app",
+    "who paid for what app",
+    "group trip money tracker",
+    "avoid money fights on trips app",
+    "app when one person pays for everyone",
+    "shared expenses without spreadsheets",
+    "track shared costs without awkward reminders",
+    "friend group expense tracker",
+    "rent and utilities arguments app",
+    "app for awkward repayment situations",
+    "split groceries with roommates app",
+    "household expenses without arguments",
+    "travel group settle up app"
+  ],
+  "regional_markets": [
+    {
+      "market": "india",
+      "modifiers": ["india", "indian", "for india"],
+      "languages": ["en", "hi", "ta", "te", "kn", "mr"],
+      "keyword_bases": [
+        "splitwise alternative",
+        "split bills app",
+        "roommate expense tracker",
+        "trip expense tracker",
+        "hostel expense tracker",
+        "split rent and utilities"
+      ]
+    },
+    {
+      "market": "united kingdom",
+      "modifiers": ["uk", "for uk"],
+      "languages": ["en"],
+      "keyword_bases": [
+        "flatmate expense tracker",
+        "housemates expense tracker",
+        "split bills app",
+        "shared expenses app"
+      ]
+    },
+    {
+      "market": "united states",
+      "modifiers": ["usa", "us"],
+      "languages": ["en"],
+      "keyword_bases": [
+        "roommate expense tracker",
+        "split rent and utilities",
+        "group expense tracker"
+      ]
+    },
+    {
+      "market": "uae",
+      "modifiers": ["uae", "dubai"],
+      "languages": ["en", "ar", "hi"],
+      "keyword_bases": [
+        "split bills app",
+        "shared rent app",
+        "roommate expense tracker",
+        "travel expense tracker"
+      ]
+    },
+    {
+      "market": "singapore",
+      "modifiers": ["singapore"],
+      "languages": ["en", "ta"],
+      "keyword_bases": [
+        "split bills app",
+        "shared expenses app",
+        "group expense tracker"
+      ]
+    }
+  ]
+}
