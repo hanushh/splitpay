@@ -4,8 +4,11 @@
 --
 -- Requires:
 --   - pg_net extension (already available on Supabase)
---   - CRON_SECRET stored as a Postgres variable via supabase secrets (injected as app.settings.cron_secret)
 --   - The cron-dispatch-push edge function deployed with --no-verify-jwt
+--
+-- The Functions URL is hard-coded (no superuser ALTER DATABASE needed).
+-- Optional security hardening: set CRON_SECRET in Supabase secrets dashboard;
+-- the edge function will validate it when present.
 
 create extension if not exists pg_net;
 
@@ -17,16 +20,16 @@ select cron.unschedule(jobid)
 select cron.schedule(
   'flush-push-notifications-0905',
   '5 9 * * *',
-  $$
+  $cron$
     select net.http_post(
-      url     := current_setting('app.supabase_functions_url', true) || '/cron-dispatch-push',
+      url     := 'https://yapfqffhgcncqxovjcsr.supabase.co/functions/v1/cron-dispatch-push',
       headers := jsonb_build_object(
         'Content-Type',  'application/json',
         'Authorization', 'Bearer ' || coalesce(current_setting('app.cron_secret', true), '')
       ),
       body    := '{}'::jsonb
     );
-  $$
+  $cron$
 );
 
 -- ─── Flush after unsettled balance reminder (10:05 UTC) ──────────────────────
@@ -37,21 +40,14 @@ select cron.unschedule(jobid)
 select cron.schedule(
   'flush-push-notifications-1005',
   '5 10 * * *',
-  $$
+  $cron$
     select net.http_post(
-      url     := current_setting('app.supabase_functions_url', true) || '/cron-dispatch-push',
+      url     := 'https://yapfqffhgcncqxovjcsr.supabase.co/functions/v1/cron-dispatch-push',
       headers := jsonb_build_object(
         'Content-Type',  'application/json',
         'Authorization', 'Bearer ' || coalesce(current_setting('app.cron_secret', true), '')
       ),
       body    := '{}'::jsonb
     );
-  $$
+  $cron$
 );
-
--- ─── Note on configuration ────────────────────────────────────────────────────
--- Set these in your Supabase project settings → Database → Extensions → pg_net,
--- OR run once manually in the SQL editor after deploy:
---
---   ALTER DATABASE postgres SET app.supabase_functions_url = 'https://<project-ref>.supabase.co/functions/v1';
---   ALTER DATABASE postgres SET app.cron_secret = '<your-CRON_SECRET-value>';
