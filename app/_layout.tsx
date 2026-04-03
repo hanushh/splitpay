@@ -136,7 +136,10 @@ export default function RootLayout() {
   const posthogClient = getPostHogClient();
 
   return (
-    <PostHogProvider client={posthogClient ?? undefined}>
+    <PostHogProvider
+      client={posthogClient ?? undefined}
+      {...(!posthogClient && { apiKey: 'disabled', options: { disabled: true } })}
+    >
       <CurrencyProvider>
         <AuthProvider>
           <OnboardingProvider>

@@ -9,3 +9,4 @@ export default PostHog;
 
 export const PostHogProvider = ({ children }: { children: React.ReactNode }) => children;
 export const usePostHog = () => null;
+export const useFeatureFlag = () => undefined;
