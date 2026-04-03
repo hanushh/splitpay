@@ -265,6 +265,7 @@ export type Database = {
           avatar_url: string | null;
           email_hash: string | null;
           id: string;
+          is_admin: boolean;
           name: string | null;
           phone: string | null;
           phone_hash: string | null;
@@ -274,6 +275,7 @@ export type Database = {
           avatar_url?: string | null;
           email_hash?: string | null;
           id: string;
+          is_admin?: boolean;
           name?: string | null;
           phone?: string | null;
           phone_hash?: string | null;
@@ -283,6 +285,7 @@ export type Database = {
           avatar_url?: string | null;
           email_hash?: string | null;
           id?: string;
+          is_admin?: boolean;
           name?: string | null;
           phone?: string | null;
           phone_hash?: string | null;
@@ -398,6 +401,44 @@ export type Database = {
           balance_cents: number;
           display_name: string;
           user_id: string;
+        }[];
+      };
+      get_admin_activity: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: string;
+          type: string;
+          description: string;
+          amount_cents: number;
+          group_name: string;
+          user_name: string;
+          user_id: string | null;
+          created_at: string;
+        }[];
+      };
+      get_admin_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_users: number;
+          total_groups: number;
+          total_expenses: number;
+          total_expense_amount_cents: number;
+          new_users_today: number;
+          active_groups: number;
+        }[];
+      };
+      get_admin_users: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string };
+        Returns: {
+          id: string;
+          name: string | null;
+          email: string;
+          phone: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          is_admin: boolean;
+          group_count: number;
+          expense_count: number;
         }[];
       };
       get_group_expenses: {
