@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { useToast } from '@/context/toast';
 import { SUPPORTED_LANGUAGES, setLanguage, type LanguageCode } from '@/lib/i18n';
 import i18n from '@/lib/i18n';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -87,6 +88,7 @@ function SectionHeader({ title }: { title: string }) {
 
 export default function AccountScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useCurrency();
@@ -150,12 +152,14 @@ export default function AccountScreen() {
     } else {
       setSavedPhone(normalized);
       setPhoneModalVisible(false);
+      showToast('success', t('toast.phoneSaved'));
     }
   };
 
   const handleSelectCurrency = (c: Currency) => {
     setCurrency(c);
     setPickerVisible(false);
+    showToast('success', t('toast.currencyChanged'));
   };
 
   const handleSelectLanguage = async (code: LanguageCode) => {
@@ -219,7 +223,16 @@ export default function AccountScreen() {
             icon="logout"
             label={t('account.signOut')}
             isDestructive
-            onPress={signOut}
+            onPress={() =>
+              Alert.alert(
+                t('account.signOutConfirmTitle'),
+                t('account.signOutConfirmMessage'),
+                [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { text: t('account.signOut'), style: 'destructive', onPress: signOut },
+                ],
+              )
+            }
           />
         </View>
       </ScrollView>

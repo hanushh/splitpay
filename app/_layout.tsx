@@ -12,9 +12,14 @@ import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { CurrencyProvider } from '@/context/currency';
+import { OnboardingProvider } from '@/context/onboarding';
+import { ToastProvider, useToast } from '@/context/toast';
 import SplashScreen from '@/components/SplashScreen';
+import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
+import { PostHogProvider, getPostHogClient, analytics, AnalyticsEvents } from '@/lib/analytics';
+import { ensurePushNotificationHandler } from '@/lib/push-notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -23,6 +28,7 @@ export const unstable_settings = {
 function InviteRedeemRedirect() {
   const { session, pendingInviteToken, clearPendingInviteToken } = useAuth();
   const { t } = useTranslation();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!session || !pendingInviteToken) return;
@@ -31,7 +37,6 @@ function InviteRedeemRedirect() {
         'redeem_invitation_for_current_user',
         { p_token: pendingInviteToken },
       );
-      await clearPendingInviteToken();
       if (redeemErr) {
         Alert.alert(
           t('invite.redeemError'),
@@ -39,15 +44,20 @@ function InviteRedeemRedirect() {
         );
         return;
       }
+      await clearPendingInviteToken();
       const row = Array.isArray(data) && data[0];
       if (row?.group_id_out) {
+        analytics.track(AnalyticsEvents.INVITE_ACCEPTED, {
+          group_id: row.group_id_out,
+        });
+        showToast('success', t('toast.inviteRedeemed'));
         router.replace({
           pathname: '/group/[id]',
           params: { id: row.group_id_out },
         });
       }
     })();
-  }, [session, pendingInviteToken, clearPendingInviteToken]);
+  }, [session, pendingInviteToken, clearPendingInviteToken, showToast]);
 
   return null;
 }
@@ -102,6 +112,7 @@ function RootNavigator() {
         />
       </Stack>
       {!session && <Redirect href="/auth/sign-in" />}
+      <MobileInstallPrompt />
       <StatusBar style="auto" />
     </ThemeProvider>
   );
@@ -112,17 +123,29 @@ export default function RootLayout() {
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
+    // Configure foreground notification display as early as possible
+    if (Platform.OS !== 'web') {
+      ensurePushNotificationHandler();
+    }
   }, []);
 
   if (!i18nReady) {
     return <SplashScreen />;
   }
 
+  const posthogClient = getPostHogClient();
+
   return (
-    <CurrencyProvider>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
-    </CurrencyProvider>
+    <PostHogProvider client={posthogClient ?? undefined}>
+      <CurrencyProvider>
+        <AuthProvider>
+          <OnboardingProvider>
+            <ToastProvider>
+              <RootNavigator />
+            </ToastProvider>
+          </OnboardingProvider>
+        </AuthProvider>
+      </CurrencyProvider>
+    </PostHogProvider>
   );
 }

@@ -21,8 +21,10 @@ import {
   type MemberSelection,
 } from '@/components/MemberSearchPicker';
 import { useAuth } from '@/context/auth';
+import { useToast } from '@/context/toast';
 import { APP_DISPLAY_NAME, APP_STORE_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   primary: '#17e86b',
@@ -158,6 +160,7 @@ function generateInviteToken(): string {
 
 export default function CreateGroupScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -287,7 +290,12 @@ export default function CreateGroupScreen() {
         pendingInvites.push({ contactName: contact.name, shareUrl });
       }
 
+      analytics.track(AnalyticsEvents.GROUP_CREATED, {
+        group_id: groupId,
+        member_count: memberSelection.appUsers.length + memberSelection.contacts.length + 1,
+      });
       setSaving(false);
+      showToast('success', t('toast.groupCreated'));
       router.dismissAll();
       router.push({ pathname: '/group/[id]', params: { id: groupId } });
 

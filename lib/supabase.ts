@@ -19,18 +19,12 @@ if (typeof global.crypto === 'undefined') {
   };
 }
 
-// On web, use localStorage for session persistence (expo-secure-store is native only).
+// On web, use the shared platform-safe storage adapter (localStorage).
+import * as Storage from '@/lib/storage';
 const WebLocalStorageAdapter = {
-  getItem: (key: string): Promise<string | null> =>
-    Promise.resolve((globalThis as any).localStorage?.getItem(key) ?? null),
-  setItem: (key: string, value: string): Promise<void> => {
-    (globalThis as any).localStorage?.setItem(key, value);
-    return Promise.resolve();
-  },
-  removeItem: (key: string): Promise<void> => {
-    (globalThis as any).localStorage?.removeItem(key);
-    return Promise.resolve();
-  },
+  getItem: Storage.getItem,
+  setItem: Storage.setItem,
+  removeItem: Storage.removeItem,
 };
 
 // SecureStore has a ~2048-byte value limit. Large Supabase session JWTs can

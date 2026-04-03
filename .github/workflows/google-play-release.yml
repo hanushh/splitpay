@@ -89,7 +89,8 @@ jobs:
         run: |
           supabase functions deploy --project-ref yapfqffhgcncqxovjcsr
           supabase functions deploy invite-redirect --project-ref yapfqffhgcncqxovjcsr --no-verify-jwt
-          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" --project-ref yapfqffhgcncqxovjcsr
+          supabase functions deploy cron-dispatch-push --project-ref yapfqffhgcncqxovjcsr --no-verify-jwt
+          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" CRON_SECRET="${{ secrets.CRON_SECRET }}" --project-ref yapfqffhgcncqxovjcsr
 
       - name: Deploy Supabase edge functions (staging)
         if: github.ref != 'refs/heads/main'
@@ -98,7 +99,8 @@ jobs:
         run: |
           supabase functions deploy --project-ref gfmbrytpmmbtpumxwile
           supabase functions deploy invite-redirect --project-ref gfmbrytpmmbtpumxwile --no-verify-jwt
-          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" --project-ref gfmbrytpmmbtpumxwile
+          supabase functions deploy cron-dispatch-push --project-ref gfmbrytpmmbtpumxwile --no-verify-jwt
+          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" CRON_SECRET="${{ secrets.CRON_SECRET }}" --project-ref gfmbrytpmmbtpumxwile
 
       - name: Inject google-services.json
         run: |

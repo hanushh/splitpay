@@ -8,7 +8,16 @@
     "scheme": "paysplit",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hanushh.paysplit",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSContactsUsageDescription": "Allow PaySplit to access your contacts to find friends on the app.",
+        "NSCameraUsageDescription": "Allow PaySplit to use the camera to scan receipts and take profile photos.",
+        "NSPhotoLibraryUsageDescription": "Allow PaySplit to access your photo library for profile photos.",
+        "NSPhotoLibraryAddUsageDescription": "Allow PaySplit to save images to your photo library.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "versionCode": 9999,
@@ -21,7 +30,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.hanushh.paysplit",
       "googleServicesFile": "./google-services.json",
-      "edgeToEdge": true
+      "edgeToEdge": true,
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "output": "static",
@@ -57,6 +70,13 @@
       ],
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow PaySplit to access your photo library for profile photos and receipts.",
+          "cameraPermission": "Allow PaySplit to use the camera to scan receipts and take profile photos."
+        }
+      ],
+      [
         "expo-contacts",
         {
           "contactsPermission": "Allow PaySplit to access your contacts to find friends on the app."
@@ -68,6 +88,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "64ac8993-bb81-4702-a213-a47bdd987709"
+      }
+    },
+    "owner": "hanushh"
   }
 }

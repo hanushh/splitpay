@@ -1,6 +1,5 @@
 import { Session, User } from '@supabase/supabase-js';
 import * as Contacts from 'expo-contacts';
-import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
@@ -20,7 +19,9 @@ import {
   removePushToken,
 } from '@/lib/push-notifications';
 import { clearCategoryCache } from '@/hooks/use-category-cache';
+import { getItem, setItem, removeItem } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -123,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // When a new session arrives (e.g. Google OAuth callback), re-evaluate
       // phoneComplete so users without a phone are sent to setup-phone.
       if (session?.user?.id) {
+        analytics.identify(session.user.id, { email: session.user.email ?? null });
         fetchPhoneComplete(session.user.id).then((complete) => {
           if (!cancelled) setPhoneComplete(complete);
         });
@@ -154,14 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
           if (token) {
-            if (Platform.OS === 'web') {
-              (globalThis as any).localStorage?.setItem(INVITE_TOKEN_KEY, token);
-            } else {
-              await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
-            }
+            await setItem(INVITE_TOKEN_KEY, token);
             setPendingInviteToken(token);
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[Auth] Failed to parse invite deep link:', err);
+        }
         return;
       }
 
@@ -325,7 +325,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (error) return { error: error.message };
-    if (data.user?.id) await navigatePostAuth(data.user.id);
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_IN, { method: 'email' });
+      await navigatePostAuth(data.user.id);
+    }
     return { error: null };
   };
 
@@ -334,7 +338,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return { error: error.message };
     // Save phone to profile immediately (profile row is created by DB trigger on auth.users insert)
     if (data.user?.id && phone) {
-      await supabase.from('profiles').update({ phone }).eq('id', data.user.id);
+      const normalized = normalizePhone(phone) ?? phone;
+      await supabase.from('profiles').update({ phone: normalized }).eq('id', data.user.id);
+    }
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_UP, { method: 'email' });
     }
     return { error: null };
   };
@@ -396,7 +405,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: exchangeErr.message };
         }
         handlingOAuthCallback.current = false;
-        if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
+        if (codeData.user?.id) {
+          analytics.identify(codeData.user.id, { email: codeData.user.email ?? null });
+          analytics.track(AnalyticsEvents.SIGN_IN, { method: 'google' });
+          await navigatePostAuth(codeData.user.id);
+        }
         return { error: null };
       }
 
@@ -430,6 +443,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    analytics.track(AnalyticsEvents.SIGN_OUT);
+    analytics.reset();
     await clearCategoryCache();
     await removePushToken(activePushToken.current);
     activePushToken.current = null;
@@ -437,18 +452,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getPendingInviteToken = async () => {
-    if (Platform.OS === 'web') {
-      return (globalThis as any).localStorage?.getItem(INVITE_TOKEN_KEY) ?? null;
-    }
-    return SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+    return getItem(INVITE_TOKEN_KEY);
   };
   const clearPendingInviteToken = async () => {
     setPendingInviteToken(null);
-    if (Platform.OS === 'web') {
-      (globalThis as any).localStorage?.removeItem(INVITE_TOKEN_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
-    }
+    await removeItem(INVITE_TOKEN_KEY);
   };
 
   return (
