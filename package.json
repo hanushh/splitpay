@@ -27,7 +27,8 @@
     "e2e:test:create-group": "detox test --configuration android.emu.debug --testPathPatterns=create-group",
     "e2e:test:add-expense": "detox test --configuration android.emu.debug --testPathPatterns=add-expense",
     "diagnose:push": "node --env-file .env.production scripts/diagnose-push-notifications.js",
-    "marketing:social-poster": "node --env-file .env.local marketing/social/social-poster-script.js"
+    "marketing:social-poster": "node --env-file .env.local marketing/social/social-poster-script.js",
+    "marketing:populate-calendar": "node --env-file .env.local marketing/social/populate-weekly-calendar.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
