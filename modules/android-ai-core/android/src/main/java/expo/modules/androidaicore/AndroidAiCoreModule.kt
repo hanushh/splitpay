@@ -1,180 +1,183 @@
 package expo.modules.androidaicore
 
 import android.app.ActivityManager
+import android.app.DownloadManager
 import android.content.Context
+import android.net.Uri
 import android.os.Build
-import androidx.annotation.RequiresApi
-import com.google.ai.edge.aicore.DownloadCallback
-import com.google.ai.edge.aicore.DownloadCallback.FailureStatus
-import com.google.ai.edge.aicore.GenerativeModel
-import com.google.ai.edge.aicore.generationConfig
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
 import org.json.JSONArray
+import java.io.File
 
 class AndroidAiCoreModule : Module() {
 
     companion object {
-        // Android 14 (Upside Down Cake) is the minimum for Android AI Core
-        private const val MIN_API = Build.VERSION_CODES.UPSIDE_DOWN_CAKE // 34
+        // MediaPipe LLM Inference requires API 24+; GPU backend needs 28+.
+        private const val MIN_API = Build.VERSION_CODES.P // 28
 
-        // Gemma 4 requires at least 6 GB of total device RAM
+        // Gemma 4 1B requires at least 6 GB of total device RAM.
         private const val MIN_MEMORY_BYTES = 6L * 1024L * 1024L * 1024L
 
-        // How long to wait for an immediate DownloadCallback response (ms).
-        // If the model is already on-device, onModelAvailable fires within ~200 ms.
-        // If a download is needed, onDownloadStarted fires quickly too.
-        // We only need this timeout as a safety net.
-        private const val AVAILABILITY_TIMEOUT_MS = 6_000L
+        // Filename stored in context.filesDir
+        const val MODEL_FILENAME = "gemma4-1b-it-int4.task"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Model instance that has been confirmed ready via onModelAvailable().
-    private var readyModel: GenerativeModel? = null
+    // Lazily initialised when the model file is confirmed present.
+    private var llmInference: LlmInference? = null
 
     override fun definition() = ModuleDefinition {
         Name("AndroidAiCore")
 
+        OnDestroy {
+            llmInference?.close()
+            llmInference = null
+            scope.cancel()
+        }
+
         // ── checkAvailability ─────────────────────────────────────────────────
-        // Possible return values:
-        //   "available"           – model is on-device and ready for inference.
-        //   "downloading"         – model download is in progress.
-        //   "unsupported_sdk"     – Android API < 34.
-        //   "insufficient_memory" – device has < 6 GB RAM.
-        //   "unavailable"         – AI Core not present or download failed.
-        AsyncFunction("checkAvailability") {
-            if (Build.VERSION.SDK_INT < MIN_API) return@AsyncFunction "unsupported_sdk"
+        // Returns: "available" | "downloading" | "unsupported_sdk" |
+        //          "insufficient_memory" | "unavailable"
+        AsyncFunction("checkAvailability") { promise: Promise ->
+            scope.launch {
+                val ctx = appContext.reactContext
+                if (ctx == null) { promise.resolve("unavailable"); return@launch }
 
-            val ctx = appContext.reactContext ?: return@AsyncFunction "unavailable"
+                if (Build.VERSION.SDK_INT < MIN_API) {
+                    promise.resolve("unsupported_sdk"); return@launch
+                }
 
-            // Memory gate
-            val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            val memInfo = ActivityManager.MemoryInfo()
-            am?.getMemoryInfo(memInfo)
-            if (memInfo.totalMem in 1..<MIN_MEMORY_BYTES) return@AsyncFunction "insufficient_memory"
+                val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                val memInfo = ActivityManager.MemoryInfo()
+                am?.getMemoryInfo(memInfo)
+                if (memInfo.totalMem in 1..<MIN_MEMORY_BYTES) {
+                    promise.resolve("insufficient_memory"); return@launch
+                }
 
-            // If we already have a confirmed-ready model, skip the callback dance
-            if (readyModel != null) return@AsyncFunction "available"
+                val modelFile = modelFile(ctx)
 
-            return@AsyncFunction probeAvailability(ctx)
+                // Check if an active DownloadManager job is in flight for our model
+                if (!modelFile.exists()) {
+                    val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                    if (dm != null && hasActiveDownload(dm, modelFile)) {
+                        promise.resolve("downloading"); return@launch
+                    }
+                    promise.resolve("unavailable"); return@launch
+                }
+
+                // Model file present — warm up inference engine if not already done
+                if (llmInference == null) {
+                    try {
+                        llmInference = buildInference(ctx, modelFile)
+                    } catch (e: Exception) {
+                        promise.resolve("unavailable"); return@launch
+                    }
+                }
+
+                promise.resolve("available")
+            }
         }
 
         // ── generateText ──────────────────────────────────────────────────────
-        AsyncFunction("generateText") { systemPrompt: String, historyJson: String, userMessage: String ->
-            if (Build.VERSION.SDK_INT < MIN_API) {
-                throw Exception("Android AI Core requires Android 14 or higher")
+        AsyncFunction("generateText") { systemPrompt: String, historyJson: String, userMessage: String, promise: Promise ->
+            val inference = llmInference
+            if (inference == null) {
+                promise.reject("NOT_READY", "on_device_unavailable:model_not_ready", null)
+                return@AsyncFunction
             }
 
-            val ctx = appContext.reactContext
-                ?: throw Exception("React context is unavailable")
-
-            val model = readyModel
-                ?: throw Exception("on_device_unavailable:model_not_ready")
-
-            val prompt = buildGemmaPrompt(systemPrompt, historyJson, userMessage)
-
-            try {
-                val response = model.generateContent(prompt)
-                response.text ?: throw Exception("Model returned an empty response")
-            } catch (e: Exception) {
-                // If the model errored out mid-session, reset so it re-probes next time
-                if (e.message?.contains("not ready") == true ||
-                    e.message?.contains("downloading") == true
-                ) {
-                    readyModel = null
+            scope.launch {
+                try {
+                    val prompt = buildGemmaPrompt(systemPrompt, historyJson, userMessage)
+                    val result = inference.generateResponse(prompt)
+                    promise.resolve(result ?: "")
+                } catch (e: Exception) {
+                    llmInference?.close()
+                    llmInference = null
+                    promise.reject("INFERENCE_ERROR", e.message ?: "Inference failed", e)
                 }
-                throw e
             }
         }
-    }
 
-    // ── Availability probe ────────────────────────────────────────────────────
+        // ── startModelDownload ────────────────────────────────────────────────
+        // Enqueues a DownloadManager job for the Gemma 4 model.
+        // Returns the DownloadManager job ID (Long as String) or rejects on error.
+        AsyncFunction("startModelDownload") { modelUrl: String, promise: Promise ->
+            scope.launch {
+                val ctx = appContext.reactContext
+                if (ctx == null) { promise.reject("NO_CTX", "Context unavailable", null); return@launch }
 
-    /**
-     * Creates a GenerativeModel and registers a [DownloadCallback] to determine
-     * whether the on-device model is already present, being downloaded, or
-     * unavailable.
-     *
-     * The DownloadCallback fires quickly:
-     *  - [DownloadCallback.onModelAvailable]   → model is on-device and ready.
-     *  - [DownloadCallback.onDownloadStarted]  → a download was just triggered.
-     *  - [DownloadCallback.onDownloadFailed]   → device is incompatible or network error.
-     *
-     * If no callback fires within [AVAILABILITY_TIMEOUT_MS] we assume unavailable.
-     */
-    @RequiresApi(MIN_API)
-    private suspend fun probeAvailability(context: Context): String {
-        val deferred = CompletableDeferred<String>()
+                val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                if (dm == null) { promise.reject("NO_DM", "DownloadManager unavailable", null); return@launch }
 
-        try {
-            val model = buildModel(context)
+                try {
+                    val dest = modelFile(ctx)
+                    dest.parentFile?.mkdirs()
 
-            model.addDownloadCallback(object : DownloadCallback {
-                override fun onModelAvailable() {
-                    // Model is already on-device — cache it immediately
-                    readyModel = model
-                    deferred.tryComplete("available")
+                    val request = DownloadManager.Request(Uri.parse(modelUrl))
+                        .setTitle("Gemma 4 AI Model")
+                        .setDescription("Downloading on-device AI model…")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationUri(Uri.fromFile(dest))
+                        .setRequiresCharging(false)
+                        .setAllowedOverMetered(false)  // Wi-Fi only by default
+
+                    val jobId = dm.enqueue(request)
+                    promise.resolve(jobId.toString())
+                } catch (e: Exception) {
+                    promise.reject("DOWNLOAD_ERROR", e.message ?: "Failed to start download", e)
                 }
-
-                override fun onDownloadStarted(bytesToDownload: Long) {
-                    // Download has begun; model is not yet usable
-                    deferred.tryComplete("downloading")
-                }
-
-                override fun onDownloadCompleted() {
-                    // Download bytes finished but model is being prepared —
-                    // still not ready for inference; stay in "downloading" state.
-                    // onModelAvailable() will fire once it is fully ready.
-                }
-
-                override fun onDownloadFailed(
-                    failureStatus: FailureStatus,
-                    shortDescription: String,
-                ) {
-                    deferred.tryComplete("unavailable")
-                }
-            })
-
-            return withTimeoutOrNull(AVAILABILITY_TIMEOUT_MS) { deferred.await() }
-                ?: "unavailable"
-
-        } catch (e: Exception) {
-            return "unavailable"
+            }
         }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    @RequiresApi(MIN_API)
-    private fun buildModel(context: Context): GenerativeModel = GenerativeModel(
-        generationConfig = generationConfig {
-            this.context = context
-            temperature = 0.3f
-            topK = 40
-            maxOutputTokens = 1024
+    private fun modelFile(context: Context) = File(context.filesDir, MODEL_FILENAME)
+
+    private fun buildInference(context: Context, modelFile: File): LlmInference {
+        val options = LlmInference.LlmInferenceOptions.builder()
+            .setModelPath(modelFile.absolutePath)
+            .setMaxTopK(40)
+            .build()
+        return LlmInference.createFromOptions(context, options)
+    }
+
+    /** Returns true if DownloadManager has a pending/running job whose destination
+     *  matches our model file path. */
+    private fun hasActiveDownload(dm: DownloadManager, modelFile: File): Boolean {
+        val query = DownloadManager.Query().setFilterByStatus(
+            DownloadManager.STATUS_PENDING or
+                DownloadManager.STATUS_RUNNING or
+                DownloadManager.STATUS_PAUSED
+        )
+        dm.query(query)?.use { cursor ->
+            val colLocalUri = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+            while (cursor.moveToNext()) {
+                val uri = cursor.getString(colLocalUri) ?: continue
+                if (uri.contains(modelFile.name)) return true
+            }
         }
-    )
+        return false
+    }
 
     /**
-     * Formats the conversation into Gemma's native chat template:
-     *
-     *   <start_of_turn>system
-     *   {systemPrompt}<end_of_turn>
-     *   <start_of_turn>user
-     *   {turn}<end_of_turn>
-     *   <start_of_turn>model
-     *   {reply}<end_of_turn>
+     * Gemma chat template:
+     *   <start_of_turn>system\n{system}<end_of_turn>\n
+     *   <start_of_turn>user\n{turn}<end_of_turn>\n
+     *   <start_of_turn>model\n{reply}<end_of_turn>\n
      *   ...
-     *   <start_of_turn>user
-     *   {userMessage}<end_of_turn>
-     *   <start_of_turn>model
+     *   <start_of_turn>user\n{message}<end_of_turn>\n
+     *   <start_of_turn>model\n
      */
     private fun buildGemmaPrompt(
         systemPrompt: String,
@@ -196,15 +199,5 @@ class AndroidAiCoreModule : Module() {
             }
         } catch (_: Exception) {}
         append("<start_of_turn>user\n${userMessage.trim()}<end_of_turn>\n<start_of_turn>model\n")
-    }
-
-    private fun <T> CompletableDeferred<T>.tryComplete(value: T) {
-        if (!isCompleted) complete(value)
-    }
-
-    override fun onDestroy() {
-        readyModel?.close()
-        readyModel = null
-        scope.cancel()
     }
 }

@@ -172,7 +172,7 @@ export function useAiChat() {
           availability === 'downloading'
             ? 'The AI model is being downloaded in the background. Please try again in a few minutes.'
             : availability === 'unsupported_sdk'
-              ? 'On-device AI requires Android 14 or higher.'
+              ? 'On-device AI requires Android 15 or higher.'
               : availability === 'insufficient_memory'
                 ? 'On-device AI requires at least 6 GB of device RAM.'
                 : 'On-device AI is not supported on this device.';

@@ -1,13 +1,14 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'expo-module'
+apply plugin: 'expo-module-gradle-plugin'
 
 android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 35)
+    namespace "expo.modules.androidaicore"
+    compileSdkVersion rootProject.ext.compileSdkVersion
 
     defaultConfig {
-        minSdkVersion safeExtGet("minSdkVersion", 24)
-        targetSdkVersion safeExtGet("targetSdkVersion", 35)
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
     }
@@ -30,10 +31,11 @@ repositories {
 dependencies {
     implementation project(':expo-modules-core')
 
-    // Android AI Core – on-device Gemma 4 inference
-    // Requires API 34+ and a compatible device (Pixel 8+, Galaxy S25+, etc.)
-    implementation("com.google.ai.edge.aicore:aicore:0.0.1-exp.2")
+    // MediaPipe Tasks GenAI — Google's public API for running Gemma on-device.
+    // android.app.aicore is a @SystemApi and not accessible from third-party apps;
+    // MediaPipe is the supported developer path.
+    implementation("com.google.mediapipe:tasks-genai:0.10.14")
 
-    // Coroutines for async inference
+    // Coroutines for background inference
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
