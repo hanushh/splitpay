@@ -41,7 +41,7 @@ export default function AiTab() {
     if (!text || loading) return;
     setInputText('');
     await sendMessage(text);
-  }, [inputText, loading, limitReached, sendMessage]);
+  }, [inputText, loading, sendMessage]);
 
   const handleActionPress = useCallback(
     (actionType: string, actionParams: Record<string, unknown>) => {

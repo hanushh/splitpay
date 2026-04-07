@@ -147,7 +147,6 @@ class AndroidAiCoreModule : Module() {
     private fun buildInference(context: Context, modelFile: File): LlmInference {
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
-            .setMaxTopK(40)
             .build()
         return LlmInference.createFromOptions(context, options)
     }
