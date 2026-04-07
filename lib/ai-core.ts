@@ -53,6 +53,12 @@ Available actions and their required args:
 For all other responses (questions, explanations, summaries), reply with plain text.
 Do NOT mix JSON and text in the same reply.`.trim();
 
+// ── Model download URL ────────────────────────────────────────────────────────
+// MediaPipe-optimised Gemma 4 1B INT4 quantised task file (~1.1 GB).
+// Replace with a signed URL or your own host if needed.
+export const GEMMA_MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-4-1b-it-gpu-int4/float16/latest/model.task';
+
 // ── Native module (Android only) ─────────────────────────────────────────────
 
 let _native: import('android-ai-core').AndroidAiCoreModule | null = null;
@@ -83,21 +89,27 @@ export async function checkAiCoreAvailability(): Promise<AiCoreAvailability> {
 }
 
 /**
- * Requests Android AI Core to begin downloading the Gemma 4 model.
+ * Enqueues a DownloadManager job to fetch the Gemma 4 model file onto the device.
  *
- * Re-runs the availability probe, which creates a new GenerativeModel and
- * registers a DownloadCallback — that registration is what instructs Android
- * AI Core to start the download if it hasn't begun already.
- *
- * Returns the resulting availability state:
- *   - 'downloading'  → download started successfully.
- *   - 'available'    → model was already on-device (no download needed).
- *   - 'unavailable'  → device is incompatible or download could not be initiated.
+ * Returns 'downloading' on success, 'available' if the model is already present,
+ * or 'unavailable' if the download could not be initiated.
  *
  * Only meaningful on Android; always returns 'unsupported_sdk' on other platforms.
  */
 export async function requestModelDownload(): Promise<AiCoreAvailability> {
-  return checkAiCoreAvailability();
+  const native = getNativeModule();
+  if (!native) return 'unsupported_sdk';
+
+  // If already available, nothing to do
+  const current = await native.checkAvailability();
+  if (current === 'available') return 'available';
+
+  try {
+    await native.startModelDownload(GEMMA_MODEL_URL);
+    return 'downloading';
+  } catch {
+    return 'unavailable';
+  }
 }
 
 /**
