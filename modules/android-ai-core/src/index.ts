@@ -24,7 +24,7 @@ export interface AndroidAiCoreModule {
   checkAvailability(): Promise<AiCoreAvailability>;
 
   /**
-   * Runs a single-turn text generation request through Android AI Core (Gemma 4).
+   * Runs a single-turn text generation request (Gemma 4 via MediaPipe).
    *
    * @param systemPrompt  Instructions prepended before the conversation history.
    * @param historyJson   JSON-encoded AIMessage[] array (role/parts format).
@@ -36,6 +36,14 @@ export interface AndroidAiCoreModule {
     historyJson: string,
     userMessage: string,
   ): Promise<string>;
+
+  /**
+   * Enqueues a DownloadManager job to fetch the Gemma model file.
+   * Returns the DownloadManager job ID as a string.
+   *
+   * @param modelUrl  HTTPS URL of the .task model file.
+   */
+  startModelDownload(modelUrl: string): Promise<string>;
 }
 
 // ── Module export ─────────────────────────────────────────────────────────────
