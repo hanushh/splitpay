@@ -50,6 +50,8 @@
   "ai.actionViewSpending": "खर्च देखें",
   "ai.clearChat": "चैट साफ़ करें",
   "ai.dailyLimitReached": "दैनिक सीमा पहुँच गई। कल रीसेट होगा।",
+  "ai.deviceNotSupported": "ऑन-डिवाइस AI के लिए Android 14+ और कम से कम 6 GB RAM आवश्यक है।",
+  "ai.modelDownloading": "पृष्ठभूमि में AI मॉडल डाउनलोड हो रहा है। चैट शीघ्र उपलब्ध होगा।",
   "ai.emptyGreeting": "नमस्ते {{name}}! मैं आपके खर्चों को प्रबंधित करने में मदद कर सकता हूँ। पूछने की कोशिश करें:",
   "ai.errorGeneric": "क्षमा करें, कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
   "ai.inputPlaceholder": "मुझसे कुछ भी पूछें…",

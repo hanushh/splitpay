@@ -50,6 +50,8 @@
   "ai.actionViewSpending": "Ausgaben anzeigen",
   "ai.clearChat": "Chat leeren",
   "ai.dailyLimitReached": "Tageslimit erreicht. Wird morgen zurückgesetzt.",
+  "ai.deviceNotSupported": "KI auf dem Gerät erfordert Android 14+ mit mindestens 6 GB RAM.",
+  "ai.modelDownloading": "KI-Modell wird im Hintergrund heruntergeladen. Chat wird in Kürze verfügbar sein.",
   "ai.emptyGreeting": "Hallo! Ich kann dir bei deinen Ausgaben helfen. Versuche zu fragen:",
   "ai.errorGeneric": "Entschuldigung, etwas ist schiefgelaufen. Bitte versuche es erneut.",
   "ai.inputPlaceholder": "Frag mich alles…",

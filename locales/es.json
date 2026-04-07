@@ -50,6 +50,8 @@
   "ai.actionViewSpending": "Ver Gastos",
   "ai.clearChat": "Limpiar chat",
   "ai.dailyLimitReached": "Límite diario alcanzado. Se restablece mañana.",
+  "ai.deviceNotSupported": "La IA en dispositivo requiere Android 14+ con al menos 6 GB de RAM.",
+  "ai.modelDownloading": "Descargando modelo de IA en segundo plano. El chat estará disponible en breve.",
   "ai.emptyGreeting": "¡Hola {{name}}! Puedo ayudarte a gestionar tus gastos. Intenta preguntar:",
   "ai.errorGeneric": "Lo siento, algo salió mal. Por favor, inténtalo de nuevo.",
   "ai.inputPlaceholder": "Pregúntame lo que quieras…",

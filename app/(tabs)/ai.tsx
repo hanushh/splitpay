@@ -26,15 +26,16 @@ const QUICK_ACTION_ICONS = [
 
 export default function AiTab() {
   const { t } = useTranslation();
-  const { messages, sendMessage, loading, clearHistory, promptsRemaining, dailyLimit } = useAiChat();
-  const limitReached = promptsRemaining === 0;
+  const { messages, sendMessage, loading, clearHistory, availability } = useAiChat();
+  const isDownloading = availability === 'downloading';
+  const isUnavailable = availability !== 'available' && availability !== 'checking' && availability !== 'downloading';
   const [inputText, setInputText] = useState('');
   const insets = useSafeAreaInsets();
   const listRef = useRef<any>(null); // FlatList instance for scrollToEnd
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || loading || limitReached) return;
+    if (!text || loading) return;
     setInputText('');
     await sendMessage(text);
   }, [inputText, loading, limitReached, sendMessage]);
@@ -144,11 +145,6 @@ export default function AiTab() {
           <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         </View>
         <View style={styles.headerRight}>
-          <View style={[styles.quotaBadge, limitReached && styles.quotaBadgeExhausted]}>
-            <Text style={[styles.quotaText, limitReached && styles.quotaTextExhausted]}>
-              {promptsRemaining}/{dailyLimit}
-            </Text>
-          </View>
           {messages.length > 0 && (
             <TouchableOpacity onPress={clearHistory} hitSlop={12}>
               <Text style={styles.clearBtn}>{t('ai.clearChat')}</Text>
@@ -171,10 +167,9 @@ export default function AiTab() {
               {QUICK_ACTION_ICONS.map((action) => (
                 <TouchableOpacity
                   key={action.key}
-                  style={[styles.quickChip, limitReached && styles.quickChipDisabled]}
-                  onPress={() => !limitReached && sendMessage(t(action.key))}
+                  style={styles.quickChip}
+                  onPress={() => sendMessage(t(action.key))}
                   activeOpacity={0.7}
-                  disabled={limitReached}
                 >
                   <MaterialIcons name={action.icon} size={16} color={PRIMARY} />
                   <Text style={styles.quickChipText}>{t(action.key)}</Text>
@@ -203,11 +198,18 @@ export default function AiTab() {
         )}
 
         {/* Input bar */}
-        {limitReached ? (
+        {isDownloading ? (
+          <View style={styles.downloadBanner}>
+            <ActivityIndicator size="small" color={PRIMARY} />
+            <Text style={styles.downloadBannerText}>
+              {t('ai.modelDownloading')}
+            </Text>
+          </View>
+        ) : isUnavailable ? (
           <View style={styles.limitBanner}>
-            <MaterialIcons name="block" size={16} color={DANGER} />
+            <MaterialIcons name="phone-android" size={16} color={DANGER} />
             <Text style={styles.limitBannerText}>
-              {t('ai.dailyLimitReached')}
+              {t('ai.deviceNotSupported')}
             </Text>
           </View>
         ) : (
@@ -284,28 +286,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  quotaBadge: {
-    backgroundColor: SURFACE,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: SURFACE_HL,
+  downloadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: SURFACE_HL,
+    backgroundColor: BG,
   },
-  quotaBadgeExhausted: {
-    borderColor: DANGER,
-    backgroundColor: '#2a1a1a',
-  },
-  quotaText: {
+  downloadBannerText: {
     color: SLATE_400,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  quotaTextExhausted: {
-    color: DANGER,
-  },
-  quickChipDisabled: {
-    opacity: 0.4,
+    fontSize: 14,
+    flexShrink: 1,
   },
   limitBanner: {
     flexDirection: 'row',

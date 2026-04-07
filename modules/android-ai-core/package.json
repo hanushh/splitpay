@@ -1,0 +1,11 @@
+{
+  "name": "android-ai-core",
+  "version": "1.0.0",
+  "description": "On-device Gemma 4 inference via Android AI Core (API 34+, supported devices only)",
+  "main": "./src/index",
+  "types": "./src/index.d.ts",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

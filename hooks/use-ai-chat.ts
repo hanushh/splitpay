@@ -1,46 +1,19 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { buildRagContext, buildSystemPrompt } from '@/lib/ai-context';
-import { sendChatMessage, type GeminiMessage } from '@/lib/gemini';
-import { AI_DAILY_PROMPT_LIMIT } from '@/lib/app-config';
+import {
+  sendChatMessage,
+  checkAiCoreAvailability,
+  requestModelDownload,
+  type AIMessage,
+  type AiCoreAvailability,
+} from '@/lib/ai-core';
 
-// ── Daily rate limit ──────────────────────────────────────────────────────────
+// How often to re-check availability while a model download is in progress (ms)
+const DOWNLOAD_POLL_INTERVAL_MS = 15_000;
 
-const DAILY_LIMIT = AI_DAILY_PROMPT_LIMIT;
-const STORAGE_KEY = 'ai_chat_daily_usage';
-
-interface DailyUsage {
-  date: string; // 'YYYY-MM-DD'
-  count: number;
-}
-
-function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-async function getDailyUsage(): Promise<DailyUsage> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as DailyUsage;
-      if (parsed.date === todayString()) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return { date: todayString(), count: 0 };
-}
-
-async function incrementDailyUsage(): Promise<number> {
-  const usage = await getDailyUsage();
-  const updated: DailyUsage = { date: todayString(), count: usage.count + 1 };
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  return updated.count;
-}
-
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ChatRole = 'user' | 'assistant' | 'action';
 
@@ -60,18 +33,37 @@ export function useAiChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [promptsUsed, setPromptsUsed] = useState(0);
+  const [availability, setAvailability] = useState<AiCoreAvailability | 'checking'>('checking');
+  const [downloadRequested, setDownloadRequested] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load today's usage on mount
+  // Check availability on mount, then re-poll while a download is in progress
   useEffect(() => {
-    getDailyUsage().then((u) => setPromptsUsed(u.count));
+    let cancelled = false;
+
+    async function check() {
+      const result = await checkAiCoreAvailability();
+      if (cancelled) return;
+      setAvailability(result);
+
+      if (result === 'downloading') {
+        // Keep polling until the model becomes available (or permanently fails)
+        pollTimerRef.current = setTimeout(check, DOWNLOAD_POLL_INTERVAL_MS);
+      }
+    }
+
+    check();
+
+    return () => {
+      cancelled = true;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
   }, []);
 
-  /** Convert internal messages to Gemini history.
-   *  Action cards are mapped to 'model' turns so the history always alternates
-   *  user/model — a requirement of the Gemini chat API. */
-  const toGeminiHistory = useCallback(
-    (msgs: ChatMessage[]): GeminiMessage[] =>
+  /** Convert internal messages to the on-device model's history format.
+   *  Action cards map to 'model' turns so history always alternates user/model. */
+  const toAIHistory = useCallback(
+    (msgs: ChatMessage[]): AIMessage[] =>
       msgs
         .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'action')
         .map((m) => ({
@@ -85,7 +77,7 @@ export function useAiChat() {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  /** Handle a function call returned by Gemini */
+  /** Handle a function call returned by the on-device model */
   const handleAction = useCallback(
     (name: string, args: Record<string, unknown>) => {
       switch (name) {
@@ -174,16 +166,23 @@ export function useAiChat() {
     async (text: string) => {
       if (!user || !text.trim()) return;
 
-      // Enforce daily limit
-      const usage = await getDailyUsage();
-      if (usage.count >= DAILY_LIMIT) {
-        const limitMsg: ChatMessage = {
-          id: `${Date.now()}-limit`,
+      // Gate on device support
+      if (availability !== 'available') {
+        const reason =
+          availability === 'downloading'
+            ? 'The AI model is being downloaded in the background. Please try again in a few minutes.'
+            : availability === 'unsupported_sdk'
+              ? 'On-device AI requires Android 14 or higher.'
+              : availability === 'insufficient_memory'
+                ? 'On-device AI requires at least 6 GB of device RAM.'
+                : 'On-device AI is not supported on this device.';
+
+        appendMessage({
+          id: `${Date.now()}-unavailable`,
           role: 'assistant',
-          content: `You've reached your daily limit of ${DAILY_LIMIT} prompts. Come back tomorrow!`,
+          content: reason,
           timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, limitMsg]);
+        });
         return;
       }
 
@@ -194,14 +193,10 @@ export function useAiChat() {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => {
-        const updated = [...prev, userMsg];
-        return updated;
-      });
+      setMessages((prev) => [...prev, userMsg]);
       setLoading(true);
 
       try {
-        // Build context from current app data
         const userName =
           (user.user_metadata?.full_name as string | undefined) ??
           user.email ??
@@ -215,8 +210,7 @@ export function useAiChat() {
         });
         const systemPrompt = buildSystemPrompt(context, today);
 
-        // Get current history before this message for Gemini
-        const historyBeforeThisMsg = toGeminiHistory(messages);
+        const historyBeforeThisMsg = toAIHistory(messages);
 
         const response = await sendChatMessage(
           historyBeforeThisMsg,
@@ -224,14 +218,9 @@ export function useAiChat() {
           systemPrompt,
         );
 
-        // Increment usage only on successful API response
-        const newCount = await incrementDailyUsage();
-        setPromptsUsed(newCount);
-
         if (response.functionCall) {
           const { name, args } = response.functionCall;
 
-          // Map function name to a readable label
           const actionLabels: Record<string, string> = {
             add_expense: 'Add Expense',
             create_group: 'Create Group',
@@ -255,40 +244,74 @@ export function useAiChat() {
           appendMessage(actionMsg);
           handleAction(name, args);
         } else {
-          const assistantMsg: ChatMessage = {
+          appendMessage({
             id: `${Date.now()}-assistant`,
             role: 'assistant',
             content: response.text ?? 'Sorry, I could not generate a response.',
             timestamp: new Date(),
-          };
-          appendMessage(assistantMsg);
+          });
         }
       } catch (err) {
         console.error('[AI Chat] sendMessage error:', err);
-        const errMsg: ChatMessage = {
+        const errMsg =
+          err instanceof Error && err.message.startsWith('on_device_unavailable:')
+            ? 'On-device AI is not available on this device.'
+            : 'Sorry, something went wrong. Please try again.';
+
+        appendMessage({
           id: `${Date.now()}-err`,
           role: 'assistant',
-          content: 'Sorry, something went wrong. Please try again.',
+          content: errMsg,
           timestamp: new Date(),
-        };
-        appendMessage(errMsg);
+        });
       } finally {
         setLoading(false);
       }
     },
-    [user, messages, toGeminiHistory, appendMessage, handleAction],
+    [user, messages, availability, toAIHistory, appendMessage, handleAction],
   );
 
   const clearHistory = useCallback(() => {
     setMessages([]);
   }, []);
 
+  /**
+   * Requests Android AI Core to download the Gemma 4 model.
+   * Once called, availability transitions to 'downloading' and the hook
+   * polls automatically until the model becomes ready.
+   */
+  const retryDownload = useCallback(async () => {
+    if (downloadRequested) return;
+    setDownloadRequested(true);
+    setAvailability('checking');
+
+    const result = await requestModelDownload();
+    setAvailability(result);
+
+    if (result === 'downloading') {
+      // Start polling — same mechanism as the initial mount check
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      const poll = async () => {
+        const next = await checkAiCoreAvailability();
+        setAvailability(next);
+        if (next === 'downloading') {
+          pollTimerRef.current = setTimeout(poll, DOWNLOAD_POLL_INTERVAL_MS);
+        } else {
+          setDownloadRequested(false);
+        }
+      };
+      pollTimerRef.current = setTimeout(poll, DOWNLOAD_POLL_INTERVAL_MS);
+    } else {
+      setDownloadRequested(false);
+    }
+  }, [downloadRequested]);
+
   return {
     messages,
     sendMessage,
     loading,
     clearHistory,
-    promptsRemaining: Math.max(0, DAILY_LIMIT - promptsUsed),
-    dailyLimit: DAILY_LIMIT,
+    availability,
+    retryDownload,
   };
 }

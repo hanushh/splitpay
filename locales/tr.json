@@ -50,6 +50,8 @@
   "ai.actionViewSpending": "Harcamaları Gör",
   "ai.clearChat": "Sohbeti temizle",
   "ai.dailyLimitReached": "Günlük limit doldu. Yarın sıfırlanacak.",
+  "ai.deviceNotSupported": "Cihazdaki yapay zeka Android 14+ ve en az 6 GB RAM gerektirir.",
+  "ai.modelDownloading": "AI modeli arka planda indiriliyor. Sohbet kısa süre içinde kullanılabilir olacak.",
   "ai.emptyGreeting": "Merhaba {{name}}! Harcamalarınızı yönetmenize yardımcı olabilirim. Sormayı deneyin:",
   "ai.errorGeneric": "Üzgünüm, bir şeyler ters gitti. Lütfen tekrar deneyin.",
   "ai.inputPlaceholder": "Bana her şeyi sorabilirsiniz…",

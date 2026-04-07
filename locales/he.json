@@ -50,6 +50,8 @@
   "ai.actionViewSpending": "הצג הוצאות",
   "ai.clearChat": "נקה שיחה",
   "ai.dailyLimitReached": "הגעת למגבלה היומית. מתאפס מחר.",
+  "ai.deviceNotSupported": "בינה מלאכותית במכשיר דורשת Android 14+ עם לפחות 6 GB זיכרון RAM.",
+  "ai.modelDownloading": "מוריד מודל AI ברקע. הצ'אט יהיה זמין בקרוב.",
   "ai.emptyGreeting": "שלום! אני יכול לעזור לך לנהל את ההוצאות שלך. נסה לשאול:",
   "ai.errorGeneric": "מצטער, משהו השתבש. אנא נסה שוב.",
   "ai.inputPlaceholder": "שאל אותי הכל…",
