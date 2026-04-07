@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.hanushh.paysplit",
       "buildNumber": "1",
       "infoPlist": {
-        "NSContactsUsageDescription": "Allow PaySplit to access your contacts to find friends on the app.",
+        "NSContactsUsageDescription": "PaySplit reads your contacts to find friends already on the app. Contact names, email addresses, and phone numbers are sent to PaySplit servers for matching. When you invite someone, their name and email are stored on PaySplit servers.",
         "NSCameraUsageDescription": "Allow PaySplit to use the camera to scan receipts and take profile photos.",
         "NSPhotoLibraryUsageDescription": "Allow PaySplit to access your photo library for profile photos.",
         "NSPhotoLibraryAddUsageDescription": "Allow PaySplit to save images to your photo library.",
@@ -32,8 +32,7 @@
       "googleServicesFile": "./google-services.json",
       "edgeToEdge": true,
       "permissions": [
-        "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS"
+        "android.permission.READ_CONTACTS"
       ]
     },
     "web": {
@@ -79,7 +78,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow PaySplit to access your contacts to find friends on the app."
+          "contactsPermission": "PaySplit reads your contacts to find friends already on the app. Contact names, email addresses, and phone numbers are sent to PaySplit servers for matching. When you invite someone, their name and email are stored on PaySplit servers."
         }
       ],
       "expo-notifications",
