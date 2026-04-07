@@ -52,6 +52,8 @@
   "ai.dailyLimitReached": "Limite diário atingido. Reinicia amanhã.",
   "ai.deviceNotSupported": "IA no dispositivo requer Android 14+ com pelo menos 6 GB de RAM.",
   "ai.modelDownloading": "Baixando modelo de IA em segundo plano. O chat estará disponível em breve.",
+  "ai.downloadModel": "Baixar modelo de IA",
+  "ai.downloadModelHint": "Baixe o Gemma 4 para ativar a IA no dispositivo. Requer Wi-Fi e ~2 GB de armazenamento livre.",
   "ai.emptyGreeting": "Olá! Posso ajudá-lo a gerir as suas despesas. Tente perguntar:",
   "ai.errorGeneric": "Desculpe, algo correu mal. Por favor, tente novamente.",
   "ai.inputPlaceholder": "Pergunte-me qualquer coisa…",

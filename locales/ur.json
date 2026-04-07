@@ -52,6 +52,8 @@
   "ai.dailyLimitReached": "روزانہ کی حد پہنچ گئی۔ کل ری سیٹ ہو جائے گا۔",
   "ai.deviceNotSupported": "آن-ڈیوائس AI کے لیے Android 14+ اور کم از کم 6 GB RAM ضروری ہے۔",
   "ai.modelDownloading": "پس منظر میں AI ماڈل ڈاؤن لوڈ ہو رہا ہے۔ چیٹ جلد دستیاب ہوگی۔",
+  "ai.downloadModel": "AI ماڈل ڈاؤن لوڈ کریں",
+  "ai.downloadModelHint": "آن-ڈیوائس AI فعال کرنے کے لیے Gemma 4 ڈاؤن لوڈ کریں۔ Wi-Fi اور ~2 GB خالی اسٹوریج ضروری ہے۔",
   "ai.emptyGreeting": "ہیلو! میں آپ کے اخراجات کا انتظام کرنے میں مدد کر سکتا ہوں۔ پوچھنے کی کوشش کریں:",
   "ai.errorGeneric": "معذرت، کچھ غلط ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔",
   "ai.inputPlaceholder": "مجھ سے کچھ بھی پوچھیں…",

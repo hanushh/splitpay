@@ -26,9 +26,12 @@ const QUICK_ACTION_ICONS = [
 
 export default function AiTab() {
   const { t } = useTranslation();
-  const { messages, sendMessage, loading, clearHistory, availability } = useAiChat();
+  const { messages, sendMessage, loading, clearHistory, availability, retryDownload } = useAiChat();
   const isDownloading = availability === 'downloading';
-  const isUnavailable = availability !== 'available' && availability !== 'checking' && availability !== 'downloading';
+  // Hardware-compatible but model not on device — can offer a download
+  const canDownload = availability === 'unavailable';
+  // Truly unsupported — no download possible
+  const isUnsupported = availability === 'unsupported_sdk' || availability === 'insufficient_memory';
   const [inputText, setInputText] = useState('');
   const insets = useSafeAreaInsets();
   const listRef = useRef<any>(null); // FlatList instance for scrollToEnd
@@ -205,7 +208,18 @@ export default function AiTab() {
               {t('ai.modelDownloading')}
             </Text>
           </View>
-        ) : isUnavailable ? (
+        ) : canDownload ? (
+          <View style={styles.downloadPrompt}>
+            <View style={styles.downloadPromptText}>
+              <Text style={styles.downloadPromptTitle}>{t('ai.downloadModel')}</Text>
+              <Text style={styles.downloadPromptHint}>{t('ai.downloadModelHint')}</Text>
+            </View>
+            <TouchableOpacity style={styles.downloadBtn} onPress={retryDownload} activeOpacity={0.8}>
+              <MaterialIcons name="download" size={18} color="#112117" />
+              <Text style={styles.downloadBtnText}>{t('ai.downloadModel')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isUnsupported ? (
           <View style={styles.limitBanner}>
             <MaterialIcons name="phone-android" size={16} color={DANGER} />
             <Text style={styles.limitBannerText}>
@@ -285,6 +299,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  downloadPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: SURFACE_HL,
+    backgroundColor: BG,
+  },
+  downloadPromptText: {
+    flex: 1,
+    gap: 2,
+  },
+  downloadPromptTitle: {
+    color: WHITE,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  downloadPromptHint: {
+    color: SLATE_400,
+    fontSize: 12,
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: PRIMARY,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  downloadBtnText: {
+    color: '#112117',
+    fontSize: 13,
+    fontWeight: '700',
   },
   downloadBanner: {
     flexDirection: 'row',
