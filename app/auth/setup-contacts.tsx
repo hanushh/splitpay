@@ -104,6 +104,14 @@ export default function SetupContactsScreen() {
         {denied ? t('setupContacts.subtitleDenied') : t('setupContacts.subtitleDefault')}
       </Text>
 
+      {!denied && (
+        <View style={s.disclosureBox}>
+          <Text style={s.disclosureTitle}>{t('setupContacts.disclosureTitle')}</Text>
+          <Text style={s.disclosureItem}>{'\u2022 '}{t('setupContacts.disclosureItem1')}</Text>
+          <Text style={s.disclosureItem}>{'\u2022 '}{t('setupContacts.disclosureItem2')}</Text>
+        </View>
+      )}
+
       {denied ? (
         <Pressable
           style={({ pressed }: { pressed: boolean }) => [
@@ -167,6 +175,27 @@ const s = StyleSheet.create({
     marginBottom: 36,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  disclosureBox: {
+    backgroundColor: C.surface,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 28,
+    alignSelf: 'stretch',
+    gap: 6,
+  },
+  disclosureTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.slate400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  disclosureItem: {
+    fontSize: 13,
+    color: C.slate400,
+    lineHeight: 19,
   },
   btn: {
     height: 52,
