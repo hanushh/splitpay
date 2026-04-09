@@ -206,4 +206,3 @@ jobs:
           track: ${{ env.TRACK }}
           status: completed
           mappingFile: ${{ steps.mapping_check.outputs.path }}
-          changesNotSentForReview: true
