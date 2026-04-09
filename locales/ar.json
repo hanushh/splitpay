@@ -367,5 +367,6 @@
   "toast.groupCreated": "تم إنشاء المجموعة",
   "toast.inviteRedeemed": "انضممت إلى المجموعة!",
   "toast.phoneSaved": "تم حفظ رقم الهاتف",
-  "toast.settlementRecorded": "تم تسجيل الدفع"
+  "toast.settlementRecorded": "تم تسجيل الدفع",
+  "ai.checkingAvailability": "جارٍ التحقق من توفر الذكاء الاصطناعي..."
 }

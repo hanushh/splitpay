@@ -367,5 +367,6 @@
   "toast.groupCreated": "ಗುಂಪು ರಚಿಸಲಾಗಿದೆ",
   "toast.inviteRedeemed": "ನೀವು ಗುಂಪಿಗೆ ಸೇರಿದ್ದೀರಿ!",
   "toast.phoneSaved": "ಫೋನ್ ಸಂಖ್ಯೆ ಉಳಿಸಲಾಗಿದೆ",
-  "toast.settlementRecorded": "ಪಾವತಿ ದಾಖಲಿಸಲಾಗಿದೆ"
+  "toast.settlementRecorded": "ಪಾವತಿ ದಾಖಲಿಸಲಾಗಿದೆ",
+  "ai.checkingAvailability": "AI ಲಭ್ಯತೆ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ..."
 }

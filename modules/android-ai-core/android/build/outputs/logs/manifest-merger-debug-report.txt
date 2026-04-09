@@ -1,16 +1,16 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml:2:13-83
-INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml:2:13-83
+ADDED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml:2:13-83
+INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml:2:13-83
 	package
-		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml
+		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml
 	xmlns:android
-		ADDED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml:2:23-81
+		ADDED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml:2:23-81
 uses-sdk
-INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml reason: use-sdk injection requested
-INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml
-INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml
+INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml reason: use-sdk injection requested
+INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml
+INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml
 	android:targetSdkVersion
-		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml
+		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml
 	android:minSdkVersion
-		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9330465608693377871.xml
+		INJECTED from /Users/hnair/Documents/Projects/splitwise/modules/android-ai-core/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest6634303589725822986.xml

@@ -54,10 +54,17 @@ For all other responses (questions, explanations, summaries), reply with plain t
 Do NOT mix JSON and text in the same reply.`.trim();
 
 // ── Model download URL ────────────────────────────────────────────────────────
-// MediaPipe-optimised Gemma 4 1B INT4 quantised task file (~1.1 GB).
-// Replace with a signed URL or your own host if needed.
+// Gemma 3 1B INT4 from litert-community on Hugging Face.
+// This model is gated — users must accept the Gemma license at:
+//   https://huggingface.co/litert-community/Gemma3-1B-IT
+// then supply a Hugging Face read token via EXPO_PUBLIC_HF_TOKEN
+// (or host the .task file on your own CDN and update this URL).
 export const GEMMA_MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-4-1b-it-gpu-int4/float16/latest/model.task';
+  'https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task';
+
+// Hugging Face token for downloading gated models.
+// Set EXPO_PUBLIC_HF_TOKEN in your .env.development / .env.production
+const HF_TOKEN = process.env.EXPO_PUBLIC_HF_TOKEN ?? '';
 
 // ── Native module (Android only) ─────────────────────────────────────────────
 
@@ -105,9 +112,11 @@ export async function requestModelDownload(): Promise<AiCoreAvailability> {
   if (current === 'available') return 'available';
 
   try {
-    await native.startModelDownload(GEMMA_MODEL_URL);
+    const jobId = await native.startModelDownload(GEMMA_MODEL_URL, HF_TOKEN);
+    console.log('[AI] startModelDownload succeeded, jobId:', jobId);
     return 'downloading';
-  } catch {
+  } catch (e) {
+    console.error('[AI] startModelDownload failed:', e);
     return 'unavailable';
   }
 }

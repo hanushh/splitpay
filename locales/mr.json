@@ -367,5 +367,6 @@
   "toast.groupCreated": "ग्रुप तयार झाला",
   "toast.inviteRedeemed": "तुम्ही ग्रुपमध्ये सामील झालात!",
   "toast.phoneSaved": "फोन नंबर जतन झाला",
-  "toast.settlementRecorded": "पेमेंट नोंदवले"
+  "toast.settlementRecorded": "पेमेंट नोंदवले",
+  "ai.checkingAvailability": "AI उपलब्धता तपासत आहे..."
 }

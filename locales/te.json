@@ -367,5 +367,6 @@
   "toast.groupCreated": "గ్రూప్ సృష్టించబడింది",
   "toast.inviteRedeemed": "మీరు గ్రూప్‌లో చేరారు!",
   "toast.phoneSaved": "ఫోన్ నంబర్ సేవ్ చేయబడింది",
-  "toast.settlementRecorded": "చెల్లింపు నమోదు చేయబడింది"
+  "toast.settlementRecorded": "చెల్లింపు నమోదు చేయబడింది",
+  "ai.checkingAvailability": "AI లభ్యతను తనిఖీ చేస్తోంది..."
 }

@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timeout = setTimeout(() => {
       if (cancelled) return;
       setLoading(false);
-    }, 12000); // If getSession doesn't resolve in 12s (e.g. no network), show sign-in
+    }, 5000); // If getSession doesn't resolve in 5s (e.g. no network), show sign-in
 
     supabase.auth
       .getSession()
@@ -100,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setSession(session);
         if (session?.user?.id) {
-          const complete = await fetchPhoneComplete(session.user.id);
+          const complete = await Promise.race([
+            fetchPhoneComplete(session.user.id),
+            new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 4000)),
+          ]);
           let contactsGranted = Platform.OS === 'web';
           if (Platform.OS !== 'web') {
             const { status } = await Contacts.getPermissionsAsync();

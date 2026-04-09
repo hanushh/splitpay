@@ -367,5 +367,6 @@
   "toast.groupCreated": "הקבוצה נוצרה",
   "toast.inviteRedeemed": "הצטרפת לקבוצה!",
   "toast.phoneSaved": "מספר הטלפון נשמר",
-  "toast.settlementRecorded": "התשלום נרשם"
+  "toast.settlementRecorded": "התשלום נרשם",
+  "ai.checkingAvailability": "בודק זמינות AI..."
 }

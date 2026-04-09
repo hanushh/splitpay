@@ -367,5 +367,6 @@
   "toast.groupCreated": "Grup oluşturuldu",
   "toast.inviteRedeemed": "Gruba katıldınız!",
   "toast.phoneSaved": "Telefon numarası kaydedildi",
-  "toast.settlementRecorded": "Ödeme kaydedildi"
+  "toast.settlementRecorded": "Ödeme kaydedildi",
+  "ai.checkingAvailability": "Yapay zeka kullanilabilirlik kontrol ediliyor..."
 }

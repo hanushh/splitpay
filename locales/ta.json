@@ -367,5 +367,6 @@
   "toast.groupCreated": "குழு உருவாக்கப்பட்டது",
   "toast.inviteRedeemed": "நீங்கள் குழுவில் சேர்ந்தீர்கள்!",
   "toast.phoneSaved": "தொலைபேசி எண் சேமிக்கப்பட்டது",
-  "toast.settlementRecorded": "கட்டணம் பதிவு செய்யப்பட்டது"
+  "toast.settlementRecorded": "கட்டணம் பதிவு செய்யப்பட்டது",
+  "ai.checkingAvailability": "AI கிடைக்கும் தன்மையை சரிபார்க்கிறது..."
 }

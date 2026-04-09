@@ -367,5 +367,6 @@
   "toast.groupCreated": "Gruppe erstellt",
   "toast.inviteRedeemed": "Du bist der Gruppe beigetreten!",
   "toast.phoneSaved": "Telefonnummer gespeichert",
-  "toast.settlementRecorded": "Zahlung erfasst"
+  "toast.settlementRecorded": "Zahlung erfasst",
+  "ai.checkingAvailability": "KI-Verfugbarkeit wird gepruft..."
 }

@@ -45,7 +45,10 @@ export const SUPPORTED_LANGUAGES = [
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
 
 async function getStoredLanguage(): Promise<string | null> {
-  return AsyncStorage.getItem(LANGUAGE_KEY);
+  return Promise.race([
+    AsyncStorage.getItem(LANGUAGE_KEY),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+  ]);
 }
 
 function getDeviceLanguage(): string {

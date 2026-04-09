@@ -38,12 +38,13 @@ export interface AndroidAiCoreModule {
   ): Promise<string>;
 
   /**
-   * Enqueues a DownloadManager job to fetch the Gemma model file.
-   * Returns the DownloadManager job ID as a string.
+   * Streams the Gemma model file to filesDir in a background coroutine.
+   * Resolves with "ok" immediately; use checkAvailability() to poll progress.
    *
-   * @param modelUrl  HTTPS URL of the .task model file.
+   * @param modelUrl   HTTPS URL of the .task model file.
+   * @param authToken  Optional Bearer token (e.g. Hugging Face read token for gated models).
    */
-  startModelDownload(modelUrl: string): Promise<string>;
+  startModelDownload(modelUrl: string, authToken?: string): Promise<string>;
 }
 
 // ── Module export ─────────────────────────────────────────────────────────────

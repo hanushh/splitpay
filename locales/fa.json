@@ -367,5 +367,6 @@
   "toast.groupCreated": "گروه ایجاد شد",
   "toast.inviteRedeemed": "شما به گروه پیوستید!",
   "toast.phoneSaved": "شماره تلفن ذخیره شد",
-  "toast.settlementRecorded": "پرداخت ثبت شد"
+  "toast.settlementRecorded": "پرداخت ثبت شد",
+  "ai.checkingAvailability": "در حال بررسی در دسترس بودن هوش مصنوعی..."
 }

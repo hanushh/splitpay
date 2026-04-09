@@ -1,10 +1,9 @@
 package expo.modules.androidaicore
 
 import android.app.ActivityManager
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
 import android.os.Build
+import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -16,6 +15,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.io.File
+import java.net.URL
+
+private const val TAG = "AndroidAiCore"
 
 class AndroidAiCoreModule : Module() {
 
@@ -52,25 +54,31 @@ class AndroidAiCoreModule : Module() {
                 val ctx = appContext.reactContext
                 if (ctx == null) { promise.resolve("unavailable"); return@launch }
 
+                Log.i(TAG, "checkAvailability: SDK=${Build.VERSION.SDK_INT} MIN=$MIN_API")
                 if (Build.VERSION.SDK_INT < MIN_API) {
+                    Log.w(TAG, "checkAvailability: unsupported_sdk")
                     promise.resolve("unsupported_sdk"); return@launch
                 }
 
                 val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
                 val memInfo = ActivityManager.MemoryInfo()
                 am?.getMemoryInfo(memInfo)
+                Log.i(TAG, "checkAvailability: totalMem=${memInfo.totalMem} MIN=$MIN_MEMORY_BYTES")
                 if (memInfo.totalMem in 1..<MIN_MEMORY_BYTES) {
+                    Log.w(TAG, "checkAvailability: insufficient_memory")
                     promise.resolve("insufficient_memory"); return@launch
                 }
 
                 val modelFile = modelFile(ctx)
+                val tmpFile = File(modelFile.parent, "$MODEL_FILENAME.tmp")
 
-                // Check if an active DownloadManager job is in flight for our model
+                // If the .tmp file exists, the background download coroutine is in progress
                 if (!modelFile.exists()) {
-                    val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-                    if (dm != null && hasActiveDownload(dm, modelFile)) {
+                    if (tmpFile.exists()) {
+                        Log.i(TAG, "checkAvailability: downloading (tmp exists, ${tmpFile.length()} bytes)")
                         promise.resolve("downloading"); return@launch
                     }
+                    Log.i(TAG, "checkAvailability: unavailable (no model, no tmp)")
                     promise.resolve("unavailable"); return@launch
                 }
 
@@ -83,6 +91,7 @@ class AndroidAiCoreModule : Module() {
                     }
                 }
 
+                Log.i(TAG, "checkAvailability: available")
                 promise.resolve("available")
             }
         }
@@ -109,32 +118,59 @@ class AndroidAiCoreModule : Module() {
         }
 
         // ── startModelDownload ────────────────────────────────────────────────
-        // Enqueues a DownloadManager job for the Gemma 4 model.
-        // Returns the DownloadManager job ID (Long as String) or rejects on error.
-        AsyncFunction("startModelDownload") { modelUrl: String, promise: Promise ->
+        // Streams the model file directly into filesDir using java.net.URL.
+        // Returns "ok" immediately (download runs in background coroutine).
+        AsyncFunction("startModelDownload") { modelUrl: String, authToken: String, promise: Promise ->
+            val ctx = appContext.reactContext
+            if (ctx == null) {
+                Log.e(TAG, "startModelDownload: reactContext is null")
+                promise.reject("NO_CTX", "Context unavailable", null)
+                return@AsyncFunction
+            }
+
+            val dest = modelFile(ctx)
+            if (dest.exists()) {
+                Log.i(TAG, "startModelDownload: model already exists at $dest")
+                promise.resolve("ok")
+                return@AsyncFunction
+            }
+
+            // Resolve immediately so the UI transitions to 'downloading'.
+            // The actual download runs in the background scope.
+            Log.i(TAG, "startModelDownload: starting background download to $dest (token=${authToken.isNotBlank()})")
+            promise.resolve("ok")
+
             scope.launch {
-                val ctx = appContext.reactContext
-                if (ctx == null) { promise.reject("NO_CTX", "Context unavailable", null); return@launch }
-
-                val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-                if (dm == null) { promise.reject("NO_DM", "DownloadManager unavailable", null); return@launch }
-
+                val tmp = File(dest.parent, "$MODEL_FILENAME.tmp")
                 try {
-                    val dest = modelFile(ctx)
-                    dest.parentFile?.mkdirs()
+                    Log.i(TAG, "startModelDownload: opening connection to $modelUrl")
+                    val connection = URL(modelUrl).openConnection() as java.net.HttpURLConnection
+                    connection.connectTimeout = 30_000
+                    connection.readTimeout = 60_000
+                    if (authToken.isNotBlank()) {
+                        connection.setRequestProperty("Authorization", "Bearer $authToken")
+                    }
+                    connection.instanceFollowRedirects = true
+                    connection.connect()
 
-                    val request = DownloadManager.Request(Uri.parse(modelUrl))
-                        .setTitle("Gemma 4 AI Model")
-                        .setDescription("Downloading on-device AI model…")
-                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                        .setDestinationUri(Uri.fromFile(dest))
-                        .setRequiresCharging(false)
-                        .setAllowedOverMetered(false)  // Wi-Fi only by default
+                    val responseCode = connection.responseCode
+                    Log.i(TAG, "startModelDownload: HTTP $responseCode")
+                    if (responseCode !in 200..299) {
+                        Log.e(TAG, "startModelDownload: bad response code $responseCode")
+                        tmp.delete()
+                        return@launch
+                    }
 
-                    val jobId = dm.enqueue(request)
-                    promise.resolve(jobId.toString())
+                    connection.inputStream.use { input ->
+                        tmp.outputStream().use { output ->
+                            input.copyTo(output, bufferSize = 8 * 1024 * 1024)
+                        }
+                    }
+                    tmp.renameTo(dest)
+                    Log.i(TAG, "startModelDownload: complete — ${dest.length()} bytes at $dest")
                 } catch (e: Exception) {
-                    promise.reject("DOWNLOAD_ERROR", e.message ?: "Failed to start download", e)
+                    Log.e(TAG, "startModelDownload: download failed: ${e.message}", e)
+                    tmp.delete()
                 }
             }
         }
@@ -149,24 +185,6 @@ class AndroidAiCoreModule : Module() {
             .setModelPath(modelFile.absolutePath)
             .build()
         return LlmInference.createFromOptions(context, options)
-    }
-
-    /** Returns true if DownloadManager has a pending/running job whose destination
-     *  matches our model file path. */
-    private fun hasActiveDownload(dm: DownloadManager, modelFile: File): Boolean {
-        val query = DownloadManager.Query().setFilterByStatus(
-            DownloadManager.STATUS_PENDING or
-                DownloadManager.STATUS_RUNNING or
-                DownloadManager.STATUS_PAUSED
-        )
-        dm.query(query)?.use { cursor ->
-            val colLocalUri = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-            while (cursor.moveToNext()) {
-                val uri = cursor.getString(colLocalUri) ?: continue
-                if (uri.contains(modelFile.name)) return true
-            }
-        }
-        return false
     }
 
     /**

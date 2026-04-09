@@ -138,6 +138,8 @@ export default function AiTab() {
   }, [messages.length]);
 
   const isEmpty = messages.length === 0;
+  const isReady = availability === 'available';
+  const isChecking = availability === 'checking';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -148,7 +150,7 @@ export default function AiTab() {
           <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         </View>
         <View style={styles.headerRight}>
-          {messages.length > 0 && (
+          {messages.length > 0 && isReady && (
             <TouchableOpacity onPress={clearHistory} hitSlop={12}>
               <Text style={styles.clearBtn}>{t('ai.clearChat')}</Text>
             </TouchableOpacity>
@@ -156,100 +158,114 @@ export default function AiTab() {
         </View>
       </View>
 
+      {/* Chat area — dimmed and non-interactive until model is ready */}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* Message list */}
-        {isEmpty ? (
-          <View style={styles.emptyContainer}>
-            <MaterialIcons name="auto-awesome" size={56} color={SURFACE_HL} />
-            <Text style={styles.emptyGreeting}>{t('ai.emptyGreeting')}</Text>
-            <View style={styles.quickActions}>
-              {QUICK_ACTION_ICONS.map((action) => (
-                <TouchableOpacity
-                  key={action.key}
-                  style={styles.quickChip}
-                  onPress={() => sendMessage(t(action.key))}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name={action.icon} size={16} color={PRIMARY} />
-                  <Text style={styles.quickChipText}>{t(action.key)}</Text>
-                </TouchableOpacity>
-              ))}
+        <View style={styles.flex}>
+          {/* Blurred content layer */}
+          <View
+            style={[styles.flex, !isReady && styles.contentDimmed]}
+            pointerEvents={isReady ? 'auto' : 'none'}
+          >
+            {isEmpty ? (
+              <View style={styles.emptyContainer}>
+                <MaterialIcons name="auto-awesome" size={56} color={SURFACE_HL} />
+                <Text style={styles.emptyGreeting}>{t('ai.emptyGreeting')}</Text>
+                <View style={styles.quickActions}>
+                  {QUICK_ACTION_ICONS.map((action) => (
+                    <TouchableOpacity
+                      key={action.key}
+                      style={styles.quickChip}
+                      onPress={() => sendMessage(t(action.key))}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialIcons name={action.icon} size={16} color={PRIMARY} />
+                      <Text style={styles.quickChipText}>{t(action.key)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <FlatList
+                ref={listRef}
+                data={messages}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={styles.listContent}
+                onContentSizeChange={onContentSizeChange}
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+
+            {/* Typing indicator */}
+            {loading && (
+              <View style={styles.typingRow}>
+                <ActivityIndicator size="small" color={PRIMARY} />
+                <Text style={styles.typingText}>{t('ai.thinking')}</Text>
+              </View>
+            )}
+
+            {/* Input bar */}
+            <View style={styles.inputBar}>
+              <TextInput
+                style={styles.textInput}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder={t('ai.inputPlaceholder')}
+                placeholderTextColor={SLATE_400}
+                multiline
+                maxLength={500}
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+              />
+              <TouchableOpacity
+                style={[styles.sendBtn, (!inputText.trim() || loading) && styles.sendBtnDisabled]}
+                onPress={handleSend}
+                disabled={!inputText.trim() || loading}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="send" size={20} color="#112117" />
+              </TouchableOpacity>
             </View>
           </View>
-        ) : (
-          <FlatList
-            ref={listRef}
-            data={messages}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
-            onContentSizeChange={onContentSizeChange}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
 
-        {/* Typing indicator */}
-        {loading && (
-          <View style={styles.typingRow}>
-            <ActivityIndicator size="small" color={PRIMARY} />
-            <Text style={styles.typingText}>{t('ai.thinking')}</Text>
-          </View>
-        )}
-
-        {/* Input bar */}
-        {isDownloading ? (
-          <View style={styles.downloadBanner}>
-            <ActivityIndicator size="small" color={PRIMARY} />
-            <Text style={styles.downloadBannerText}>
-              {t('ai.modelDownloading')}
-            </Text>
-          </View>
-        ) : canDownload ? (
-          <View style={styles.downloadPrompt}>
-            <View style={styles.downloadPromptText}>
-              <Text style={styles.downloadPromptTitle}>{t('ai.downloadModel')}</Text>
-              <Text style={styles.downloadPromptHint}>{t('ai.downloadModelHint')}</Text>
+          {/* Status overlay — shown when model is not ready */}
+          {!isReady && (
+            <View style={styles.statusOverlay}>
+              {isChecking ? (
+                <View style={styles.statusCard}>
+                  <ActivityIndicator size="large" color={PRIMARY} />
+                  <Text style={styles.statusTitle}>{t('ai.checkingAvailability')}</Text>
+                </View>
+              ) : isDownloading ? (
+                <View style={styles.statusCard}>
+                  <ActivityIndicator size="large" color={PRIMARY} />
+                  <Text style={styles.statusTitle}>{t('ai.modelDownloading')}</Text>
+                  <Text style={styles.statusHint}>{t('ai.downloadModelHint')}</Text>
+                </View>
+              ) : isUnsupported ? (
+                <View style={styles.statusCard}>
+                  <MaterialIcons name="phone-android" size={40} color={DANGER} />
+                  <Text style={[styles.statusTitle, { color: DANGER }]}>{t('ai.deviceNotSupported')}</Text>
+                </View>
+              ) : canDownload ? (
+                <View style={styles.statusCard}>
+                  <MaterialIcons name="auto-awesome" size={40} color={PRIMARY} />
+                  <Text style={styles.statusTitle}>{t('ai.downloadModel')}</Text>
+                  <Text style={styles.statusHint}>{t('ai.downloadModelHint')}</Text>
+                  <TouchableOpacity style={styles.downloadBtn} onPress={retryDownload} activeOpacity={0.8}>
+                    <MaterialIcons name="download" size={18} color="#112117" />
+                    <Text style={styles.downloadBtnText}>{t('ai.downloadModel')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </View>
-            <TouchableOpacity style={styles.downloadBtn} onPress={retryDownload} activeOpacity={0.8}>
-              <MaterialIcons name="download" size={18} color="#112117" />
-              <Text style={styles.downloadBtnText}>{t('ai.downloadModel')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : isUnsupported ? (
-          <View style={styles.limitBanner}>
-            <MaterialIcons name="phone-android" size={16} color={DANGER} />
-            <Text style={styles.limitBannerText}>
-              {t('ai.deviceNotSupported')}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.inputBar}>
-            <TextInput
-              style={styles.textInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder={t('ai.inputPlaceholder')}
-              placeholderTextColor={SLATE_400}
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!inputText.trim() || loading) && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || loading}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="send" size={20} color="#112117" />
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -300,28 +316,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  downloadPrompt: {
-    flexDirection: 'row',
+  contentDimmed: {
+    opacity: 0.25,
+  },
+  statusOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  statusCard: {
+    width: '100%',
+    backgroundColor: SURFACE,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: SURFACE_HL,
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: SURFACE_HL,
-    backgroundColor: BG,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
   },
-  downloadPromptText: {
-    flex: 1,
-    gap: 2,
-  },
-  downloadPromptTitle: {
+  statusTitle: {
     color: WHITE,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  downloadPromptHint: {
+  statusHint: {
     color: SLATE_400,
-    fontSize: 12,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   downloadBtn: {
     flexDirection: 'row',
@@ -329,42 +354,14 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: PRIMARY,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 4,
   },
   downloadBtnText: {
     color: '#112117',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-  },
-  downloadBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: SURFACE_HL,
-    backgroundColor: BG,
-  },
-  downloadBannerText: {
-    color: SLATE_400,
-    fontSize: 14,
-    flexShrink: 1,
-  },
-  limitBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: SURFACE_HL,
-    backgroundColor: BG,
-  },
-  limitBannerText: {
-    color: DANGER,
-    fontSize: 14,
   },
   // Empty state
   emptyContainer: {

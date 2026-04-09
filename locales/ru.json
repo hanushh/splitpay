@@ -367,5 +367,6 @@
   "toast.groupCreated": "Группа создана",
   "toast.inviteRedeemed": "Вы вступили в группу!",
   "toast.phoneSaved": "Номер телефона сохранён",
-  "toast.settlementRecorded": "Платёж записан"
+  "toast.settlementRecorded": "Платёж записан",
+  "ai.checkingAvailability": "Proверка доступности ИИ..."
 }

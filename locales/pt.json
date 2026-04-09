@@ -367,5 +367,6 @@
   "toast.groupCreated": "Grupo criado",
   "toast.inviteRedeemed": "Você entrou no grupo!",
   "toast.phoneSaved": "Número de telefone salvo",
-  "toast.settlementRecorded": "Pagamento registrado"
+  "toast.settlementRecorded": "Pagamento registrado",
+  "ai.checkingAvailability": "A verificar disponibilidade de IA..."
 }
