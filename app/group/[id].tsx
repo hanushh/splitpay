@@ -5,18 +5,16 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/context/auth';
 import { formatCentsWithCurrency } from '@/context/currency';
 import { useToast } from '@/context/toast';
@@ -25,16 +23,18 @@ import { shareExpenseCsv } from '@/lib/export-csv';
 import { supabase } from '@/lib/supabase';
 import { APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
+import GroupSettingsSheet from '@/components/GroupSettingsSheet';
+import GroupRenameModal from '@/components/GroupRenameModal';
+import GroupDeleteModal from '@/components/GroupDeleteModal';
+import GroupMembersSection from '@/components/GroupMembersSection';
 
 const C = {
   primary: '#17e86b',
   orange: '#f97316',
   bg: '#112117',
-  bgOverlay: '#112117f2',
   surface: '#1a3324',
   surfaceHL: '#244732',
   slate400: '#94a3b8',
-  slate500: '#64748b',
   white: '#ffffff',
 };
 
@@ -48,27 +48,12 @@ interface GroupDetail {
   archived: boolean;
 }
 
-const CATEGORY_ICONS: Record<
-  string,
-  { icon: string; bg: string; color: string }
-> = {
-  restaurant: {
-    icon: 'restaurant',
-    bg: 'rgba(249,115,22,0.15)',
-    color: '#f97316',
-  },
+const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
+  restaurant: { icon: 'restaurant', bg: 'rgba(249,115,22,0.15)', color: '#f97316' },
   hotel: { icon: 'hotel', bg: 'rgba(99,102,241,0.15)', color: '#818cf8' },
   train: { icon: 'train', bg: 'rgba(20,184,166,0.15)', color: '#2dd4bf' },
-  store: {
-    icon: 'local-convenience-store',
-    bg: 'rgba(234,179,8,0.15)',
-    color: '#eab308',
-  },
-  receipt: {
-    icon: 'receipt-long',
-    bg: 'rgba(23,232,107,0.15)',
-    color: '#17e86b',
-  },
+  store: { icon: 'local-convenience-store', bg: 'rgba(234,179,8,0.15)', color: '#eab308' },
+  receipt: { icon: 'receipt-long', bg: 'rgba(23,232,107,0.15)', color: '#17e86b' },
 };
 
 function monthKey(iso: string): string {
@@ -92,22 +77,39 @@ export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteInput, setDeleteInput] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
-  const [deletingExpense, setDeletingExpense] = useState(false);
   const [members, setMembers] = useState<GroupMember[]>([]);
+
+  // Expense detail sheet
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
+  const [deletingExpense, setDeletingExpense] = useState(false);
+
+  // Members
   const [remindingId, setRemindingId] = useState<string | null>(null);
+
+  // Settings sheet
+  const [showSettings, setShowSettings] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  // Rename modal
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameInput, setRenameInput] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  // Delete / leave modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+
+  // ─── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchGroup = useCallback(async () => {
     if (!user || !id) return;
@@ -127,14 +129,8 @@ export default function GroupDetailScreen() {
         .select('balance_cents, currency_code')
         .eq('group_id', id)
         .eq('user_id', user.id),
-      supabase.rpc('get_group_expenses', {
-        p_group_id: id,
-        p_user_id: user.id,
-      }),
-      supabase
-        .from('group_members')
-        .select('id, display_name, avatar_url, user_id')
-        .eq('group_id', id),
+      supabase.rpc('get_group_expenses', { p_group_id: id, p_user_id: user.id }),
+      supabase.from('group_members').select('id, display_name, avatar_url, user_id').eq('group_id', id),
     ]);
 
     if (groupErr || !data) {
@@ -142,140 +138,75 @@ export default function GroupDetailScreen() {
       setLoading(false);
       return;
     }
-    if (expErr) {
-      setFetchError(expErr.message);
-      setLoading(false);
-      return;
-    }
-    if (memberRowsErr) {
-      setFetchError(memberRowsErr.message ?? 'Failed to load group members.');
-      setLoading(false);
-      return;
-    }
+    if (expErr) { setFetchError(expErr.message); setLoading(false); return; }
+    if (memberRowsErr) { setFetchError(memberRowsErr.message ?? 'Failed to load group members.'); setLoading(false); return; }
+
     type RawBalance = { balance_cents: number; currency_code: string };
     const balances: CurrencyBalance[] = sortBalancesDesc(
       (Array.isArray(bal) ? (bal as RawBalance[]) : [])
         .filter((b) => b.balance_cents !== 0)
-        .map((b) => ({
-          currency_code: b.currency_code,
-          balance_cents: Number(b.balance_cents),
-        })),
+        .map((b) => ({ currency_code: b.currency_code, balance_cents: Number(b.balance_cents) })),
     );
-    setGroup({
-      ...data,
-      balances,
-      archived: data.archived ?? false,
-    });
+
+    setGroup({ ...data, balances, archived: data.archived ?? false });
+
     const seen = new Set<string>();
-    const deduped = ((expRows as Expense[]) ?? []).filter((e) => {
-      if (seen.has(e.expense_id)) return false;
-      seen.add(e.expense_id);
-      return true;
-    });
-    setExpenses(deduped);
+    setExpenses(
+      ((expRows as Expense[]) ?? []).filter((e) => {
+        if (seen.has(e.expense_id)) return false;
+        seen.add(e.expense_id);
+        return true;
+      }),
+    );
 
     const rawMembers = (memberRows as GroupMember[]) ?? [];
-    const userIdsNeedingProfile = rawMembers
-      .filter((m) => m.user_id && !m.display_name)
-      .map((m) => m.user_id!);
-    let profileMap: Record<
-      string,
-      { name: string; avatar_url: string | null }
-    > = {};
-    if (userIdsNeedingProfile.length > 0) {
+    const needingProfile = rawMembers.filter((m) => m.user_id && !m.display_name).map((m) => m.user_id!);
+    let profileMap: Record<string, { name: string; avatar_url: string | null }> = {};
+    if (needingProfile.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
-        .in('id', userIdsNeedingProfile);
+        .in('id', needingProfile);
       profileMap = (profiles ?? []).reduce(
-        (acc, p) => ({
-          ...acc,
-          [p.id]: { name: p.name ?? t('group.unknownMember'), avatar_url: p.avatar_url },
-        }),
+        (acc, p) => ({ ...acc, [p.id]: { name: p.name ?? t('group.unknownMember'), avatar_url: p.avatar_url } }),
         {} as Record<string, { name: string; avatar_url: string | null }>,
       );
     }
-    const resolvedMembers: GroupMember[] = rawMembers.map((m) => {
-      if (m.user_id && !m.display_name && profileMap[m.user_id]) {
-        return {
-          ...m,
-          display_name: profileMap[m.user_id].name,
-          avatar_url: m.avatar_url ?? profileMap[m.user_id].avatar_url,
-        };
-      }
-      return m;
-    });
-    setMembers(resolvedMembers);
+    setMembers(
+      rawMembers.map((m) =>
+        m.user_id && !m.display_name && profileMap[m.user_id]
+          ? { ...m, display_name: profileMap[m.user_id].name, avatar_url: m.avatar_url ?? profileMap[m.user_id].avatar_url }
+          : m,
+      ),
+    );
     setLoading(false);
   }, [id, user, t]);
 
-  const handleRemind = useCallback(
-    async (member: GroupMember) => {
-      if (!id || !user || !group) return;
-      setRemindingId(member.id);
-      try {
-        const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-        await supabase.from('invitations').insert({
-          inviter_id: user.id,
-          group_id: id,
-          token,
-          status: 'pending',
-        });
-        const link = `${INVITE_WEB_LINK_BASE}?token=${encodeURIComponent(token)}`;
-        const name = member.display_name ?? t('group.unknownMember');
-        await Share.share({
-          message: t('group.remindMessage', {
-            name,
-            groupName: group.name,
-            link,
-            appStoreUrl: APP_STORE_URL,
-          }),
-        });
-      } catch {
-        // share cancelled — no action needed
-      } finally {
-        setRemindingId(null);
-      }
-    },
-    [id, user, group, t],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchGroup();
-    }, [fetchGroup]),
-  );
+  useFocusEffect(useCallback(() => { fetchGroup(); }, [fetchGroup]));
 
   // Fetch per-member splits when an expense is selected
   useEffect(() => {
-    if (!selectedExpense) {
-      setSplits([]);
-      setSplitsLoading(false);
-      return;
-    }
+    if (!selectedExpense) { setSplits([]); setSplitsLoading(false); return; }
     let cancelled = false;
     setSplitsLoading(true);
     setSplits([]);
-
-    const fetchSplits = async () => {
-      const { data, error } = await supabase
-        .from('expense_splits')
-        .select('member_id, amount_cents')
-        .eq('expense_id', selectedExpense.expense_id);
-      if (!cancelled) {
-        if (!error) setSplits((data as ExpenseSplit[]) ?? []);
-        setSplitsLoading(false);
-      }
-    };
-
-    fetchSplits();
-    return () => {
-      cancelled = true;
-    };
+    supabase
+      .from('expense_splits')
+      .select('member_id, amount_cents')
+      .eq('expense_id', selectedExpense.expense_id)
+      .then(({ data, error }) => {
+        if (!cancelled) {
+          if (!error) setSplits((data as ExpenseSplit[]) ?? []);
+          setSplitsLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
   }, [selectedExpense?.expense_id]);
 
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+
   const leaveGroup = useCallback(async () => {
-    if (!group || !user) return;
+    if (!group || !user) return undefined;
     const { error } = await supabase
       .from('group_members')
       .delete()
@@ -284,38 +215,124 @@ export default function GroupDetailScreen() {
     return error;
   }, [group, user]);
 
-  const handleDelete = useCallback(async () => {
-    if (!group || deleteInput !== group.name) return;
+  const handleRemind = useCallback(async (member: GroupMember) => {
+    if (!id || !user || !group) return;
+    setRemindingId(member.id);
+    try {
+      const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+      await supabase.from('invitations').insert({ inviter_id: user.id, group_id: id, token, status: 'pending' });
+      const link = `${INVITE_WEB_LINK_BASE}?token=${encodeURIComponent(token)}`;
+      const name = member.display_name ?? t('group.unknownMember');
+      await Share.share({
+        message: t('group.remindMessage', { name, groupName: group.name, link, appStoreUrl: APP_STORE_URL }),
+      });
+    } catch {
+      // share cancelled — no action needed
+    } finally {
+      setRemindingId(null);
+    }
+  }, [id, user, group, t]);
+
+  const handleRemoveMember = useCallback(async (member: GroupMember) => {
+    if (!id) return;
+    // For app members, check outstanding balance before removing
+    if (member.user_id) {
+      const { data: bal } = await supabase
+        .from('group_balances')
+        .select('balance_cents')
+        .eq('group_id', id)
+        .eq('user_id', member.user_id);
+      const hasBalance = (bal ?? []).some((b: { balance_cents: number }) => b.balance_cents !== 0);
+      if (hasBalance) {
+        const name = member.display_name ?? t('group.unknownMember');
+        Alert.alert(t('group.removeMemberTitle'), t('group.removeMemberBalanceBlocked', { name }));
+        return;
+      }
+    }
+    const { error } = await supabase.from('group_members').delete().eq('id', member.id);
+    if (error) { Alert.alert(t('common.ok'), error.message); return; }
+    showToast('success', t('toast.memberRemoved'));
+    fetchGroup();
+  }, [id, fetchGroup, showToast, t]);
+
+  const handleArchive = useCallback(async () => {
+    if (!group) return;
     setActionLoading(true);
     setActionError(null);
-    const groupIsCreator = !group.created_by || user?.id === group.created_by;
-    if (!groupIsCreator) {
+    const isCreator = !group.created_by || user?.id === group.created_by;
+    if (!isCreator) {
       const status = deriveBalanceStatus(group.balances);
       if (status !== 'settled') {
-        setActionError(
-          status === 'owed'
-            ? t('group.owedLeaveBlocked')
-            : t('group.owesLeaveBlocked'),
-        );
+        setActionError(status === 'owed' ? t('group.owedLeaveBlocked') : t('group.owesLeaveBlocked'));
         setActionLoading(false);
         return;
       }
       const error = await leaveGroup();
       setActionLoading(false);
-      if (error) {
-        setActionError(error.message);
-        return;
-      }
+      if (error) { setActionError(error.message); return; }
     } else {
-      const { error } = await supabase
-        .from('groups')
-        .delete()
-        .eq('id', group.id);
+      const { error } = await supabase.from('groups').update({ archived: true }).eq('id', group.id);
       setActionLoading(false);
-      if (error) {
-        setActionError(error.message);
+      if (error) { setActionError(error.message); return; }
+    }
+    setShowSettings(false);
+    router.replace('/');
+  }, [group, user, leaveGroup, t]);
+
+  const handleUnarchive = useCallback(async () => {
+    if (!group) return;
+    setActionLoading(true);
+    setActionError(null);
+    const { error } = await supabase.from('groups').update({ archived: false }).eq('id', group.id);
+    setActionLoading(false);
+    if (error) { setActionError(error.message); return; }
+    setShowSettings(false);
+    fetchGroup();
+  }, [group, fetchGroup]);
+
+  const handleExportCsv = useCallback(async () => {
+    if (!group || expenses.length === 0) return;
+    setExporting(true);
+    try {
+      await shareExpenseCsv(group.name, expenses);
+    } catch {
+      // share cancelled or failed — no action needed
+    } finally {
+      setExporting(false);
+    }
+  }, [group, expenses]);
+
+  const handleRename = useCallback(async () => {
+    if (!group || !renameInput.trim()) return;
+    setRenameLoading(true);
+    setRenameError(null);
+    const { error } = await supabase.from('groups').update({ name: renameInput.trim() }).eq('id', group.id);
+    setRenameLoading(false);
+    if (error) { setRenameError(error.message); return; }
+    setShowRenameModal(false);
+    showToast('success', t('toast.groupRenamed'));
+    fetchGroup();
+  }, [group, renameInput, fetchGroup, showToast, t]);
+
+  const handleDelete = useCallback(async () => {
+    if (!group || deleteInput !== group.name) return;
+    setActionLoading(true);
+    setActionError(null);
+    const isCreator = !group.created_by || user?.id === group.created_by;
+    if (!isCreator) {
+      const status = deriveBalanceStatus(group.balances);
+      if (status !== 'settled') {
+        setActionError(status === 'owed' ? t('group.owedLeaveBlocked') : t('group.owesLeaveBlocked'));
+        setActionLoading(false);
         return;
       }
+      const error = await leaveGroup();
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
+    } else {
+      const { error } = await supabase.from('groups').delete().eq('id', group.id);
+      setActionLoading(false);
+      if (error) { setActionError(error.message); return; }
     }
     setShowDeleteModal(false);
     router.replace('/');
@@ -334,14 +351,8 @@ export default function GroupDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             setDeletingExpense(true);
-            const { error } = await supabase.rpc('delete_expense', {
-              p_expense_id: selectedExpense.expense_id,
-            });
-            if (error) {
-              setDeletingExpense(false);
-              Alert.alert(t('common.ok'), error.message);
-              return;
-            }
+            const { error } = await supabase.rpc('delete_expense', { p_expense_id: selectedExpense.expense_id });
+            if (error) { setDeletingExpense(false); Alert.alert(t('common.ok'), error.message); return; }
             setDeletingExpense(false);
             setSelectedExpense(null);
             showToast('success', t('toast.expenseDeleted'));
@@ -355,95 +366,14 @@ export default function GroupDetailScreen() {
   const handleEditExpense = useCallback(() => {
     if (!selectedExpense) return;
     setSelectedExpense(null);
-    router.push({
-      pathname: '/add-expense',
-      params: {
-        expenseId: selectedExpense.expense_id,
-        groupId: id,
-        groupName: group?.name ?? '',
-      },
-    });
+    router.push({ pathname: '/add-expense', params: { expenseId: selectedExpense.expense_id, groupId: id, groupName: group?.name ?? '' } });
   }, [selectedExpense, id, group]);
 
-  const handleArchive = useCallback(async () => {
-    if (!group) return;
-    setActionLoading(true);
-    setActionError(null);
-    const groupIsCreator = !group.created_by || user?.id === group.created_by;
-    if (!groupIsCreator) {
-      const status = deriveBalanceStatus(group.balances);
-      if (status !== 'settled') {
-        setActionError(
-          status === 'owed'
-            ? t('group.owedLeaveBlocked')
-            : t('group.owesLeaveBlocked'),
-        );
-        setActionLoading(false);
-        return;
-      }
-      const error = await leaveGroup();
-      setActionLoading(false);
-      if (error) {
-        setActionError(error.message);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('groups')
-        .update({ archived: true })
-        .eq('id', group.id);
-      setActionLoading(false);
-      if (error) {
-        setActionError(error.message);
-        return;
-      }
-    }
-    setShowSettings(false);
-    router.replace('/');
-  }, [group, user, leaveGroup, t]);
-
-  const handleUnarchive = useCallback(async () => {
-    if (!group) return;
-    setActionLoading(true);
-    setActionError(null);
-    const { error } = await supabase
-      .from('groups')
-      .update({ archived: false })
-      .eq('id', group.id);
-    setActionLoading(false);
-    if (error) {
-      setActionError(error.message);
-      return;
-    }
-    setShowSettings(false);
-    fetchGroup();
-  }, [group, fetchGroup]);
-
-  const handleExportCsv = useCallback(async () => {
-    if (!group || expenses.length === 0) return;
-    setExporting(true);
-    try {
-      await shareExpenseCsv(group.name, expenses);
-    } catch {
-      // share cancelled or failed — no action needed
-    } finally {
-      setExporting(false);
-    }
-  }, [group, expenses]);
+  // ─── Derived state ───────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <View
-        style={[
-          s.container,
-          {
-            paddingTop: insets.top,
-            alignItems: 'center',
-            justifyContent: 'center',
-          },
-        ]}
-        testID="group-detail-screen"
-      >
+      <View style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]} testID="group-detail-screen">
         <ActivityIndicator color={C.primary} />
       </View>
     );
@@ -451,39 +381,20 @@ export default function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <View
-        style={[
-          s.container,
-          {
-            paddingTop: insets.top,
-            alignItems: 'center',
-            justifyContent: 'center',
-          },
-        ]}
-        testID="group-detail-screen"
-      >
-        <Text style={{ color: C.slate400 }}>
-          {fetchError ?? t('group.notFound')}
-        </Text>
+      <View style={[s.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]} testID="group-detail-screen">
+        <Text style={{ color: C.slate400 }}>{fetchError ?? t('group.notFound')}</Text>
       </View>
     );
   }
 
   const balanceStatus = deriveBalanceStatus(group.balances);
-
   const grouped = groupByMonth(expenses);
   const isCreator = !group.created_by || user?.id === group.created_by;
   const canLeave = balanceStatus === 'settled';
-  const leaveBlockedReason =
-    balanceStatus === 'owed'
-      ? t('group.owedLeaveBlocked')
-      : t('group.owesLeaveBlocked');
+  const leaveBlockedReason = balanceStatus === 'owed' ? t('group.owedLeaveBlocked') : t('group.owesLeaveBlocked');
 
   return (
-    <View
-      style={[s.container, { paddingTop: insets.top }]}
-      testID="group-detail-screen"
-    >
+    <View style={[s.container, { paddingTop: insets.top }]} testID="group-detail-screen">
       {/* Top bar */}
       <View style={s.topBar}>
         <Pressable style={s.backBtn} onPress={() => router.back()}>
@@ -492,19 +403,12 @@ export default function GroupDetailScreen() {
         <Text style={s.topTitle} numberOfLines={1} testID="group-detail-title">
           {group.name}
         </Text>
-        <Pressable
-          style={s.backBtn}
-          onPress={() => setShowSettings(true)}
-          testID="settings-button"
-        >
+        <Pressable style={s.backBtn} onPress={() => setShowSettings(true)} testID="settings-button">
           <MaterialIcons name="settings" size={24} color={C.white} />
         </Pressable>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
         {/* Cover image / balance banner */}
         <View style={s.coverWrap}>
           {group.image_url ? (
@@ -516,31 +420,16 @@ export default function GroupDetailScreen() {
           <View style={s.coverContent}>
             <Text style={s.coverBalanceLabel}>{t('group.totalBalance')}</Text>
             {balanceStatus === 'settled' ? (
-              <Text style={[s.coverBalance, { color: C.slate400 }]}>
-                {t('group.allSettled')}
-              </Text>
+              <Text style={[s.coverBalance, { color: C.slate400 }]}>{t('group.allSettled')}</Text>
             ) : (
               group.balances.map((b) => (
                 <Text
                   key={b.currency_code}
-                  style={[
-                    s.coverBalance,
-                    { color: b.balance_cents > 0 ? C.primary : C.orange },
-                  ]}
+                  style={[s.coverBalance, { color: b.balance_cents > 0 ? C.primary : C.orange }]}
                 >
                   {b.balance_cents > 0
-                    ? t('group.youAreOwed', {
-                        amount: formatCentsWithCurrency(
-                          b.balance_cents,
-                          b.currency_code,
-                        ),
-                      })
-                    : t('group.youOwe', {
-                        amount: formatCentsWithCurrency(
-                          Math.abs(b.balance_cents),
-                          b.currency_code,
-                        ),
-                      })}
+                    ? t('group.youAreOwed', { amount: formatCentsWithCurrency(b.balance_cents, b.currency_code) })
+                    : t('group.youOwe', { amount: formatCentsWithCurrency(Math.abs(b.balance_cents), b.currency_code) })}
                 </Text>
               ))
             )}
@@ -550,33 +439,15 @@ export default function GroupDetailScreen() {
         {/* Action buttons */}
         <View style={s.actions}>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [
-              s.actionBtn,
-              s.actionPrimary,
-              pressed && { opacity: 0.85 },
-            ]}
-            onPress={() =>
-              router.push({
-                pathname: '/group/balances',
-                params: { groupId: id, groupName: group.name },
-              })
-            }
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>{t('group.settleUp')}</Text>
           </Pressable>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [
-              s.actionBtn,
-              s.actionSecondary,
-              pressed && { opacity: 0.85 },
-            ]}
-            onPress={() =>
-              router.push({
-                pathname: '/group/balances',
-                params: { groupId: id, groupName: group.name },
-              })
-            }
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="analytics" size={20} color={C.primary} />
             <Text style={s.actionSecondaryText}>{t('group.balances')}</Text>
@@ -584,18 +455,8 @@ export default function GroupDetailScreen() {
         </View>
         <View style={s.actionsBottom}>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [
-              s.actionBtn,
-              s.actionSecondary,
-              { flex: 1 },
-              pressed && { opacity: 0.85 },
-            ]}
-            onPress={() =>
-              router.push({
-                pathname: '/invite-friend',
-                params: { groupId: id, groupName: group.name },
-              })
-            }
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, { flex: 1 }, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
             testID="invite-member-button"
           >
             <MaterialIcons name="person-add" size={20} color={C.white} />
@@ -604,108 +465,21 @@ export default function GroupDetailScreen() {
         </View>
 
         {/* Members section */}
-        {(() => {
-          const appMembers = members.filter((m) => m.user_id !== null);
-          const pendingMembers = members.filter((m) => m.user_id === null);
-          return (
-            <View style={s.membersSection}>
-              <View style={s.membersSectionHeader}>
-                <Text style={s.membersSectionTitle}>{t('group.membersSection')}</Text>
-                <Text style={s.membersSectionCount}>{appMembers.length}</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.membersRow}
-              >
-                {appMembers.map((m) => {
-                  const isMe = m.user_id === user?.id;
-                  const name = m.display_name ?? t('group.unknownMember');
-                  const initials = name
-                    .split(' ')
-                    .map((w: string) => w[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2);
-                  return (
-                    <View key={m.id} style={s.memberChip}>
-                      {m.avatar_url ? (
-                        <Image source={{ uri: m.avatar_url }} style={s.memberChipAvatar} />
-                      ) : (
-                        <View
-                          style={[
-                            s.memberChipAvatar,
-                            isMe ? s.memberChipAvatarMe : s.memberChipAvatarDefault,
-                          ]}
-                        >
-                          <Text style={[s.memberChipInitials, isMe && { color: C.bg }]}>
-                            {initials}
-                          </Text>
-                        </View>
-                      )}
-                      <Text
-                        style={[s.memberChipName, isMe && { color: C.primary }]}
-                        numberOfLines={1}
-                      >
-                        {isMe ? t('balances.you') : name.split(' ')[0]}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-
-              {pendingMembers.length > 0 && (
-                <View style={s.pendingSection}>
-                  <Text style={s.pendingSectionTitle}>{t('group.notOnAppYet')}</Text>
-                  {pendingMembers.map((m) => {
-                    const name = m.display_name ?? t('group.unknownMember');
-                    const initials = name
-                      .split(' ')
-                      .map((w: string) => w[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2);
-                    const isReminding = remindingId === m.id;
-                    return (
-                      <View key={m.id} style={s.pendingRow}>
-                        <View style={s.pendingAvatar}>
-                          <Text style={s.pendingInitials}>{initials}</Text>
-                        </View>
-                        <Text style={s.pendingName} numberOfLines={1}>{name}</Text>
-                        <Pressable
-                          style={({ pressed }: { pressed: boolean }) => [
-                            s.remindBtn,
-                            pressed && { opacity: 0.7 },
-                          ]}
-                          onPress={() => handleRemind(m)}
-                          disabled={isReminding}
-                        >
-                          {isReminding ? (
-                            <ActivityIndicator size="small" color={C.orange} />
-                          ) : (
-                            <Text style={s.remindBtnText}>{t('group.remind')}</Text>
-                          )}
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          );
-        })()}
+        <GroupMembersSection
+          members={members}
+          currentUserId={user?.id ?? ''}
+          isCreator={isCreator}
+          remindingId={remindingId}
+          onRemind={handleRemind}
+          onRemoveMember={handleRemoveMember}
+        />
 
         {/* Expenses section */}
         <View style={s.expensesHeader}>
           <Text style={s.expensesTitle}>{t('group.expenses')}</Text>
           <Pressable
             testID="spending-link"
-            onPress={() =>
-              router.push({
-                pathname: '/group/spending',
-                params: { groupId: id, groupName: group.name },
-              })
-            }
+            onPress={() => router.push({ pathname: '/group/spending', params: { groupId: id, groupName: group.name } })}
           >
             <Text style={s.viewAll}>{t('group.spending')}</Text>
           </Pressable>
@@ -722,60 +496,33 @@ export default function GroupDetailScreen() {
           <View key={month}>
             <Text style={s.monthLabel}>{month.toUpperCase()}</Text>
             {items.map((expense) => {
-              const cat =
-                CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.receipt;
+              const cat = CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.receipt;
               const youPositive = expense.paid_by_is_user;
               const youCents = expense.paid_by_is_user
                 ? expense.total_amount_cents - expense.your_split_cents
                 : expense.your_split_cents;
-              const paidLabel = expense.paid_by_is_user
-                ? t('expense.you')
-                : expense.paid_by_name;
+              const paidLabel = expense.paid_by_is_user ? t('expense.you') : expense.paid_by_name;
               return (
                 <Pressable
                   key={expense.expense_id}
-                  style={({ pressed }: { pressed: boolean }) => [
-                    s.expenseCard,
-                    pressed && { opacity: 0.8 },
-                  ]}
+                  style={({ pressed }: { pressed: boolean }) => [s.expenseCard, pressed && { opacity: 0.8 }]}
                   onPress={() => setSelectedExpense(expense)}
                 >
                   <View style={[s.expenseIcon, { backgroundColor: cat.bg }]}>
-                    <MaterialIcons
-                      name={cat.icon as keyof typeof MaterialIcons.glyphMap}
-                      size={22}
-                      color={cat.color}
-                    />
-                    <View
-                      style={[
-                        s.expenseDot,
-                        { backgroundColor: youPositive ? C.primary : C.orange },
-                      ]}
-                    />
+                    <MaterialIcons name={cat.icon as keyof typeof MaterialIcons.glyphMap} size={22} color={cat.color} />
+                    <View style={[s.expenseDot, { backgroundColor: youPositive ? C.primary : C.orange }]} />
                   </View>
                   <View style={s.expenseInfo}>
-                    <Text style={s.expenseName} numberOfLines={1}>
-                      {expense.description}
-                    </Text>
+                    <Text style={s.expenseName} numberOfLines={1}>{expense.description}</Text>
                     <Text style={s.expensePaid}>
                       {t('group.paidAmount', { name: paidLabel, amount: formatCentsWithCurrency(expense.total_amount_cents, expense.currency_code) })}
                     </Text>
                   </View>
                   <View style={s.expenseRight}>
-                    <Text
-                      style={[
-                        s.expenseLabel,
-                        { color: youPositive ? C.primary : C.orange },
-                      ]}
-                    >
+                    <Text style={[s.expenseLabel, { color: youPositive ? C.primary : C.orange }]}>
                       {youPositive ? t('group.youLent') : t('group.youOweShort')}
                     </Text>
-                    <Text
-                      style={[
-                        s.expenseAmount,
-                        { color: youPositive ? C.primary : C.orange },
-                      ]}
-                    >
+                    <Text style={[s.expenseAmount, { color: youPositive ? C.primary : C.orange }]}>
                       {formatCentsWithCurrency(youCents, expense.currency_code)}
                     </Text>
                   </View>
@@ -785,22 +532,12 @@ export default function GroupDetailScreen() {
           </View>
         ))}
 
-        {/* Add expense row — hidden for archived groups */}
         {!group.archived && (
           <Pressable
             style={s.addExpenseRow}
-            onPress={() =>
-              router.push({
-                pathname: '/add-expense',
-                params: { groupId: id, groupName: group.name },
-              })
-            }
+            onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
           >
-            <MaterialIcons
-              name="add-circle-outline"
-              size={22}
-              color={C.primary}
-            />
+            <MaterialIcons name="add-circle-outline" size={22} color={C.primary} />
             <Text style={s.addExpenseText}>{t('group.addExpense')}</Text>
           </Pressable>
         )}
@@ -815,22 +552,14 @@ export default function GroupDetailScreen() {
       {/* FAB — hidden for archived groups */}
       {!group.archived && (
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [
-            s.fab,
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={() =>
-            router.push({
-              pathname: '/add-expense',
-              params: { groupId: id, groupName: group.name },
-            })
-          }
+          style={({ pressed }: { pressed: boolean }) => [s.fab, pressed && { opacity: 0.85 }]}
+          onPress={() => router.push({ pathname: '/add-expense', params: { groupId: id, groupName: group.name } })}
         >
           <MaterialIcons name="add" size={28} color={C.bg} />
         </Pressable>
       )}
 
-      {/* ── Expense detail sheet ─────────────────────────── */}
+      {/* Expense detail sheet */}
       {selectedExpense && (
         <ExpenseDetailSheet
           expense={selectedExpense}
@@ -848,295 +577,68 @@ export default function GroupDetailScreen() {
       )}
 
       {/* Settings bottom sheet */}
-      <Modal
+      <GroupSettingsSheet
         visible={showSettings}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        isCreator={isCreator}
+        isArchived={group.archived}
+        hasExpenses={expenses.length > 0}
+        actionLoading={actionLoading}
+        actionError={actionError}
+        exporting={exporting}
+        onClose={() => { setShowSettings(false); setActionError(null); }}
+        onArchive={handleArchive}
+        onUnarchive={handleUnarchive}
+        onExportCsv={handleExportCsv}
+        onRename={() => {
           setShowSettings(false);
-          setActionError(null);
-          setDeleteInput('');
+          setRenameInput(group.name);
+          setRenameError(null);
+          setShowRenameModal(true);
         }}
-      >
-        <View style={s.settingsModalContainer}>
-          <Pressable
-            style={[
-              StyleSheet.absoluteFillObject,
-              { backgroundColor: 'rgba(0,0,0,0.6)' },
-            ]}
-            onPress={() => {
-              setShowSettings(false);
-              setActionError(null);
-            }}
-          />
-          <View style={s.bottomSheet}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{t('group.settings')}</Text>
+        onDeletePress={() => { setShowSettings(false); setShowDeleteModal(true); }}
+        onLeavePress={() => {
+          if (!canLeave) { setActionError(leaveBlockedReason); return; }
+          setShowSettings(false);
+          setShowDeleteModal(true);
+        }}
+      />
 
-            {actionError ? (
-              <Text style={s.errorText}>{actionError}</Text>
-            ) : null}
+      {/* Rename modal */}
+      <GroupRenameModal
+        visible={showRenameModal}
+        value={renameInput}
+        loading={renameLoading}
+        error={renameError}
+        onChange={setRenameInput}
+        onSave={handleRename}
+        onClose={() => { setShowRenameModal(false); setRenameError(null); }}
+      />
 
-            {isCreator ? (
-              <>
-                {group?.archived ? (
-                  <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [
-                      s.sheetRow,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                    onPress={handleUnarchive}
-                    disabled={actionLoading}
-                  >
-                    <View
-                      style={[
-                        s.sheetIconWrap,
-                        { backgroundColor: 'rgba(23,232,107,0.12)' },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="unarchive"
-                        size={20}
-                        color={C.primary}
-                      />
-                    </View>
-                    <Text style={s.sheetRowText}>{t('group.unarchiveGroup')}</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [
-                      s.sheetRow,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                    onPress={handleArchive}
-                    disabled={actionLoading}
-                  >
-                    <View
-                      style={[
-                        s.sheetIconWrap,
-                        { backgroundColor: 'rgba(249,115,22,0.12)' },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="inventory"
-                        size={20}
-                        color={C.orange}
-                      />
-                    </View>
-                    <Text style={s.sheetRowText}>{t('group.archiveGroup')}</Text>
-                  </Pressable>
-                )}
-                {expenses.length > 0 && (
-                  <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [
-                      s.sheetRow,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                    onPress={handleExportCsv}
-                    disabled={exporting}
-                  >
-                    <View
-                      style={[
-                        s.sheetIconWrap,
-                        { backgroundColor: 'rgba(23,232,107,0.12)' },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="file-download"
-                        size={20}
-                        color={C.primary}
-                      />
-                    </View>
-                    <Text style={s.sheetRowText}>
-                      {exporting ? t('group.exporting') : t('group.exportCsv')}
-                    </Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  style={({ pressed }: { pressed: boolean }) => [
-                    s.sheetRow,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  onPress={() => {
-                    setShowSettings(false);
-                    setShowDeleteModal(true);
-                  }}
-                  disabled={actionLoading}
-                >
-                  <View
-                    style={[
-                      s.sheetIconWrap,
-                      { backgroundColor: 'rgba(255,82,82,0.12)' },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="delete-forever"
-                      size={20}
-                      color="#ff5252"
-                    />
-                  </View>
-                  <Text style={[s.sheetRowText, { color: '#ff5252' }]}>
-                    {t('group.deleteGroup')}
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                testID="leave-group-button"
-                style={({ pressed }: { pressed: boolean }) => [
-                  s.sheetRow,
-                  pressed && { opacity: 0.7 },
-                ]}
-                onPress={() => {
-                  if (!canLeave) {
-                    setActionError(leaveBlockedReason);
-                    return;
-                  }
-                  setShowSettings(false);
-                  setShowDeleteModal(true);
-                }}
-                disabled={actionLoading}
-              >
-                <View
-                  style={[
-                    s.sheetIconWrap,
-                    { backgroundColor: 'rgba(255,82,82,0.12)' },
-                  ]}
-                >
-                  <MaterialIcons name="exit-to-app" size={20} color="#ff5252" />
-                </View>
-                <Text style={[s.sheetRowText, { color: '#ff5252' }]}>
-                  {t('group.leaveGroup')}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Type-to-confirm delete modal */}
-      <Modal
+      {/* Delete / leave modal */}
+      <GroupDeleteModal
         visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setShowDeleteModal(false);
-          setDeleteInput('');
-          setActionError(null);
-        }}
-      >
-        <View style={s.deleteOverlay}>
-          <View style={s.deleteCard}>
-            <View
-              style={[
-                s.sheetIconWrap,
-                {
-                  backgroundColor: 'rgba(255,82,82,0.12)',
-                  alignSelf: 'center',
-                  marginBottom: 16,
-                },
-              ]}
-            >
-              <MaterialIcons name="delete-forever" size={28} color="#ff5252" />
-            </View>
-            <Text style={s.deleteTitle}>
-              {isCreator ? t('group.deleteTitle') : t('group.leaveTitle')}
-            </Text>
-            <Text style={s.deleteWarning}>
-              {isCreator
-                ? t('group.deleteWarning', { name: group?.name })
-                : t('group.leaveWarning', { name: group?.name })}
-            </Text>
-            <Text style={s.deleteLabel}>
-              {t('group.typeToConfirm', { name: group?.name })}
-            </Text>
-            <TextInput
-              style={s.deleteInput}
-              value={deleteInput}
-              onChangeText={setDeleteInput}
-              placeholder={group?.name}
-              placeholderTextColor={C.slate500}
-              autoCapitalize="none"
-              autoCorrect={false}
-              testID="delete-confirm-input"
-            />
-            {actionError ? (
-              <Text style={s.errorText}>{actionError}</Text>
-            ) : null}
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                s.deleteConfirmBtn,
-                deleteInput !== group?.name && s.deleteConfirmBtnDisabled,
-                pressed && deleteInput === group?.name && { opacity: 0.8 },
-              ]}
-              onPress={handleDelete}
-              disabled={deleteInput !== group?.name || actionLoading}
-              testID="delete-confirm-button"
-            >
-              <Text style={s.deleteConfirmBtnText}>
-                {actionLoading
-                  ? isCreator
-                    ? t('group.deleting')
-                    : t('group.leaving')
-                  : isCreator
-                    ? t('group.deleteGroup')
-                    : t('group.leaveGroup')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                s.deleteCancelBtn,
-                pressed && { opacity: 0.7 },
-              ]}
-              onPress={() => {
-                setShowDeleteModal(false);
-                setDeleteInput('');
-                setActionError(null);
-              }}
-            >
-              <Text style={s.deleteCancelBtnText}>{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        isCreator={isCreator}
+        groupName={group.name}
+        confirmInput={deleteInput}
+        loading={actionLoading}
+        error={actionError}
+        onConfirmInputChange={setDeleteInput}
+        onConfirm={handleDelete}
+        onClose={() => { setShowDeleteModal(false); setDeleteInput(''); setActionError(null); }}
+      />
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  settingsModalContainer: { flex: 1, justifyContent: 'flex-end' },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingBottom: 8,
-  },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: 8 },
   backBtn: { padding: 10 },
-  topTitle: {
-    flex: 1,
-    color: C.white,
-    fontWeight: '700',
-    fontSize: 18,
-    textAlign: 'center',
-  },
+  topTitle: { flex: 1, color: C.white, fontWeight: '700', fontSize: 18, textAlign: 'center' },
   scrollContent: { paddingBottom: 100 },
-  coverWrap: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    height: 180,
-  },
-  coverImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
+  coverWrap: { marginHorizontal: 16, marginBottom: 16, borderRadius: 16, overflow: 'hidden', height: 180 },
+  coverImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  coverOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
   coverContent: { position: 'absolute', bottom: 16, left: 16, right: 16 },
   coverBalanceLabel: {
     color: C.primary,
@@ -1147,29 +649,12 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   coverBalance: { fontSize: 28, fontWeight: '700', color: C.white },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
+  actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
   actionsBottom: { paddingHorizontal: 16, marginBottom: 24 },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 48,
-    borderRadius: 14,
-  },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14 },
   actionPrimary: { backgroundColor: C.primary },
   actionPrimaryText: { color: C.bg, fontWeight: '700', fontSize: 15 },
-  actionSecondary: {
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-  },
+  actionSecondary: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceHL },
   actionSecondaryText: { color: C.white, fontWeight: '600', fontSize: 15 },
   expensesHeader: {
     flexDirection: 'row',
@@ -1180,15 +665,7 @@ const s = StyleSheet.create({
   },
   expensesTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
   viewAll: { color: C.primary, fontSize: 13, fontWeight: '600' },
-  monthLabel: {
-    color: C.slate400,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-    marginTop: 4,
-  },
+  monthLabel: { color: C.slate400, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 16, marginBottom: 8, marginTop: 4 },
   expenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1201,14 +678,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.surfaceHL,
   },
-  expenseIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
+  expenseIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   expenseDot: {
     position: 'absolute',
     bottom: -2,
@@ -1220,34 +690,15 @@ const s = StyleSheet.create({
     borderColor: C.bg,
   },
   expenseInfo: { flex: 1 },
-  expenseName: {
-    color: C.white,
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: 2,
-  },
+  expenseName: { color: C.white, fontWeight: '700', fontSize: 14, marginBottom: 2 },
   expensePaid: { color: C.slate400, fontSize: 12 },
   expenseRight: { alignItems: 'flex-end' },
   expenseLabel: { fontSize: 11, fontWeight: '600' },
   expenseAmount: { fontSize: 15, fontWeight: '700' },
-  addExpenseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 20,
-    marginTop: 4,
-  },
-  archivedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 16,
-    marginTop: 4,
-  },
-  archivedBannerText: { color: C.slate400, fontSize: 13, fontWeight: '500' },
+  addExpenseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20, marginTop: 4 },
   addExpenseText: { color: C.primary, fontWeight: '600', fontSize: 14 },
+  archivedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, marginTop: 4 },
+  archivedBannerText: { color: C.slate400, fontSize: 13, fontWeight: '500' },
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -1266,180 +717,4 @@ const s = StyleSheet.create({
   },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { color: C.slate400, fontSize: 15, fontWeight: '600' },
-  bottomSheet: {
-    backgroundColor: C.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 36,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.surfaceHL,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  sheetTitle: {
-    color: C.white,
-    fontWeight: '700',
-    fontSize: 17,
-    marginBottom: 20,
-  },
-  sheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: C.surfaceHL,
-  },
-  sheetIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetRowText: { color: C.white, fontWeight: '600', fontSize: 15 },
-  errorText: { color: '#ff5252', fontSize: 13, marginBottom: 8 },
-  deleteOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  deleteCard: {
-    backgroundColor: C.surface,
-    borderRadius: 20,
-    padding: 24,
-  },
-  deleteTitle: {
-    color: C.white,
-    fontWeight: '700',
-    fontSize: 20,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  deleteWarning: {
-    color: C.slate400,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  deleteLabel: { color: C.slate400, fontSize: 13, marginBottom: 8 },
-  deleteInput: {
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.surfaceHL,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: C.white,
-    fontSize: 15,
-    marginBottom: 16,
-  },
-  deleteConfirmBtn: {
-    backgroundColor: '#ff5252',
-    borderRadius: 12,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  deleteConfirmBtnDisabled: { backgroundColor: C.surfaceHL },
-  deleteConfirmBtnText: { color: C.white, fontWeight: '700', fontSize: 15 },
-  deleteCancelBtn: {
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteCancelBtnText: { color: C.slate400, fontWeight: '600', fontSize: 15 },
-  membersSection: { paddingHorizontal: 16, marginBottom: 24 },
-  pendingSection: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: C.surfaceHL,
-    paddingTop: 12,
-    gap: 10,
-  },
-  pendingSectionTitle: {
-    color: C.slate400,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  pendingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  pendingAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: C.surfaceHL,
-    borderWidth: 1,
-    borderColor: C.slate500,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pendingInitials: {
-    color: C.slate400,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  pendingName: {
-    flex: 1,
-    color: C.slate400,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  remindBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.orange,
-    minWidth: 72,
-    alignItems: 'center',
-  },
-  remindBtnText: {
-    color: C.orange,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  membersSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  membersSectionTitle: { color: C.white, fontWeight: '700', fontSize: 18 },
-  membersSectionCount: { color: C.slate400, fontSize: 14, fontWeight: '600' },
-  membersRow: { gap: 16, paddingRight: 4 },
-  memberChip: { alignItems: 'center', gap: 6, width: 56 },
-  memberChipAvatar: { width: 48, height: 48, borderRadius: 24 },
-  memberChipAvatarMe: {
-    backgroundColor: C.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  memberChipAvatarDefault: {
-    backgroundColor: C.surfaceHL,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  memberChipInitials: { color: C.primary, fontWeight: '700', fontSize: 16 },
-  memberChipName: {
-    color: C.slate400,
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
 });
