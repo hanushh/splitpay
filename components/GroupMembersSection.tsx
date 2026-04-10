@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -110,22 +111,22 @@ export default function GroupMembersSection({
                 </View>
                 <Text style={s.pendingName} numberOfLines={1}>{name}</Text>
                 <Pressable
-                  style={({ pressed }: { pressed: boolean }) => [s.remindBtn, pressed && { opacity: 0.7 }]}
+                  style={({ pressed }: { pressed: boolean }) => [s.iconBtn, s.iconBtnOrange, pressed && { opacity: 0.7 }]}
                   onPress={() => onRemind(m)}
                   disabled={isReminding}
                 >
                   {isReminding ? (
                     <ActivityIndicator size="small" color={C.orange} />
                   ) : (
-                    <Text style={s.remindBtnText}>{t('group.remind')}</Text>
+                    <MaterialIcons name="send" size={16} color={C.orange} />
                   )}
                 </Pressable>
                 {isCreator && (
                   <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
+                    style={({ pressed }: { pressed: boolean }) => [s.iconBtn, s.iconBtnRed, pressed && { opacity: 0.7 }]}
                     onPress={() => confirmRemove(m)}
                   >
-                    <Text style={s.removeBtnText}>{t('group.removeMember')}</Text>
+                    <MaterialIcons name="person-remove" size={16} color="#ff5252" />
                   </Pressable>
                 )}
               </View>
@@ -185,24 +186,14 @@ const s = StyleSheet.create({
   },
   pendingInitials: { color: C.slate400, fontSize: 13, fontWeight: '700' },
   pendingName: { flex: 1, color: C.slate400, fontSize: 14, fontWeight: '500' },
-  remindBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  iconBtn: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.orange,
-    minWidth: 72,
     alignItems: 'center',
-  },
-  remindBtnText: { color: C.orange, fontSize: 13, fontWeight: '600' },
-  removeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#ff5252',
-    minWidth: 60,
-    alignItems: 'center',
   },
-  removeBtnText: { color: '#ff5252', fontSize: 13, fontWeight: '600' },
+  iconBtnOrange: { borderColor: C.orange, backgroundColor: 'rgba(249,115,22,0.08)' },
+  iconBtnRed: { borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.08)' },
 });
