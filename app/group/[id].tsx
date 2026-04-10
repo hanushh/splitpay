@@ -21,6 +21,7 @@ import { useToast } from '@/context/toast';
 import { type CurrencyBalance, deriveBalanceStatus, sortBalancesDesc } from '@/lib/balance-utils';
 import { shareExpenseCsv } from '@/lib/export-csv';
 import { supabase } from '@/lib/supabase';
+import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { APP_STORE_URL, INVITE_WEB_LINK_BASE } from '@/lib/app-config';
 import ExpenseDetailSheet, { Expense, ExpenseSplit, GroupMember } from '@/components/ExpenseDetailSheet';
 import GroupSettingsSheet from '@/components/GroupSettingsSheet';
@@ -207,11 +208,8 @@ export default function GroupDetailScreen() {
 
   const leaveGroup = useCallback(async () => {
     if (!group || !user) return undefined;
-    const { error } = await supabase
-      .from('group_members')
-      .delete()
-      .eq('group_id', group.id)
-      .eq('user_id', user.id);
+    const { error } = await supabase.rpc('leave_group', { p_group_id: group.id });
+    if (!error) dispatchPendingPushNotifications();
     return error;
   }, [group, user]);
 
@@ -249,8 +247,9 @@ export default function GroupDetailScreen() {
         return;
       }
     }
-    const { error } = await supabase.from('group_members').delete().eq('id', member.id);
+    const { error } = await supabase.rpc('remove_group_member', { p_member_id: member.id });
     if (error) { Alert.alert(t('common.ok'), error.message); return; }
+    dispatchPendingPushNotifications();
     showToast('success', t('toast.memberRemoved'));
     fetchGroup();
   }, [id, fetchGroup, showToast, t]);
@@ -330,9 +329,10 @@ export default function GroupDetailScreen() {
       setActionLoading(false);
       if (error) { setActionError(error.message); return; }
     } else {
-      const { error } = await supabase.from('groups').delete().eq('id', group.id);
+      const { error } = await supabase.rpc('delete_group', { p_group_id: group.id });
       setActionLoading(false);
       if (error) { setActionError(error.message); return; }
+      dispatchPendingPushNotifications();
     }
     setShowDeleteModal(false);
     router.replace('/');
@@ -353,6 +353,7 @@ export default function GroupDetailScreen() {
             setDeletingExpense(true);
             const { error } = await supabase.rpc('delete_expense', { p_expense_id: selectedExpense.expense_id });
             if (error) { setDeletingExpense(false); Alert.alert(t('common.ok'), error.message); return; }
+            dispatchPendingPushNotifications();
             setDeletingExpense(false);
             setSelectedExpense(null);
             showToast('success', t('toast.expenseDeleted'));

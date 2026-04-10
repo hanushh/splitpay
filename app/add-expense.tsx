@@ -640,6 +640,7 @@ export default function AddExpenseScreen() {
         split_count: selectedMembers.size,
       });
       setSaving(false);
+      dispatchPendingPushNotifications();
       showToast('success', t('toast.expenseUpdated'));
       router.back();
       return;
