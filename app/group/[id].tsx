@@ -519,12 +519,18 @@ export default function GroupDetailScreen() {
                     </Text>
                   </View>
                   <View style={s.expenseRight}>
-                    <Text style={[s.expenseLabel, { color: youPositive ? C.primary : C.orange }]}>
-                      {youPositive ? t('group.youLent') : t('group.youOweShort')}
-                    </Text>
-                    <Text style={[s.expenseAmount, { color: youPositive ? C.primary : C.orange }]}>
-                      {formatCentsWithCurrency(youCents, expense.currency_code)}
-                    </Text>
+                    {balanceStatus === 'settled' && !youPositive ? (
+                      <Text style={[s.expenseLabel, { color: C.slate400 }]}>{t('activity.settled')}</Text>
+                    ) : (
+                      <>
+                        <Text style={[s.expenseLabel, { color: youPositive ? C.primary : C.orange }]}>
+                          {youPositive ? t('group.youLent') : t('group.youOweShort')}
+                        </Text>
+                        <Text style={[s.expenseAmount, { color: youPositive ? C.primary : C.orange }]}>
+                          {formatCentsWithCurrency(youCents, expense.currency_code)}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 </Pressable>
               );
