@@ -19,7 +19,7 @@ import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
 import { PostHogProvider, getPostHogClient, analytics, AnalyticsEvents } from '@/lib/analytics';
-import { ensurePushNotificationHandler } from '@/lib/push-notifications';
+import { ensurePushNotificationHandler, dispatchPendingPushNotifications } from '@/lib/push-notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -50,6 +50,7 @@ function InviteRedeemRedirect() {
         analytics.track(AnalyticsEvents.INVITE_ACCEPTED, {
           group_id: row.group_id_out,
         });
+        dispatchPendingPushNotifications();
         showToast('success', t('toast.inviteRedeemed'));
         router.replace({
           pathname: '/group/[id]',

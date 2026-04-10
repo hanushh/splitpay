@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
+import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
 import { useToast } from '@/context/toast';
 import {
@@ -102,6 +103,7 @@ export default function SettleUpScreen() {
     setSaving(false);
     if (ok) {
       settlementEvents.emit();
+      dispatchPendingPushNotifications();
       showToast('success', t('toast.settlementRecorded'));
       router.back();
     }

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PaySplit",
-    "slug": "paysplit",
+    "slug": "pay-split",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
