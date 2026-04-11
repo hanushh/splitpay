@@ -25,13 +25,12 @@
  *
  * ── Required environment variables ──────────────────────────────────────────
  *
- *   GEMINI_API_KEY               Google AI Studio / Vertex key
- *   GEMINI_MODEL                 e.g. gemini-2.0-flash  (default)
+ *   GEMINI_MODEL                 e.g. gemini-2.5-flash  (default)
+ *                                Authentication is handled by the gemini CLI (no API key needed)
  *
- *   GOOGLE_SHEETS_API_KEY        Google Sheets REST API key (for reads)
  *   GOOGLE_SPREADSHEET_ID        Spreadsheet ID from its URL
  *   GOOGLE_SHEET_NAME            Tab name (default: Sheet1)
- *   GOOGLE_SERVICE_ACCOUNT_JSON  Path to service-account JSON (needed for writes)
+ *   GOOGLE_SERVICE_ACCOUNT_JSON  Path to service-account JSON (reads + writes)
  *
  *   SOCIAL_CONTENT_TOPICS        Optional comma-separated topic overrides
  *                                e.g. "summer festivals, crypto, remote work"
@@ -51,13 +50,13 @@
 
 'use strict';
 
-const https = require('https');
-const url = require('url');
-const { GoogleGenerativeAI, DynamicRetrievalMode } = require('@google/generative-ai');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 const {
   withRetry,
   utcIso,
-  isoWeekNumberUtc,
   currentIsoWeekUtc,
   validatePost,
   acquireLock,
@@ -69,7 +68,6 @@ const {
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DEFAULT_MODEL = 'gemini-2.0-flash';
-const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 const DEFAULT_TOPICS = [
   'personal finance & budgeting',
@@ -146,10 +144,8 @@ function assertEnv(name) {
 
 function loadConfig() {
   return {
-    geminiApiKey: assertEnv('GEMINI_API_KEY'),
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_MODEL,
 
-    sheetsApiKey: assertEnv('GOOGLE_SHEETS_API_KEY'),
     spreadsheetId: assertEnv('GOOGLE_SPREADSHEET_ID'),
     sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1',
     serviceAccountJson: assertEnv('GOOGLE_SERVICE_ACCOUNT_JSON'),
@@ -181,45 +177,26 @@ function currentYearUtc() { return new Date().getUTCFullYear(); }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
-function httpRaw(hostname, reqPath, method, headers, body) {
-  return new Promise((resolve, reject) => {
-    const bodyBuf = body ? Buffer.from(body) : null;
-    const req = https.request(
-      {
-        hostname, path: reqPath, method,
-        headers: {
-          ...headers,
-          ...(bodyBuf ? { 'Content-Length': bodyBuf.length } : {}),
-        },
-      },
-      (res) => {
-        let data = '';
-        res.on('data', (c) => { data += c; });
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try { resolve(JSON.parse(data)); } catch { resolve(data); }
-          } else {
-            reject(new Error(`HTTP ${res.statusCode}: ${data}`));
-          }
-        });
-      }
-    );
-    req.on('error', reject);
-    if (bodyBuf) req.write(bodyBuf);
-    req.end();
-  });
+async function apiFetch(url, { method = 'GET', headers = {}, body = null } = {}) {
+  const init = { method, headers };
+  if (body !== null) {
+    init.body = JSON.stringify(body);
+    init.headers = { 'Content-Type': 'application/json', ...headers };
+  }
+  const res = await fetch(url, init);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+  try { return JSON.parse(text); } catch { return text; }
 }
 
 // ─── Google Sheets helpers ────────────────────────────────────────────────────
 
 async function getOrInitHeader(config, token) {
   const range = encodeURIComponent(`${config.sheetName}!1:1`);
-  const parsed = new url.URL(
-    `${SHEETS_BASE}/${config.spreadsheetId}/values/${range}?key=${config.sheetsApiKey}`
-  );
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${range}`;
 
   const res = await withRetry(
-    () => httpRaw(parsed.hostname, parsed.pathname + parsed.search, 'GET', {}, null),
+    () => apiFetch(url, { headers: { Authorization: `Bearer ${token}` } }),
     { attempts: 3, label: 'Sheets header read' }
   );
 
@@ -237,44 +214,42 @@ async function getOrInitHeader(config, token) {
 
 async function sheetsWrite(config, token, range, values) {
   const encodedRange = encodeURIComponent(range);
-  const reqPath =
-    `/v4/spreadsheets/${config.spreadsheetId}/values/${encodedRange}` +
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${encodedRange}` +
     `?valueInputOption=USER_ENTERED`;
 
   await withRetry(
-    () => httpRaw(
-      'sheets.googleapis.com', reqPath, 'PUT',
-      { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      JSON.stringify({ range, majorDimension: 'ROWS', values })
-    ),
+    () => apiFetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { range, majorDimension: 'ROWS', values },
+    }),
     { attempts: 3, label: 'Sheets write' }
   );
 }
 
 async function sheetsAppend(config, token, values) {
   const range = encodeURIComponent(`${config.sheetName}`);
-  const reqPath =
-    `/v4/spreadsheets/${config.spreadsheetId}/values/${range}:append` +
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${range}:append` +
     `?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
 
   await withRetry(
-    () => httpRaw(
-      'sheets.googleapis.com', reqPath, 'POST',
-      { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      JSON.stringify({ majorDimension: 'ROWS', values })
-    ),
+    () => apiFetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { majorDimension: 'ROWS', values },
+    }),
     { attempts: 3, label: 'Sheets append' }
   );
 }
 
-async function existingScheduledDates(config) {
+async function existingScheduledDates(config, token) {
   const range = encodeURIComponent(`${config.sheetName}`);
-  const parsed = new url.URL(
-    `${SHEETS_BASE}/${config.spreadsheetId}/values/${range}?key=${config.sheetsApiKey}`
-  );
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${range}`;
 
   const res = await withRetry(
-    () => httpRaw(parsed.hostname, parsed.pathname + parsed.search, 'GET', {}, null),
+    () => apiFetch(url, { headers: { Authorization: `Bearer ${token}` } }),
     { attempts: 3, label: 'Sheets duplicate check' }
   );
 
@@ -310,7 +285,7 @@ Each post must:
   • Tie into a real, timely news story or trend you found via search
   • Naturally connect the trend to a pain point PaySplit solves
   • Feel native to Instagram — conversational, relatable, a little playful
-  • Include a vivid image-generation prompt (for Nano Banana / Stable Diffusion)
+  • Include a vivid image-generation prompt (for Gemini image generation)
     that produces a bold 1080×1080 poster. Reference the brand colours.
   • Include a caption (max 2 200 chars) with a clear call-to-action
   • Include 5–10 relevant hashtags`;
@@ -348,45 +323,31 @@ The JSON must be an array of exactly ${postCount} objects, each with these field
 }
 
 async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, topics, config) {
-  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-
-  const isGemini2 = config.geminiModel.startsWith('gemini-2');
-  const tools = isGemini2
-    ? [{ googleSearch: {} }]
-    : [{
-        googleSearchRetrieval: {
-          dynamicRetrievalConfig: {
-            mode: DynamicRetrievalMode.MODE_DYNAMIC,
-            dynamicThreshold: 0.3,
-          },
-        },
-      }];
-
-  const model = genAI.getGenerativeModel({
-    model: config.geminiModel,
-    systemInstruction: buildSystemPrompt(),
-    tools,
-  });
-
-  const prompt = buildUserPrompt(weekNumber, weekStart, dates, postCount, topics);
+  // Combine system + user instructions into a single prompt for the CLI.
+  // The gemini CLI uses Google Search automatically when the prompt requires
+  // current information, so no explicit grounding config is needed.
+  const fullPrompt = `${buildSystemPrompt()}\n\n${buildUserPrompt(weekNumber, weekStart, dates, postCount, topics)}`;
 
   console.log(`  [gemini] Model : ${config.geminiModel}`);
-  console.log('  [gemini] Search grounding enabled — fetching recent news...');
+  console.log('  [gemini] Running via gemini CLI (Google Search grounding built-in)...');
 
-  const result = await withRetry(
-    () => model.generateContent(prompt),
-    { attempts: 3, baseDelay: 2000, label: 'Gemini generateContent' }
+  const { stdout } = await withRetry(
+    () => execFileAsync(
+      'gemini',
+      ['-p', fullPrompt, '-m', config.geminiModel, '-y'],
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 }
+    ),
+    { attempts: 3, baseDelay: 2000, label: 'Gemini CLI content generation' }
   );
 
-  const text = result.response.text();
-  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  const cleaned = stdout.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
   let posts;
   try {
     posts = JSON.parse(cleaned);
   } catch (e) {
     throw new Error(
-      `Gemini returned non-JSON. Raw response:\n${text.slice(0, 500)}\n\nParse error: ${e.message}`
+      `Gemini returned non-JSON. Raw output:\n${stdout.slice(0, 500)}\n\nParse error: ${e.message}`
     );
   }
 
@@ -394,20 +355,12 @@ async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, 
     throw new Error(`Expected a JSON array from Gemini, got: ${typeof posts}`);
   }
 
-  // Required field check
   const REQUIRED = ['day_of_week', 'scheduled_date', 'prompt', 'caption', 'hashtags', 'platforms'];
   posts.forEach((p, i) => {
     for (const field of REQUIRED) {
       if (!p[field]) throw new Error(`Post [${i}] (${p.day_of_week || '?'}) is missing field: "${field}"`);
     }
   });
-
-  // Log search queries used
-  const groundingMeta = result.response.candidates?.[0]?.groundingMetadata;
-  if (groundingMeta?.webSearchQueries?.length) {
-    console.log('  [gemini] Search queries used:');
-    groundingMeta.webSearchQueries.forEach((q) => console.log(`           • ${q}`));
-  }
 
   return posts;
 }
@@ -477,11 +430,17 @@ async function run() {
     console.log(`\n[1/4] Target: Week ${targetWeek}  (${weekStartIso} → ${dates[6]})`);
     console.log(`      Generating ${args.posts} post(s)...`);
 
+    // ── Acquire service-account token (used for all Sheets reads + writes) ──
+    const token = await withRetry(
+      () => getServiceAccountToken(config.serviceAccountJson),
+      { attempts: 3, label: 'service-account token exchange' }
+    );
+
     // ── Check for existing rows ─────────────────────────────────────────────
     console.log('\n[2/4] Checking spreadsheet for existing entries...');
     let existingDates = new Set();
     try {
-      existingDates = await existingScheduledDates(config);
+      existingDates = await existingScheduledDates(config, token);
       const overlap = dates.filter((d) => existingDates.has(d));
       if (overlap.length > 0) {
         console.log(`      Warning: ${overlap.length} day(s) already have rows: ${overlap.join(', ')}`);
@@ -523,10 +482,6 @@ async function run() {
     } else {
       console.log('[4/4] Writing to spreadsheet...');
 
-      const token = await withRetry(
-        () => getServiceAccountToken(config.serviceAccountJson),
-        { attempts: 3, label: 'service-account token exchange' }
-      );
       const header = await getOrInitHeader(config, token);
 
       const newPosts = posts.filter((p) => !existingDates.has(p.scheduled_date));

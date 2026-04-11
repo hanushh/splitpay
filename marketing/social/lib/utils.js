@@ -10,7 +10,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const https = require('https');
+
 const crypto = require('crypto');
 
 // ─── Retry ────────────────────────────────────────────────────────────────────
@@ -208,35 +208,14 @@ async function getServiceAccountToken(jsonPath) {
 
   const body = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`;
 
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: 'oauth2.googleapis.com',
-        path: '/token',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let data = '';
-        res.on('data', (c) => { data += c; });
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.access_token) resolve(parsed.access_token);
-            else reject(new Error(`Token exchange failed: ${parsed.error_description || data}`));
-          } catch {
-            reject(new Error(`Token exchange returned non-JSON: ${data.slice(0, 200)}`));
-          }
-        });
-      }
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
   });
+  const parsed = await res.json();
+  if (parsed.access_token) return parsed.access_token;
+  throw new Error(`Token exchange failed: ${parsed.error_description || JSON.stringify(parsed)}`);
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────

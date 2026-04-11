@@ -14,9 +14,12 @@
  *   GOOGLE_SHEET_NAME            Sheet tab name (default: Sheet1)
  *   GOOGLE_SERVICE_ACCOUNT_JSON  Path to service-account JSON for write-back
  *
- *   NANO_BANANA_API_KEY          Nano Banana API key
- *   NANO_BANANA_MODEL_KEY        Nano Banana model key / pipeline ID
- *   NANO_BANANA_API_URL          Nano Banana inference endpoint URL
+ *   GEMINI_IMAGE_MODEL           Image generation model (default: gemini-2.0-flash-exp-image-generation)
+ *                                Authentication is handled by the gemini CLI (no API key needed)
+ *
+ *   SUPABASE_URL                 Supabase project URL (for image hosting)
+ *   SUPABASE_SERVICE_ROLE_KEY    Supabase service-role key (for storage uploads)
+ *   SUPABASE_STORAGE_BUCKET      Storage bucket name (default: social-images)
  *
  *   FACEBOOK_ACCESS_TOKEN        Page access token (long-lived)
  *   FACEBOOK_PAGE_ID             Facebook Page ID
@@ -56,9 +59,13 @@
 
 'use strict';
 
-const https = require('https');
-const http = require('http');
-const url = require('url');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 const {
   withRetry,
   utcIso,
@@ -154,14 +161,15 @@ function assertEnv(name) {
 
 function loadConfig() {
   return {
-    sheetsApiKey: assertEnv('GOOGLE_SHEETS_API_KEY'),
     spreadsheetId: assertEnv('GOOGLE_SPREADSHEET_ID'),
     sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1',
-    serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON || null,
+    serviceAccountJson: assertEnv('GOOGLE_SERVICE_ACCOUNT_JSON'),
 
-    nanoBananaApiKey: assertEnv('NANO_BANANA_API_KEY'),
-    nanoBananaModelKey: assertEnv('NANO_BANANA_MODEL_KEY'),
-    nanoBananaApiUrl: assertEnv('NANO_BANANA_API_URL'),
+    geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation',
+
+    supabaseUrl: assertEnv('SUPABASE_URL'),
+    supabaseServiceRoleKey: assertEnv('SUPABASE_SERVICE_ROLE_KEY'),
+    supabaseBucket: process.env.SUPABASE_STORAGE_BUCKET || 'social-images',
 
     facebookAccessToken: assertEnv('FACEBOOK_ACCESS_TOKEN'),
     facebookPageId: assertEnv('FACEBOOK_PAGE_ID'),
@@ -171,41 +179,16 @@ function loadConfig() {
 
 // ─── HTTP helper ─────────────────────────────────────────────────────────────
 
-function httpRequest(rawUrl, options = {}, body = null) {
-  return new Promise((resolve, reject) => {
-    const parsed = new url.URL(rawUrl);
-    const lib = parsed.protocol === 'https:' ? https : http;
-
-    const reqOptions = {
-      hostname: parsed.hostname,
-      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
-      path: parsed.pathname + parsed.search,
-      method: options.method || 'GET',
-      headers: { ...(options.headers || {}) },
-    };
-
-    const bodyStr = body ? JSON.stringify(body) : null;
-    if (bodyStr) {
-      reqOptions.headers['Content-Type'] = 'application/json';
-      reqOptions.headers['Content-Length'] = Buffer.byteLength(bodyStr);
-    }
-
-    const req = lib.request(reqOptions, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try { resolve(JSON.parse(data)); } catch { resolve(data); }
-        } else {
-          reject(new Error(`HTTP ${res.statusCode} from ${rawUrl}: ${data}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    if (bodyStr) req.write(bodyStr);
-    req.end();
-  });
+async function apiFetch(rawUrl, { method = 'GET', headers = {}, body = null } = {}) {
+  const init = { method, headers };
+  if (body !== null) {
+    init.body = JSON.stringify(body);
+    init.headers = { 'Content-Type': 'application/json', ...headers };
+  }
+  const res = await fetch(rawUrl, init);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${rawUrl}: ${text}`);
+  try { return JSON.parse(text); } catch { return text; }
 }
 
 // ─── Date / week helpers ──────────────────────────────────────────────────────
@@ -243,11 +226,11 @@ function formatDisplayDate(isoDate) {
 
 // ─── Google Sheets ────────────────────────────────────────────────────────────
 
-async function fetchSpreadsheetRows(config) {
+async function fetchSpreadsheetRows(config, token) {
   const range = encodeURIComponent(config.sheetName);
-  const endpoint = `${SHEETS_BASE}/${config.spreadsheetId}/values/${range}?key=${config.sheetsApiKey}`;
+  const endpoint = `${SHEETS_BASE}/${config.spreadsheetId}/values/${range}`;
   const response = await withRetry(
-    () => httpRequest(endpoint),
+    () => apiFetch(endpoint, { headers: { Authorization: `Bearer ${token}` } }),
     { attempts: 3, label: 'Sheets fetch' }
   );
   const rawGrid = response.values || [];
@@ -286,52 +269,72 @@ async function updateSpreadsheetRow(rowIndex, updates, header, config, token) {
     `?valueInputOption=USER_ENTERED`;
 
   await withRetry(
-    () => httpRequest(
-      writeUrl,
-      { method: 'PUT', headers: { Authorization: `Bearer ${token}` } },
-      { range: `${config.sheetName}!A${sheetRow}`, majorDimension: 'ROWS', values }
-    ),
+    () => apiFetch(writeUrl, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { range: `${config.sheetName}!A${sheetRow}`, majorDimension: 'ROWS', values },
+    }),
     { attempts: 3, label: 'Sheets write-back' }
   );
 }
 
-// ─── Nano Banana ─────────────────────────────────────────────────────────────
+// ─── Gemini image generation (via gemini CLI) ─────────────────────────────────
 
 async function generatePoster(prompt, config) {
-  console.log(`  │  [nano-banana] Generating: "${prompt.slice(0, 72)}${prompt.length > 72 ? '…' : ''}"`);
+  console.log(`  │  [gemini] Generating image: "${prompt.slice(0, 72)}${prompt.length > 72 ? '…' : ''}"`);
+  console.log(`  │  [gemini] Model: ${config.geminiImageModel}`);
 
-  const response = await withRetry(
-    () => httpRequest(
-      config.nanoBananaApiUrl,
-      { method: 'POST' },
-      {
-        apiKey: config.nanoBananaApiKey,
-        modelKey: config.nanoBananaModelKey,
-        modelInputs: {
-          prompt,
-          width: 1080,
-          height: 1080,
-          num_inference_steps: 30,
-          guidance_scale: 7.5,
-        },
+  const tmpPath = path.join(os.tmpdir(), `paysplit-poster-${Date.now()}.png`);
+
+  const cliPrompt = [
+    `Generate a 1080×1080 Instagram marketing poster image based on the prompt below.`,
+    `Save the generated image as a PNG to this exact path: ${tmpPath}`,
+    ``,
+    `Image prompt: ${prompt}`,
+  ].join('\n');
+
+  await withRetry(
+    async () => {
+      await execFileAsync(
+        'gemini',
+        ['-p', cliPrompt, '-m', config.geminiImageModel, '-y'],
+        { timeout: 120000, maxBuffer: 10 * 1024 * 1024 }
+      );
+      if (!fs.existsSync(tmpPath)) {
+        throw new Error(`gemini CLI did not produce an image at ${tmpPath}`);
       }
-    ),
-    { attempts: 3, baseDelay: 2000, label: 'Nano Banana image generation' }
+    },
+    { attempts: 3, baseDelay: 2000, label: 'Gemini CLI image generation' }
   );
 
-  const imageUrl =
-    response.imageUrl ||
-    response.image_url ||
-    response.output?.imageUrl ||
-    response.output?.image_url ||
-    (Array.isArray(response.output) ? response.output[0] : null);
+  const imageBuffer = fs.readFileSync(tmpPath);
+  try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
 
-  if (!imageUrl) {
-    throw new Error(`Nano Banana returned no image URL. Response: ${JSON.stringify(response)}`);
+  const imageUrl = await uploadImageToSupabase(imageBuffer, config);
+  console.log(`  │  [gemini] Image ready: ${imageUrl}`);
+  return imageUrl;
+}
+
+async function uploadImageToSupabase(imageBuffer, config) {
+  const objectPath = `social-posts/${Date.now()}.png`;
+  const uploadUrl = `${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${objectPath}`;
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
+      'Content-Type': 'image/png',
+      'x-upsert': 'true',
+    },
+    body: imageBuffer,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Supabase upload failed (${res.status}): ${text}`);
   }
 
-  console.log(`  │  [nano-banana] Image ready: ${imageUrl}`);
-  return imageUrl;
+  return `${config.supabaseUrl}/storage/v1/object/public/${config.supabaseBucket}/${objectPath}`;
 }
 
 // ─── Instagram ────────────────────────────────────────────────────────────────
@@ -343,9 +346,8 @@ async function generatePoster(prompt, config) {
 async function pollInstagramContainer(containerId, config, { intervalMs = 2000, timeoutMs = 30000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const res = await httpRequest(
-      `${GRAPH_BASE}/${containerId}?fields=status_code,status&access_token=${config.facebookAccessToken}`,
-      { method: 'GET' }
+    const res = await apiFetch(
+      `${GRAPH_BASE}/${containerId}?fields=status_code,status&access_token=${config.facebookAccessToken}`
     );
     if (res.status_code === 'FINISHED') return;
     if (res.status_code === 'ERROR' || res.status_code === 'EXPIRED') {
@@ -363,7 +365,7 @@ async function postToInstagram(imageUrl, caption, config) {
   console.log('  │  [instagram] Creating media container...');
 
   const container = await withRetry(
-    () => httpRequest(
+    () => apiFetch(
       `${GRAPH_BASE}/${config.instagramUserId}/media` +
       `?image_url=${encodeURIComponent(imageUrl)}` +
       `&caption=${encodeURIComponent(caption)}` +
@@ -381,7 +383,7 @@ async function postToInstagram(imageUrl, caption, config) {
   await pollInstagramContainer(container.id, config);
 
   const published = await withRetry(
-    () => httpRequest(
+    () => apiFetch(
       `${GRAPH_BASE}/${config.instagramUserId}/media_publish` +
       `?creation_id=${container.id}` +
       `&access_token=${config.facebookAccessToken}`,
@@ -404,7 +406,7 @@ async function postToFacebook(imageUrl, caption, config) {
   console.log('  │  [facebook] Posting to Page...');
 
   const result = await withRetry(
-    () => httpRequest(
+    () => apiFetch(
       `${GRAPH_BASE}/${config.facebookPageId}/photos` +
       `?url=${encodeURIComponent(imageUrl)}` +
       `&caption=${encodeURIComponent(caption)}` +
@@ -531,18 +533,15 @@ async function run() {
     const config = loadConfig();
     const today = utcTodayIso();
 
-    // ── Fetch service-account token once ─────────────────────────────────
-    let sheetToken = null;
-    if (config.serviceAccountJson && !args.dryRun) {
-      sheetToken = await withRetry(
-        () => getServiceAccountToken(config.serviceAccountJson),
-        { attempts: 3, label: 'service-account token exchange' }
-      );
-    }
+    // ── Fetch service-account token (used for all Sheets reads + writes) ──
+    const sheetToken = await withRetry(
+      () => getServiceAccountToken(config.serviceAccountJson),
+      { attempts: 3, label: 'service-account token exchange' }
+    );
 
     // ── 1. Fetch spreadsheet ────────────────────────────────────────────
     console.log(`\n[1/3] Fetching spreadsheet ${config.spreadsheetId} (${config.sheetName})...`);
-    const { header, rows } = await fetchSpreadsheetRows(config);
+    const { header, rows } = await fetchSpreadsheetRows(config, sheetToken);
 
     if (rows.length === 0) {
       console.log('      No rows found. Nothing to do.');
