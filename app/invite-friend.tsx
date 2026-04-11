@@ -25,9 +25,11 @@ import {
   APP_DISPLAY_NAME,
   APP_STORE_URL,
   INVITE_LINK_PREFIX,
+  INVITE_WEB_LINK_BASE,
 } from '@/lib/app-config';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   primary: '#17e86b',
@@ -220,14 +222,25 @@ export default function InviteFriendScreen() {
         status: 'pending',
       });
 
-      if (!inviteErr) {
-        invites.push({
-          contactName: contact.name,
-          shareUrl: `${INVITE_LINK_PREFIX}?token=${encodeURIComponent(token)}`,
-        });
+      if (inviteErr) {
+        console.warn('[InviteFriend] Failed to create invitation for', contact.name, inviteErr.message);
+        setError(inviteErr.message ?? t('invite.failedCreateInvite', { name: contact.name }));
+        setSending(false);
+        return;
       }
+
+      const base = INVITE_WEB_LINK_BASE || INVITE_LINK_PREFIX;
+      invites.push({
+        contactName: contact.name,
+        shareUrl: `${base}?token=${encodeURIComponent(token)}`,
+      });
     }
 
+    if (invites.length > 0) {
+      analytics.track(AnalyticsEvents.INVITE_SENT, {
+        invite_count: invites.length,
+      });
+    }
     setAddedUsersCount(addedCount);
     setPendingInvites(invites);
     setSent(true);
@@ -238,16 +251,23 @@ export default function InviteFriendScreen() {
     if (pendingInvites.length === 0) return;
     try {
       if (pendingInvites.length === 1) {
-        await Share.share({
-          message: `Hey ${pendingInvites[0].contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.\n\nOpen the app: ${pendingInvites[0].shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
-        });
+        const { shareUrl, contactName } = pendingInvites[0];
+        const message = `Hey ${contactName}! Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}.${Platform.OS === 'ios' ? '' : `\n\nOpen the app: ${shareUrl}\n\nDon't have it? Download here: ${APP_STORE_URL}`}`;
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { message, title: `Join ${activeGroupName ?? APP_DISPLAY_NAME}`, url: shareUrl }
+            : { message },
+        );
       } else {
         const links = pendingInvites
           .map((p) => `${p.contactName}: ${p.shareUrl}`)
           .join('\n');
-        await Share.share({
-          message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`,
-        });
+        const message = `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!${Platform.OS === 'ios' ? '' : `\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}`}`;
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { message, title: `Join ${activeGroupName ?? APP_DISPLAY_NAME}`, url: pendingInvites[0].shareUrl }
+            : { message: `Join ${activeGroupName ?? 'our group'} on ${APP_DISPLAY_NAME}!\n\n${links}\n\nDon't have it? Download here: ${APP_STORE_URL}` },
+        );
       }
     } catch {}
   };
@@ -264,8 +284,8 @@ export default function InviteFriendScreen() {
 
   const sentSub =
     pendingInvites.length > 0
-      ? `Share the invite link${pendingInvites.length === 1 ? '' : 's'} so they can join "${activeGroupName}".`
-      : `They've been added to "${activeGroupName}".`;
+      ? t('invite.shareInviteSub', { count: pendingInvites.length, groupName: activeGroupName })
+      : t('invite.addedToGroup', { groupName: activeGroupName });
 
   if (sent) {
     return (
@@ -338,7 +358,7 @@ export default function InviteFriendScreen() {
         {activeGroupName ? (
           <Text style={s.groupBadgeText}>{activeGroupName}</Text>
         ) : (
-          <Text style={s.groupBadgePlaceholder}>Select a group…</Text>
+          <Text style={s.groupBadgePlaceholder}>{t('invite.selectGroup')}</Text>
         )}
         {!paramGroupId && (
           <MaterialIcons
@@ -356,7 +376,7 @@ export default function InviteFriendScreen() {
           <MaterialIcons name="person" size={16} color={C.primary} />
           <Text style={s.preselectedName}>{paramName}</Text>
           <View style={s.preselectedChip}>
-            <Text style={s.preselectedChipText}>Selected</Text>
+            <Text style={s.preselectedChipText}>{t('invite.selected')}</Text>
           </View>
         </View>
       ) : null}
@@ -385,7 +405,7 @@ export default function InviteFriendScreen() {
         {!activeGroupId && (
           <View style={s.errorRow}>
             <MaterialIcons name="error-outline" size={16} color={C.orange} />
-            <Text style={s.errorText}>Please select a group first.</Text>
+            <Text style={s.errorText}>{t('invite.selectGroupFirst')}</Text>
           </View>
         )}
 
@@ -471,7 +491,7 @@ export default function InviteFriendScreen() {
             ))}
             {userGroups.length === 0 && (
               <Text style={s.noGroupsText}>
-                {"You haven't joined any groups yet."}
+                {t('invite.noGroups')}
               </Text>
             )}
           </ScrollView>

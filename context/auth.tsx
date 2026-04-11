@@ -11,6 +11,7 @@ import {
   INVITE_LINK_PREFIX,
   INVITE_WEB_LINK_BASE,
   WEB_AUTH_CALLBACK_URL,
+  WEB_INVITE_URL,
 } from '@/lib/app-config';
 import { normalizePhone } from '@/lib/phone';
 import {
@@ -20,6 +21,7 @@ import {
 import { clearCategoryCache } from '@/hooks/use-category-cache';
 import { getItem, setItem, removeItem } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -122,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // When a new session arrives (e.g. Google OAuth callback), re-evaluate
       // phoneComplete so users without a phone are sent to setup-phone.
       if (session?.user?.id) {
+        analytics.identify(session.user.id, { email: session.user.email ?? null });
         fetchPhoneComplete(session.user.id).then((complete) => {
           if (!cancelled) setPhoneComplete(complete);
         });
@@ -146,7 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isInviteDeepLink = url.startsWith(INVITE_LINK_PREFIX);
       const isInviteWebLink =
         INVITE_WEB_LINK_BASE !== '' && url.startsWith(INVITE_WEB_LINK_BASE);
-      if (isInviteDeepLink || isInviteWebLink) {
+      const isWebPWAInvite =
+        WEB_INVITE_URL !== '' && url.startsWith(WEB_INVITE_URL);
+      if (isInviteDeepLink || isInviteWebLink || isWebPWAInvite) {
         try {
           const parsed = new URL(url);
           const token = parsed.searchParams.get('token');
@@ -154,7 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await setItem(INVITE_TOKEN_KEY, token);
             setPendingInviteToken(token);
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[Auth] Failed to parse invite deep link:', err);
+        }
         return;
       }
 
@@ -318,7 +325,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (error) return { error: error.message };
-    if (data.user?.id) await navigatePostAuth(data.user.id);
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_IN, { method: 'email' });
+      await navigatePostAuth(data.user.id);
+    }
     return { error: null };
   };
 
@@ -327,7 +338,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return { error: error.message };
     // Save phone to profile immediately (profile row is created by DB trigger on auth.users insert)
     if (data.user?.id && phone) {
-      await supabase.from('profiles').update({ phone }).eq('id', data.user.id);
+      const normalized = normalizePhone(phone) ?? phone;
+      await supabase.from('profiles').update({ phone: normalized }).eq('id', data.user.id);
+    }
+    if (data.user?.id) {
+      analytics.identify(data.user.id, { email: data.user.email ?? null });
+      analytics.track(AnalyticsEvents.SIGN_UP, { method: 'email' });
     }
     return { error: null };
   };
@@ -389,7 +405,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: exchangeErr.message };
         }
         handlingOAuthCallback.current = false;
-        if (codeData.user?.id) await navigatePostAuth(codeData.user.id);
+        if (codeData.user?.id) {
+          analytics.identify(codeData.user.id, { email: codeData.user.email ?? null });
+          analytics.track(AnalyticsEvents.SIGN_IN, { method: 'google' });
+          await navigatePostAuth(codeData.user.id);
+        }
         return { error: null };
       }
 
@@ -423,6 +443,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    analytics.track(AnalyticsEvents.SIGN_OUT);
+    analytics.reset();
     await clearCategoryCache();
     await removePushToken(activePushToken.current);
     activePushToken.current = null;

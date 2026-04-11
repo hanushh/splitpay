@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { router } from 'expo-router';
 
 import { useOnboarding } from '@/context/onboarding';
 import { type TargetLayout } from '@/components/ui/OnboardingTooltip';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 interface OnboardingStep {
   titleKey: string;
@@ -28,7 +30,7 @@ function measureRef(ref: MeasurableRef, setter: (layout: TargetLayout) => void):
   node?.measureInWindow?.((x, y, w, h) => setter({ x, y, width: w, height: h }));
 }
 
-export function useHomeOnboarding() {
+export function useHomeOnboarding(groupCount = 0) {
   const { t } = useTranslation();
   const { isOnboardingVisible, completeOnboarding } = useOnboarding();
   const [step, setStep] = useState(0);
@@ -60,13 +62,22 @@ export function useHomeOnboarding() {
     measureRef(fabRef, (l) => setLayout(2, l));
   }, [setLayout]);
 
+  const finishOnboarding = useCallback(() => {
+    analytics.track(AnalyticsEvents.ONBOARDING_COMPLETED);
+    completeOnboarding();
+    if (groupCount === 0) {
+      analytics.track(AnalyticsEvents.FIRST_SPLIT_STARTED);
+      router.push('/create-group');
+    }
+  }, [completeOnboarding, groupCount]);
+
   const onNext = useCallback(() => {
     if (step < STEPS.length - 1) {
       setStep((s) => s + 1);
     } else {
-      completeOnboarding();
+      finishOnboarding();
     }
-  }, [step, completeOnboarding]);
+  }, [step, finishOnboarding]);
 
   const onSkip = useCallback(() => {
     completeOnboarding();

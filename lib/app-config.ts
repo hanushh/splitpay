@@ -29,6 +29,11 @@ export const AUTH_LINK_PREFIX = `${APP_LINK_BASE}auth`;
 /** Invite deep link prefix (e.g. paysplit://invite) */
 export const INVITE_LINK_PREFIX = `${APP_LINK_BASE}invite`;
 
+/** Invite URL for the web PWA (e.g. https://paysplit-ai.vercel.app/invite). */
+export const WEB_INVITE_URL = process.env.EXPO_PUBLIC_WEB_URL
+  ? `${process.env.EXPO_PUBLIC_WEB_URL}/invite`
+  : 'https://paysplit-ai.vercel.app/invite';
+
 /**
  * HTTPS base URL used when sharing invite links externally (e.g. via WhatsApp).
  * Points to the `invite-redirect` Supabase Edge Function which serves a page

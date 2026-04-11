@@ -24,8 +24,12 @@ export async function sendChatMessage(
   userMessage: string,
   systemPrompt: string,
 ): Promise<GeminiResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
   const { data, error } = await supabase.functions.invoke('ai-chat', {
     body: { history, userMessage, systemPrompt },
+    headers: session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : undefined,
   });
 
   if (error) {

@@ -18,6 +18,8 @@ import SplashScreen from '@/components/SplashScreen';
 import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
+import { PostHogProvider, getPostHogClient, analytics, AnalyticsEvents } from '@/lib/analytics';
+import { ensurePushNotificationHandler, dispatchPendingPushNotifications } from '@/lib/push-notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -45,6 +47,10 @@ function InviteRedeemRedirect() {
       await clearPendingInviteToken();
       const row = Array.isArray(data) && data[0];
       if (row?.group_id_out) {
+        analytics.track(AnalyticsEvents.INVITE_ACCEPTED, {
+          group_id: row.group_id_out,
+        });
+        dispatchPendingPushNotifications();
         showToast('success', t('toast.inviteRedeemed'));
         router.replace({
           pathname: '/group/[id]',
@@ -118,21 +124,32 @@ export default function RootLayout() {
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
+    // Configure foreground notification display as early as possible
+    if (Platform.OS !== 'web') {
+      ensurePushNotificationHandler();
+    }
   }, []);
 
   if (!i18nReady) {
     return <SplashScreen />;
   }
 
+  const posthogClient = getPostHogClient();
+
   return (
-    <CurrencyProvider>
-      <AuthProvider>
-        <OnboardingProvider>
-          <ToastProvider>
-            <RootNavigator />
-          </ToastProvider>
-        </OnboardingProvider>
-      </AuthProvider>
-    </CurrencyProvider>
+    <PostHogProvider
+      client={posthogClient ?? undefined}
+      {...(!posthogClient && { apiKey: 'disabled', options: { disabled: true } })}
+    >
+      <CurrencyProvider>
+        <AuthProvider>
+          <OnboardingProvider>
+            <ToastProvider>
+              <RootNavigator />
+            </ToastProvider>
+          </OnboardingProvider>
+        </AuthProvider>
+      </CurrencyProvider>
+    </PostHogProvider>
   );
 }

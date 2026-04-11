@@ -237,7 +237,7 @@ export default function GroupsScreen() {
     measureBalanceCard,
     measureCreateGroupBtn,
     measureFab,
-  } = useHomeOnboarding();
+  } = useHomeOnboarding(groups.length);
 
   const statusFilters = useMemo(
     () => [
