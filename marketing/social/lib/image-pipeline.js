@@ -82,7 +82,7 @@ async function overlayLogo(imageBuffer, heroText = '') {
   // ── bottom strip constants (full-width CTA bar) ─────────────────────────
   const STRIP_H       = 150;
   const STRIP_PAD     = 36;
-  const STRIP_ICON_SZ = 60;
+  const STRIP_ICON_SZ = 120;
   const ICON_TEXT_GAP = 12;
   const NAME_FONT     = 28;
   const TAG_FONT      = 17;

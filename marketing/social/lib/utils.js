@@ -295,6 +295,7 @@ function sleep(ms) {
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
+  DAYS_OF_WEEK,
   withRetry,
   utcIso,
   utcTodayIso,
