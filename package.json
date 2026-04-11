@@ -5,7 +5,6 @@
   "scripts": {
     "start": "expo start",
     "dev": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "android:install": "expo run:android --no-bundler",
     "ios": "expo run:ios",
@@ -19,12 +18,15 @@
     "test:watch": "jest --watch",
     "postinstall": "patch-package",
     "build:android": "cd android && NODE_ENV=production ./gradlew bundleRelease",
-    "e2e:build": "detox build --configuration android.emu.debug",
-    "e2e:test": "detox test --configuration android.emu.debug",
-    "e2e:test:release": "detox test --configuration android.emu.release",
-    "e2e:test:auth": "detox test --configuration android.emu.debug --testPathPatterns=auth",
-    "e2e:test:create-group": "detox test --configuration android.emu.debug --testPathPatterns=create-group",
-    "e2e:test:add-expense": "detox test --configuration android.emu.debug --testPathPatterns=add-expense"
+    "build:web": "expo export --platform web",
+    "e2e:build": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox build --configuration android.emu.debug",
+    "e2e:test": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox test --configuration android.emu.debug",
+    "e2e:test:release": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox test --configuration android.emu.release",
+    "e2e:test:auth": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox test --configuration android.emu.debug --testPathPatterns=auth",
+    "e2e:test:create-group": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox test --configuration android.emu.debug --testPathPatterns=create-group",
+    "e2e:test:add-expense": "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk detox test --configuration android.emu.debug --testPathPatterns=add-expense",
+    "diagnose:push": "node --env-file .env.production scripts/diagnose-push-notifications.js",
+    "test:push": "node --env-file .env.production scripts/test-push-notification.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
