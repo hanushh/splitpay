@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
@@ -9,7 +10,12 @@ import { supabase } from '@/lib/supabase';
  * before this screen is reached, but this serves as a fallback for edge cases.
  */
 export default function AuthCallbackScreen() {
-  const params = useLocalSearchParams<{ code?: string; error?: string; error_description?: string }>();
+  const { t } = useTranslation();
+  const params = useLocalSearchParams<{
+    code?: string;
+    error?: string;
+    error_description?: string;
+  }>();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -18,11 +24,20 @@ export default function AuthCallbackScreen() {
         return;
       }
 
-      if (params.code) {
-        await supabase.auth.exchangeCodeForSession(params.code);
+      try {
+        if (params.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+          if (error) {
+            console.error('[AuthCallback] Code exchange failed:', error.message);
+            router.replace('/auth/sign-in');
+            return;
+          }
+        }
+        router.replace('/(tabs)');
+      } catch (err) {
+        console.error('[AuthCallback] Unexpected error:', err);
+        router.replace('/auth/sign-in');
       }
-
-      router.replace('/(tabs)');
     };
 
     handleCallback();
@@ -31,7 +46,7 @@ export default function AuthCallbackScreen() {
   return (
     <View style={s.container}>
       <ActivityIndicator color="#17e86b" size="large" />
-      <Text style={s.text}>Signing you in…</Text>
+      <Text style={s.text}>{t('auth.signingIn')}</Text>
     </View>
   );
 }

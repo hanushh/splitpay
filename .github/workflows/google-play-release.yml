@@ -7,6 +7,12 @@ on:
       - beta # Open Beta
       - alpha # Closed Alpha
       - internal # Internal Testing
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.cursorrules'
+      - 'llms.txt'
+      - 'AI.md'
   workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
 
 jobs:
@@ -35,7 +41,7 @@ jobs:
           fi
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
@@ -63,7 +69,53 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Install Supabase CLI
+        if: github.ref == 'refs/heads/main'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run Supabase migrations
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: supabase db push --db-url "$(echo "$DATABASE_URL" | tr -d '[:space:]')" --debug
+
+      - name: Deploy Supabase edge functions (production)
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy --project-ref yapfqffhgcncqxovjcsr
+          supabase functions deploy invite-redirect --project-ref yapfqffhgcncqxovjcsr --no-verify-jwt
+          supabase functions deploy cron-dispatch-push --project-ref yapfqffhgcncqxovjcsr --no-verify-jwt
+          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" CRON_SECRET="${{ secrets.CRON_SECRET }}" --project-ref yapfqffhgcncqxovjcsr
+
+      - name: Deploy Supabase edge functions (staging)
+        if: github.ref != 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy --project-ref gfmbrytpmmbtpumxwile
+          supabase functions deploy invite-redirect --project-ref gfmbrytpmmbtpumxwile --no-verify-jwt
+          supabase functions deploy cron-dispatch-push --project-ref gfmbrytpmmbtpumxwile --no-verify-jwt
+          supabase secrets set GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" GEMINI_MODEL="${{ vars.GEMINI_MODEL }}" APP_INVITE_WEB_BASE="https://paysplit-ai.vercel.app/invite" CRON_SECRET="${{ secrets.CRON_SECRET }}" --project-ref gfmbrytpmmbtpumxwile
+
+      - name: Inject google-services.json
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > google-services.json
+          test -s google-services.json
+
+      - name: Cache expo prebuild output
+        id: prebuild-cache
+        uses: actions/cache@v4
+        with:
+          path: android/
+          key: prebuild-${{ runner.os }}-${{ hashFiles('app.json', 'package.json', 'pnpm-lock.yaml') }}
+
       - name: Generate native Android project
+        if: steps.prebuild-cache.outputs.cache-hit != 'true'
         run: pnpm exec expo prebuild --platform android --no-install
 
       - name: Setup Gradle
@@ -72,31 +124,56 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/internal' }}
 
-
       - name: Inject release keystore for signing
         run: |
           echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 --decode > android/app/release.keystore
-          cat > android/keystore.properties <<EOF
-          storeFile=app/release.keystore
-          storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          test -s android/app/release.keystore
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "${{ github.workspace }}/android/app/release.keystore" \
+            "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_ALIAS }}" \
+            "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            > android/keystore.properties
+
+      - name: Verify upload key fingerprint
+        env:
+          EXPECTED_UPLOAD_SHA1: B0:5A:DA:DC:83:1D:40:14:46:EF:93:BF:CC:B3:66:09:EA:D2:F1:80
+        run: |
+          ACTUAL_UPLOAD_SHA1=$(keytool -list -v \
+            -keystore android/app/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_ALIAS }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            | awk -F': ' '/SHA1:/{print $2; exit}')
+          echo "CI signing key SHA1: $ACTUAL_UPLOAD_SHA1"
+          if [ "$ACTUAL_UPLOAD_SHA1" != "$EXPECTED_UPLOAD_SHA1" ]; then
+            echo "Expected upload key SHA1: $EXPECTED_UPLOAD_SHA1"
+            exit 1
+          fi
+
+      - name: Write .env.production
+        run: |
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\nGOOGLE_SERVICES_JSON=%s\n' \
+            "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" \
+            "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" \
+            "${{ secrets.GOOGLE_SERVICES_JSON }}" \
+            > .env.production
 
       - name: Build Android Release App Bundle (AAB)
         env:
           NODE_ENV: production
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           cd android
           ./gradlew bundleRelease \
             -PreactNativeArchitectures=${{ env.RN_ARCHITECTURES }} \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEY_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}" \
             --parallel \
             --build-cache \
-            --max-workers=8 \
+            --max-workers=2 \
             -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
-
 
       - name: Determine Google Play Track
         id: determine_track
@@ -107,10 +184,17 @@ jobs:
             echo "TRACK=beta" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" == "refs/heads/alpha" ]; then
             echo "TRACK=alpha" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" == "refs/heads/internal" ]; then
-            echo "TRACK=internal" >> $GITHUB_ENV
           else
             echo "TRACK=internal" >> $GITHUB_ENV
+          fi
+
+      - name: Check for ProGuard mapping file
+        id: mapping_check
+        run: |
+          if [ -f "android/app/build/outputs/mapping/release/mapping.txt" ]; then
+            echo "path=android/app/build/outputs/mapping/release/mapping.txt" >> $GITHUB_OUTPUT
+          else
+            echo "path=" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload to Google Play
@@ -120,4 +204,5 @@ jobs:
           packageName: com.hanushh.paysplit
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: ${{ env.TRACK }}
-          status: draft
+          status: completed
+          mappingFile: ${{ steps.mapping_check.outputs.path }}

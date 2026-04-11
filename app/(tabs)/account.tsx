@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -12,8 +14,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
+import { useToast } from '@/context/toast';
+import { SUPPORTED_LANGUAGES, setLanguage, type LanguageCode } from '@/lib/i18n';
+import i18n from '@/lib/i18n';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { normalizePhone } from '@/lib/phone';
+import { supabase } from '@/lib/supabase';
 
 const C = {
   primary: '#17e86b',
@@ -43,14 +52,23 @@ function SettingRow({
 }) {
   return (
     <Pressable
-      style={({ pressed }: { pressed: boolean }) => [s.row, pressed && { opacity: 0.7 }]}
+      style={({ pressed }: { pressed: boolean }) => [
+        s.row,
+        pressed && { opacity: 0.7 },
+      ]}
       onPress={onPress}
     >
       <View style={s.rowLeft}>
         <View style={[s.rowIcon, isDestructive && s.rowIconDestructive]}>
-          <MaterialIcons name={icon} size={20} color={isDestructive ? '#ff5252' : C.primary} />
+          <MaterialIcons
+            name={icon}
+            size={20}
+            color={isDestructive ? '#ff5252' : C.primary}
+          />
         </View>
-        <Text style={[s.rowLabel, isDestructive && s.rowLabelDestructive]}>{label}</Text>
+        <Text style={[s.rowLabel, isDestructive && s.rowLabelDestructive]}>
+          {label}
+        </Text>
       </View>
       {value !== undefined ? (
         <View style={s.rowRight}>
@@ -69,25 +87,95 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function AccountScreen() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const [phoneModalVisible, setPhoneModalVisible] = useState(false);
 
-  const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User';
+  const currentLang =
+    SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ??
+    SUPPORTED_LANGUAGES[0];
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  const displayName =
+    user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User';
   const email = user?.email ?? '';
   const avatarLetter = displayName[0]?.toUpperCase() ?? 'U';
+
+  const loadPhone = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('phone')
+      .eq('id', user.id)
+      .single();
+    setSavedPhone(data?.phone ?? null);
+  }, [user]);
+
+  useEffect(() => {
+    loadPhone();
+  }, [loadPhone]);
+
+  const openPhoneModal = () => {
+    setPhoneInput(savedPhone ?? '');
+    setPhoneError(null);
+    setPhoneModalVisible(true);
+  };
+
+  const handleSavePhone = async () => {
+    if (!user) return;
+    const trimmed = phoneInput.trim();
+    let normalized: string | null = null;
+    if (trimmed) {
+      normalized = normalizePhone(trimmed);
+      if (!normalized) {
+        setPhoneError(t('account.invalidPhone'));
+        return;
+      }
+    }
+    setPhoneSaving(true);
+    setPhoneError(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: normalized })
+      .eq('id', user.id);
+    setPhoneSaving(false);
+    if (error) {
+      setPhoneError(error.message);
+    } else {
+      setSavedPhone(normalized);
+      setPhoneModalVisible(false);
+      showToast('success', t('toast.phoneSaved'));
+    }
+  };
 
   const handleSelectCurrency = (c: Currency) => {
     setCurrency(c);
     setPickerVisible(false);
+    showToast('success', t('toast.currencyChanged'));
+  };
+
+  const handleSelectLanguage = async (code: LanguageCode) => {
+    await setLanguage(code);
+    setLangPickerVisible(false);
+    Alert.alert(t('account.restartTitle'), t('account.restartRequired'));
   };
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          s.scroll,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
       >
         {/* Profile card */}
         <View style={s.profileCard}>
@@ -100,28 +188,93 @@ export default function AccountScreen() {
           </View>
         </View>
 
+        {/* Profile */}
+        <SectionHeader title={t('account.profile')} />
+        <View style={s.section}>
+          <SettingRow
+            icon="phone"
+            label={t('account.phoneNumber')}
+            value={savedPhone ?? t('account.addPhoneNumber')}
+            onPress={openPhoneModal}
+          />
+        </View>
+
         {/* Preferences */}
-        <SectionHeader title="PREFERENCES" />
+        <SectionHeader title={t('account.preferences')} />
         <View style={s.section}>
           <SettingRow
             icon="payments"
-            label="Currency"
+            label={t('account.currency')}
             value={`${currency.flag} ${currency.code} (${currency.symbol.trim()})`}
             onPress={() => setPickerVisible(true)}
+          />
+          <SettingRow
+            icon="language"
+            label={t('account.language')}
+            value={currentLang.nativeLabel}
+            onPress={() => setLangPickerVisible(true)}
           />
         </View>
 
         {/* Account */}
-        <SectionHeader title="ACCOUNT" />
+        <SectionHeader title={t('account.accountSection')} />
         <View style={s.section}>
           <SettingRow
             icon="logout"
-            label="Sign Out"
+            label={t('account.signOut')}
             isDestructive
-            onPress={signOut}
+            onPress={() =>
+              Alert.alert(
+                t('account.signOutConfirmTitle'),
+                t('account.signOutConfirmMessage'),
+                [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { text: t('account.signOut'), style: 'destructive', onPress: signOut },
+                ],
+              )
+            }
           />
         </View>
       </ScrollView>
+
+      {/* Phone Number Modal */}
+      <Modal
+        visible={phoneModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhoneModalVisible(false)}
+      >
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setPhoneModalVisible(false)}
+        >
+          <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{t('account.phoneNumber')}</Text>
+            <PhoneInput
+              value={phoneInput}
+              onChange={setPhoneInput}
+              autoFocus
+              editable={!phoneSaving}
+            />
+            {phoneError ? (
+              <Text style={s.phoneErrorText}>{phoneError}</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[s.saveButton, phoneSaving && { opacity: 0.6 }]}
+              onPress={handleSavePhone}
+              disabled={phoneSaving}
+              activeOpacity={0.8}
+            >
+              {phoneSaving ? (
+                <ActivityIndicator color={C.bg} size="small" />
+              ) : (
+                <Text style={s.saveButtonText}>{t('common.save')}</Text>
+              )}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Currency Picker Modal */}
       <Modal
@@ -130,10 +283,13 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setPickerVisible(false)}
       >
-        <Pressable style={s.modalOverlay} onPress={() => setPickerVisible(false)}>
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setPickerVisible(false)}
+        >
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Select Currency</Text>
+            <Text style={s.sheetTitle}>{t('account.selectCurrency')}</Text>
             <FlatList
               data={CURRENCIES}
               keyExtractor={(item: Currency) => item.code}
@@ -147,16 +303,80 @@ export default function AccountScreen() {
                   >
                     <Text style={s.currencyFlag}>{item.flag}</Text>
                     <View style={s.currencyInfo}>
-                      <Text style={[s.currencyCode, isSelected && s.currencyCodeSelected]}>
+                      <Text
+                        style={[
+                          s.currencyCode,
+                          isSelected && s.currencyCodeSelected,
+                        ]}
+                      >
                         {item.code}
                       </Text>
                       <Text style={s.currencyName}>{item.name}</Text>
                     </View>
-                    <Text style={[s.currencySymbol, isSelected && s.currencySymbolSelected]}>
+                    <Text
+                      style={[
+                        s.currencySymbol,
+                        isSelected && s.currencySymbolSelected,
+                      ]}
+                    >
                       {item.symbol.trim()}
                     </Text>
                     {isSelected && (
-                      <MaterialIcons name="check" size={20} color={C.primary} style={{ marginLeft: 8 }} />
+                      <MaterialIcons
+                        name="check"
+                        size={20}
+                        color={C.primary}
+                        style={{ marginLeft: 8 }}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={s.separator} />}
+              scrollEnabled={false}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Language Picker Modal */}
+      <Modal
+        visible={langPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangPickerVisible(false)}
+      >
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setLangPickerVisible(false)}
+        >
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{t('account.selectLanguage')}</Text>
+            <FlatList
+              data={Array.from(SUPPORTED_LANGUAGES)}
+              keyExtractor={(item: (typeof SUPPORTED_LANGUAGES)[number]) => item.code}
+              renderItem={({ item }: { item: (typeof SUPPORTED_LANGUAGES)[number] }) => {
+                const isSelected = item.code === i18n.language;
+                return (
+                  <TouchableOpacity
+                    style={[s.currencyRow, isSelected && s.currencyRowSelected]}
+                    onPress={() => handleSelectLanguage(item.code as LanguageCode)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={s.currencyInfo}>
+                      <Text
+                        style={[
+                          s.currencyCode,
+                          isSelected && s.currencyCodeSelected,
+                        ]}
+                      >
+                        {item.nativeLabel}
+                      </Text>
+                      <Text style={s.currencyName}>{item.label}</Text>
+                    </View>
+                    {isSelected && (
+                      <MaterialIcons name="check" size={20} color={C.primary} />
                     )}
                   </TouchableOpacity>
                 );
@@ -341,5 +561,22 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: '#244732',
     marginHorizontal: 4,
+  },
+  phoneErrorText: {
+    color: '#ff5252',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  saveButton: {
+    backgroundColor: C.primary,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveButtonText: {
+    color: C.bg,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

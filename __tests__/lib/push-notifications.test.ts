@@ -5,6 +5,8 @@ import {
   registerPushTokenForCurrentUser,
 } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 jest.mock('@/lib/supabase');
 
@@ -13,7 +15,9 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: jest.fn().mockResolvedValue(null),
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
-  getExpoPushTokenAsync: jest.fn().mockResolvedValue({ data: 'ExponentPushToken[test-token]' }),
+  getExpoPushTokenAsync: jest
+    .fn()
+    .mockResolvedValue({ data: 'ExponentPushToken[test-token]' }),
   AndroidImportance: { MAX: 5 },
 }));
 
@@ -23,6 +27,7 @@ jest.mock('expo-device', () => ({
 }));
 
 jest.mock('expo-constants', () => ({
+  __esModule: true,
   default: {
     easConfig: { projectId: 'test-project-id' },
     expoConfig: { extra: { eas: { projectId: 'test-project-id' } } },
@@ -73,7 +78,6 @@ describe('dispatchPendingPushNotifications', () => {
 
 describe('ensurePushNotificationHandler', () => {
   it('configures the notification handler on first call', () => {
-    const Notifications = require('expo-notifications');
     ensurePushNotificationHandler();
     expect(Notifications.setNotificationHandler).toHaveBeenCalledTimes(1);
   });
@@ -81,7 +85,6 @@ describe('ensurePushNotificationHandler', () => {
 
 describe('registerPushTokenForCurrentUser', () => {
   it('returns null on web platform', async () => {
-    const { Platform } = require('react-native');
     const original = Platform.OS;
     Platform.OS = 'web';
     const result = await registerPushTokenForCurrentUser();
@@ -90,20 +93,29 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when permissions are denied', async () => {
-    const Notifications = require('expo-notifications');
-    Notifications.getPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
-    Notifications.requestPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'denied',
+    });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'denied',
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });
 
   it('registers token and returns it on success', async () => {
-    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: null, error: null });
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBe('ExponentPushToken[test-token]');
-    expect(supabase.rpc).toHaveBeenCalledWith('upsert_push_token', expect.objectContaining({
-      p_token: 'ExponentPushToken[test-token]',
-    }));
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'upsert_push_token',
+      expect.objectContaining({
+        p_token: 'ExponentPushToken[test-token]',
+      }),
+    );
   });
 
   it('returns null when upsert_push_token RPC fails', async () => {
@@ -116,8 +128,9 @@ describe('registerPushTokenForCurrentUser', () => {
   });
 
   it('returns null when no push token is returned', async () => {
-    const Notifications = require('expo-notifications');
-    Notifications.getExpoPushTokenAsync.mockResolvedValueOnce({ data: null });
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({
+      data: null,
+    });
     const result = await registerPushTokenForCurrentUser();
     expect(result).toBeNull();
   });

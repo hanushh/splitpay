@@ -31,4 +31,3 @@ When asked to run the Jest test suite for Splitpay, follow these steps:
    ```
 
 If tests fail, use the Jest output to identify failing assertions and fix the underlying issues in the app code or test files.
-

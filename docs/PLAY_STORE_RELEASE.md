@@ -26,6 +26,7 @@ Build the app locally and upload the AAB to Google Play Console yourself. No thi
 For a focused guide on creating the keystore and `keystore.properties`, see **[App signing](APP_SIGNING.md)**.
 
 The keystore is already set up:
+
 - Keystore: `android/app/my-upload-key.keystore`
 - Config: `android/keystore.properties`
 
@@ -88,12 +89,12 @@ Once internal testing looks good, promote to **Production** from the same consol
 
 ## Summary
 
-| Step              | Action |
-|-------------------|--------|
-| One-time          | Keystore and `keystore.properties` already set up (see App signing). |
+| Step                | Action                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| One-time            | Keystore and `keystore.properties` already set up (see App signing).               |
 | Before each release | Bump `versionCode` and `versionName` in `app.json` and `android/app/build.gradle`. |
-| Build             | `npm run build:android` → AAB at `android/app/build/outputs/bundle/release/`. |
-| Publish           | Upload AAB in Play Console and start the release. |
+| Build               | `npm run build:android` → AAB at `android/app/build/outputs/bundle/release/`.      |
+| Publish             | Upload AAB in Play Console and start the release.                                  |
 
 ## Troubleshooting
 

@@ -1,7 +1,11 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Secrets injected at CI time
+google-services.json
+
 # dependencies
 node_modules/
+package-lock.json
 
 # Expo
 .expo/
@@ -52,3 +56,11 @@ supabase/.temp
 
 # test coverage
 coverage/
+.superpowers.superpowers
+.superpowers/
+.mcp.json
+
+.playwright-mcp
+
+.claude/settings.local.json
+/temp

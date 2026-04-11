@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import { AUTH_CALLBACK_URL, INVITE_LINK_PREFIX } from '@/lib/app-config';
+import { removePushToken } from '@/lib/push-notifications';
+import { router } from 'expo-router';
 
 jest.mock('@/lib/supabase');
 jest.mock('@/lib/push-notifications', () => ({
@@ -74,7 +76,11 @@ describe('useAuth', () => {
   it('signUp calls supabase.auth.signUp', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signUp('new@example.com', 'password123');
+      await result.current.signUp(
+        'new@example.com',
+        'password123',
+        '+15550001234',
+      );
     });
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: 'new@example.com',
@@ -90,7 +96,11 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: null };
     await act(async () => {
-      response = await result.current.signUp('existing@example.com', 'pass');
+      response = await result.current.signUp(
+        'existing@example.com',
+        'pass',
+        '+15550001234',
+      );
     });
     expect(response.error).toBe('Email already in use');
   });
@@ -113,13 +123,16 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: 'not set' };
     await act(async () => {
-      response = await result.current.signUp('new@example.com', 'password123');
+      response = await result.current.signUp(
+        'new@example.com',
+        'password123',
+        '+15550001234',
+      );
     });
     expect(response.error).toBeNull();
   });
 
   it('signOut calls removePushToken then supabase.auth.signOut', async () => {
-    const removePushToken = require('@/lib/push-notifications').removePushToken;
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {
       await result.current.signOut();
@@ -159,7 +172,9 @@ describe('useAuth — invite tokens', () => {
     await act(async () => {
       await result.current.clearPendingInviteToken();
     });
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('pending_invite_token');
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      'pending_invite_token',
+    );
   });
 });
 
@@ -179,18 +194,26 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('auth callback deep link with code exchanges session and navigates', async () => {
-    const { router } = require('expo-router');
     const callbackUrl = `${AUTH_CALLBACK_URL}?code=deeplink-code-123`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'tok' } },
+      data: { session: { access_token: 'tok' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => {
-      expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith('deeplink-code-123');
+      expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+        'deeplink-code-123',
+      );
       expect(router.replace).toHaveBeenCalledWith('/(tabs)');
     });
   });
@@ -206,12 +229,18 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('auth callback deep link with implicit tokens sets session and navigates', async () => {
-    const { router } = require('expo-router');
     const callbackUrl = `${AUTH_CALLBACK_URL}#access_token=myat&refresh_token=myrt`;
     (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(callbackUrl);
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'myat' } },
+      data: { session: { access_token: 'myat' }, user: { id: 'test-user-id' } },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     renderHook(() => useAuth(), { wrapper });
@@ -226,8 +255,9 @@ describe('useAuth — deep link handling', () => {
   });
 
   it('ignores deep links that do not match known prefixes', async () => {
-    const { router } = require('expo-router');
-    (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce('paysplit://unknown/path');
+    (Linking.getInitialURL as jest.Mock).mockResolvedValueOnce(
+      'paysplit://unknown/path',
+    );
 
     renderHook(() => useAuth(), { wrapper });
     await act(async () => {});

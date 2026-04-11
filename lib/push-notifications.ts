@@ -1,9 +1,23 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+
+// Lazy-load expo-notifications to prevent module-level crashes when the ExpoGo
+// native module is unexpectedly present (e.g. emulator with Expo Go installed).
+type NotificationsModule = typeof import('expo-notifications');
+let _Notifications: NotificationsModule | null = null;
+function getNotifications(): NotificationsModule | null {
+  if (_Notifications) return _Notifications;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _Notifications = require('expo-notifications') as NotificationsModule;
+    return _Notifications;
+  } catch {
+    return null;
+  }
+}
 
 let handlerConfigured = false;
 
@@ -17,17 +31,18 @@ function getProjectId(): string | undefined {
   };
 
   return (
-    constantsWithEas.easConfig?.projectId
-    ?? constantsWithEas.expoConfig?.extra?.eas?.projectId
-    ?? undefined
+    constantsWithEas.easConfig?.projectId ??
+    constantsWithEas.expoConfig?.extra?.eas?.projectId ??
+    undefined
   );
 }
 
 export function ensurePushNotificationHandler() {
-  if (handlerConfigured) return;
+  const N = getNotifications();
+  if (handlerConfigured || !N) return;
   handlerConfigured = true;
 
-  Notifications.setNotificationHandler({
+  N.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldShowBanner: true,
@@ -38,27 +53,32 @@ export function ensurePushNotificationHandler() {
   });
 }
 
-export async function registerPushTokenForCurrentUser(): Promise<string | null> {
+export async function registerPushTokenForCurrentUser(): Promise<
+  string | null
+> {
   if (Platform.OS === 'web' || !Device.isDevice) {
     return null;
   }
 
+  const N = getNotifications();
+  if (!N) return null;
+
   ensurePushNotificationHandler();
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    await N.setNotificationChannelAsync('default', {
       name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: N.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#17e86b',
     });
   }
 
-  const existingPerms = await Notifications.getPermissionsAsync();
+  const existingPerms = await N.getPermissionsAsync();
   let finalStatus = existingPerms.status;
 
   if (finalStatus !== 'granted') {
-    const requested = await Notifications.requestPermissionsAsync();
+    const requested = await N.requestPermissionsAsync();
     finalStatus = requested.status;
   }
 
@@ -67,14 +87,25 @@ export async function registerPushTokenForCurrentUser(): Promise<string | null> 
   }
 
   const projectId = getProjectId();
-  const tokenResult = projectId
-    ? await Notifications.getExpoPushTokenAsync({ projectId })
-    : await Notifications.getExpoPushTokenAsync();
+  if (!projectId) {
+    console.error(
+      '[Push] Cannot register push token: Expo project ID not found. ' +
+        'Add extra.eas.projectId to app.json (get the UUID from expo.dev/accounts/hanushh/projects/paysplit) ' +
+        'or set EXPO_PUBLIC_EAS_PROJECT_ID in the build environment.',
+    );
+    return null;
+  }
+  const tokenResult = await N.getExpoPushTokenAsync({ projectId });
 
   const token = tokenResult.data;
   if (!token) return null;
 
-  const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
+  const platform =
+    Platform.OS === 'ios'
+      ? 'ios'
+      : Platform.OS === 'android'
+        ? 'android'
+        : 'unknown';
   const deviceName = Device.modelName ?? null;
 
   const { error } = await supabase.rpc('upsert_push_token', {
@@ -100,12 +131,18 @@ export async function removePushToken(token: string | null): Promise<void> {
 }
 
 export async function dispatchPendingPushNotifications(): Promise<void> {
-  const { error } = await supabase.functions.invoke('dispatch-push-notifications', {
-    method: 'POST',
-    body: {},
-  });
+  const { error } = await supabase.functions.invoke(
+    'dispatch-push-notifications',
+    {
+      method: 'POST',
+      body: {},
+    },
+  );
 
   if (error) {
-    console.warn('[Push] Failed to dispatch push notifications:', error.message);
+    console.warn(
+      '[Push] Failed to dispatch push notifications:',
+      error.message,
+    );
   }
 }

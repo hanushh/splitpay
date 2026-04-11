@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
 
@@ -31,26 +32,23 @@ const C = {
 export default function SignInScreen() {
   const { signIn, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields.');
+    if (!emailOrPhone || !password) {
+      setError(t('auth.fillAllFields'));
       return;
     }
     setError(null);
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(emailOrPhone, password);
     setLoading(false);
-    if (error) {
-      setError(error);
-    } else {
-      router.replace('/(tabs)');
-    }
+    if (error) setError(error);
   };
 
   const handleGoogleSignIn = async () => {
@@ -61,24 +59,29 @@ export default function SignInScreen() {
     if (error) setError(error);
   };
 
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      style={[
+        s.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={s.inner}>
         <View style={s.logoMark}>
           <Text style={s.logoText}>S</Text>
         </View>
-        <Text style={s.title}>Welcome back</Text>
-        <Text style={s.subtitle}>Sign in to {APP_DISPLAY_NAME}</Text>
+        <Text style={s.title}>{t('auth.welcomeBack')}</Text>
+        <Text style={s.subtitle}>{t('auth.signInTo', { appName: APP_DISPLAY_NAME })}</Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.googleBtn,
+            (googleLoading || pressed) && s.btnPressed,
+          ]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -87,7 +90,7 @@ export default function SignInScreen() {
           ) : (
             <>
               <AntDesign name="google" size={20} color="#EA4335" />
-              <Text style={s.googleBtnText}>Continue with Google</Text>
+              <Text style={s.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
             </>
           )}
         </Pressable>
@@ -95,23 +98,23 @@ export default function SignInScreen() {
         {/* Divider */}
         <View style={s.divider}>
           <View style={s.dividerLine} />
-          <Text style={s.dividerText}>or</Text>
+          <Text style={s.dividerText}>{t('auth.or')}</Text>
           <View style={s.dividerLine} />
         </View>
 
         <TextInput
           style={s.input}
-          placeholder="Email"
+          placeholder={t('auth.emailOrPhone')}
           placeholderTextColor={C.slate500}
           autoCapitalize="none"
           keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
+          value={emailOrPhone}
+          onChangeText={setEmailOrPhone}
           testID="email-input"
         />
         <TextInput
           style={s.input}
-          placeholder="Password"
+          placeholder={t('auth.password')}
           placeholderTextColor={C.slate500}
           secureTextEntry
           value={password}
@@ -120,7 +123,10 @@ export default function SignInScreen() {
         />
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.signInBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.signInBtn,
+            (loading || pressed) && s.btnPressed,
+          ]}
           onPress={handleSignIn}
           disabled={loading || googleLoading}
           testID="sign-in-button"
@@ -128,13 +134,15 @@ export default function SignInScreen() {
           {loading ? (
             <ActivityIndicator color={C.bg} />
           ) : (
-            <Text style={s.signInBtnText}>Sign In</Text>
+            <Text style={s.signInBtnText}>{t('auth.signIn')}</Text>
           )}
         </Pressable>
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Don&apos;t have an account? </Text>
-          <Link href="/auth/sign-up" style={s.link}>Sign Up</Link>
+          <Text style={s.footerText}>{t('auth.noAccount')}</Text>
+          <Link href="/auth/sign-up" style={s.link}>
+            {t('auth.signUp')}
+          </Link>
         </View>
       </View>
     </KeyboardAvoidingView>

@@ -57,7 +57,12 @@ describe('Split calculation (equally)', () => {
 });
 
 /** Mirrors canSave logic in add-expense.tsx */
-function canSave(description: string, amount: string, groupId: string, selectedCount: number) {
+function canSave(
+  description: string,
+  amount: string,
+  groupId: string,
+  selectedCount: number,
+) {
   return !!description && !!amount && !!groupId && selectedCount > 0;
 }
 
@@ -80,6 +85,287 @@ describe('canSave logic', () => {
 
   it('returns false when no members selected', () => {
     expect(canSave('Dinner', '50.00', 'group-1', 0)).toBe(false);
+  });
+});
+
+// ─── Helpers mirroring add-expense.tsx ────────────────────────────────────────
+
+function buildCustomSplits(
+  splitMethod: 'equally' | 'exact' | 'percent',
+  selectedMembers: string[],
+  exactAmounts: Record<string, string>,
+  percentAmounts: Record<string, string>,
+  amtCents: number,
+): { memberIds: string[]; amountsCents: number[] } | null {
+  if (splitMethod === 'equally') return null;
+  const ids = selectedMembers;
+  if (splitMethod === 'exact') {
+    const cents = ids.map((id) =>
+      Math.round((parseFloat(exactAmounts[id] ?? '0') || 0) * 100),
+    );
+    return { memberIds: ids, amountsCents: cents };
+  }
+  const percents = ids.map((id) => parseFloat(percentAmounts[id] ?? '0') || 0);
+  const raw = percents.map((p) => Math.floor((p / 100) * amtCents));
+  const remainder = amtCents - raw.reduce((a, b) => a + b, 0);
+  if (raw.length > 0) raw[raw.length - 1] += remainder;
+  return { memberIds: ids, amountsCents: raw };
+}
+
+function validateCustomSplits(
+  splitMethod: 'equally' | 'exact' | 'percent',
+  selectedMembers: string[],
+  exactAmounts: Record<string, string>,
+  percentAmounts: Record<string, string>,
+  amtCents: number,
+): string | null {
+  if (splitMethod === 'equally') return null;
+  const ids = selectedMembers;
+  if (splitMethod === 'exact') {
+    const hasBlank = ids.some((id) => !exactAmounts[id]?.trim());
+    if (hasBlank) return 'Enter an amount for each member.';
+    const total = ids.reduce(
+      (s, id) => s + Math.round((parseFloat(exactAmounts[id]) || 0) * 100),
+      0,
+    );
+    if (total !== amtCents)
+      return `Amounts must sum to ${(amtCents / 100).toFixed(2)}.`;
+  } else {
+    const hasBlank = ids.some((id) => !percentAmounts[id]?.trim());
+    if (hasBlank) return 'Enter a percentage for each member.';
+    const total = ids.reduce(
+      (s, id) => s + (parseFloat(percentAmounts[id]) || 0),
+      0,
+    );
+    if (Math.abs(total - 100) > 0.01)
+      return `Percentages must sum to 100% (currently ${total.toFixed(2)}%).`;
+  }
+  return null;
+}
+
+// ─── buildCustomSplits (equally) ──────────────────────────────────────────────
+
+describe('buildCustomSplits (equally)', () => {
+  it('returns null for equal splits', () => {
+    expect(
+      buildCustomSplits('equally', ['a', 'b'], {}, {}, 2000),
+    ).toBeNull();
+  });
+});
+
+// ─── buildCustomSplits (exact) ────────────────────────────────────────────────
+
+describe('buildCustomSplits (exact)', () => {
+  it('passes through provided amounts in cents', () => {
+    const result = buildCustomSplits(
+      'exact',
+      ['a', 'b'],
+      { a: '10.00', b: '15.00' },
+      {},
+      2500,
+    );
+    expect(result?.amountsCents).toEqual([1000, 1500]);
+    expect(result?.memberIds).toEqual(['a', 'b']);
+  });
+
+  it('treats blank field as 0 cents', () => {
+    const result = buildCustomSplits(
+      'exact',
+      ['a', 'b'],
+      { a: '20.00' }, // b is missing
+      {},
+      2000,
+    );
+    expect(result?.amountsCents).toEqual([2000, 0]);
+  });
+
+  it('rounds decimal input to nearest cent', () => {
+    const result = buildCustomSplits(
+      'exact',
+      ['a'],
+      { a: '10.005' },
+      {},
+      1001,
+    );
+    expect(result?.amountsCents[0]).toBe(1001); // Math.round(10.005 * 100) = 1001
+  });
+});
+
+// ─── buildCustomSplits (percent) ──────────────────────────────────────────────
+
+describe('buildCustomSplits (percent)', () => {
+  it('splits 50/50 correctly', () => {
+    const result = buildCustomSplits(
+      'percent',
+      ['a', 'b'],
+      {},
+      { a: '50', b: '50' },
+      2000,
+    );
+    expect(result?.amountsCents).toEqual([1000, 1000]);
+  });
+
+  it('total always equals amtCents (3-way 33.33/33.33/33.34)', () => {
+    const result = buildCustomSplits(
+      'percent',
+      ['a', 'b', 'c'],
+      {},
+      { a: '33.33', b: '33.33', c: '33.34' },
+      1000,
+    );
+    const total = result!.amountsCents.reduce((s, x) => s + x, 0);
+    expect(total).toBe(1000);
+  });
+
+  it('last member absorbs rounding remainder for even 3-way split', () => {
+    // 33.33% each: Math.floor(0.3333 * 1000) = 333 for first two,
+    // remainder = 1000 - 666 = 334 added to last
+    const result = buildCustomSplits(
+      'percent',
+      ['a', 'b', 'c'],
+      {},
+      { a: '33.33', b: '33.33', c: '33.34' },
+      1000,
+    );
+    expect(result!.amountsCents[0]).toBe(333);
+    expect(result!.amountsCents[1]).toBe(333);
+    expect(result!.amountsCents[2]).toBe(334);
+  });
+
+  it('total always equals amtCents for various amounts and percentages', () => {
+    const cases = [
+      { pcts: ['25', '25', '25', '25'], amt: 333 },
+      { pcts: ['10', '90'], amt: 7777 },
+      { pcts: ['33.33', '33.33', '33.34'], amt: 9999 },
+    ];
+    for (const { pcts, amt } of cases) {
+      const ids = pcts.map((_, i) => `m${i}`);
+      const percentAmounts = Object.fromEntries(ids.map((id, i) => [id, pcts[i]]));
+      const result = buildCustomSplits('percent', ids, {}, percentAmounts, amt);
+      const total = result!.amountsCents.reduce((s, x) => s + x, 0);
+      expect(total).toBe(amt);
+    }
+  });
+});
+
+// ─── validateCustomSplits ─────────────────────────────────────────────────────
+
+describe('validateCustomSplits', () => {
+  it('returns null for equally (no validation needed)', () => {
+    expect(validateCustomSplits('equally', ['a', 'b'], {}, {}, 2000)).toBeNull();
+  });
+
+  // Exact mode
+  it('returns null for valid exact split', () => {
+    expect(
+      validateCustomSplits('exact', ['a', 'b'], { a: '10.00', b: '10.00' }, {}, 2000),
+    ).toBeNull();
+  });
+
+  it('returns error when exact amounts do not sum to total', () => {
+    const err = validateCustomSplits(
+      'exact',
+      ['a', 'b'],
+      { a: '10.00', b: '5.00' },
+      {},
+      2000,
+    );
+    expect(err).not.toBeNull();
+    expect(err).toContain('20.00');
+  });
+
+  it('returns error when exact has a blank field', () => {
+    const err = validateCustomSplits(
+      'exact',
+      ['a', 'b'],
+      { a: '20.00' }, // b missing
+      {},
+      2000,
+    );
+    expect(err).not.toBeNull();
+    expect(err).toContain('amount');
+  });
+
+  // Percent mode
+  it('returns null for valid percent split summing to 100%', () => {
+    expect(
+      validateCustomSplits('percent', ['a', 'b'], {}, { a: '50', b: '50' }, 2000),
+    ).toBeNull();
+  });
+
+  it('returns null for percent split with floating-point sum within 0.01 of 100', () => {
+    // 33.33 + 33.33 + 33.34 = 100.00 exactly
+    expect(
+      validateCustomSplits(
+        'percent',
+        ['a', 'b', 'c'],
+        {},
+        { a: '33.33', b: '33.33', c: '33.34' },
+        1000,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns error when percent sums to 99%', () => {
+    const err = validateCustomSplits(
+      'percent',
+      ['a', 'b'],
+      {},
+      { a: '49', b: '50' },
+      2000,
+    );
+    expect(err).not.toBeNull();
+    expect(err).toContain('99.00');
+  });
+
+  it('returns error when percent sums to 101%', () => {
+    const err = validateCustomSplits(
+      'percent',
+      ['a', 'b'],
+      {},
+      { a: '51', b: '50' },
+      2000,
+    );
+    expect(err).not.toBeNull();
+    expect(err).toContain('101.00');
+  });
+
+  it('returns error when percent has a blank field', () => {
+    const err = validateCustomSplits(
+      'percent',
+      ['a', 'b'],
+      {},
+      { a: '100' }, // b missing
+      2000,
+    );
+    expect(err).not.toBeNull();
+    expect(err).toContain('percentage');
+  });
+});
+
+// ─── Edit-mode split computation (regression guard) ───────────────────────────
+
+describe('Edit mode equal split (regression guard)', () => {
+  it('computes per-person splits with last-member rounding when customSplits is null', () => {
+    const amtCents = 1000;
+    const splitIds = ['a', 'b', 'c'];
+    const customSplits = null; // equal split path
+    const splitCents = customSplits
+      ? (customSplits as { amountsCents: number[] }).amountsCents
+      : splitIds.map((_, i) => {
+          const perPerson = Math.round(amtCents / splitIds.length);
+          return i === splitIds.length - 1
+            ? amtCents - perPerson * (splitIds.length - 1)
+            : perPerson;
+        });
+    expect(splitCents).toEqual([333, 333, 334]);
+    expect(splitCents.reduce((s, x) => s + x, 0)).toBe(1000);
+  });
+
+  it('uses customSplits.amountsCents when provided (non-equal path)', () => {
+    const customSplits = { memberIds: ['a', 'b'], amountsCents: [700, 300] };
+    const splitCents = customSplits.amountsCents;
+    expect(splitCents).toEqual([700, 300]);
   });
 });
 

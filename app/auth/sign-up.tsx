@@ -12,8 +12,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { normalizePhone } from '@/lib/phone';
+import { useFeatureFlag } from '@/lib/analytics';
 
 const C = {
   bg: '#112117',
@@ -30,29 +34,38 @@ export default function SignUpScreen() {
   const { signUp, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
+  const simplifiedSignup = useFeatureFlag('simplified_signup');
 
   const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
+    const requireConfirm = !simplifiedSignup;
+    if (!email || !phone || !password || (requireConfirm && !confirmPassword)) {
+      setError(t('auth.fillAllFields'));
       return;
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    const normalizedPhone = normalizePhone(phone.trim());
+    if (!normalizedPhone) {
+      setError(t('auth.invalidPhone'));
+      return;
+    }
+    if (requireConfirm && password !== confirmPassword) {
+      setError(t('auth.passwordMismatch'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('auth.passwordTooShort'));
       return;
     }
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, normalizedPhone);
     setLoading(false);
     if (error) {
       setError(error);
@@ -71,20 +84,28 @@ export default function SignUpScreen() {
 
   if (success) {
     return (
-      <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View
+        style={[
+          s.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
         <View style={s.inner}>
           <View style={s.logoMark}>
             <Text style={s.logoText}>✓</Text>
           </View>
-          <Text style={s.title}>Check your email</Text>
+          <Text style={s.title}>{t('auth.checkEmail')}</Text>
           <Text style={s.subtitle}>
-            We sent a confirmation link to {email}. Click it to activate your account.
+            {t('auth.confirmationSent', { email })}
           </Text>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, pressed && s.btnPressed]}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.signUpBtn,
+              pressed && s.btnPressed,
+            ]}
             onPress={() => router.replace('/auth/sign-in')}
           >
-            <Text style={s.signUpBtnText}>Back to Sign In</Text>
+            <Text style={s.signUpBtnText}>{t('auth.backToSignIn')}</Text>
           </Pressable>
         </View>
       </View>
@@ -94,20 +115,28 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      style={[
+        s.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={s.inner}>
         <View style={s.logoMark}>
           <Text style={s.logoText}>S</Text>
         </View>
-        <Text style={s.title}>Create account</Text>
-        <Text style={s.subtitle}>Join {APP_DISPLAY_NAME} to split expenses</Text>
+        <Text style={s.title}>{t('auth.createAccount')}</Text>
+        <Text style={s.subtitle}>
+          {t('auth.joinApp', { appName: APP_DISPLAY_NAME })}
+        </Text>
 
         {error && <Text style={s.errorText}>{error}</Text>}
 
         {/* Google Sign In */}
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.googleBtn, (googleLoading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.googleBtn,
+            (googleLoading || pressed) && s.btnPressed,
+          ]}
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
         >
@@ -116,7 +145,7 @@ export default function SignUpScreen() {
           ) : (
             <>
               <AntDesign name="google" size={20} color="#EA4335" />
-              <Text style={s.googleBtnText}>Continue with Google</Text>
+              <Text style={s.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
             </>
           )}
         </Pressable>
@@ -124,13 +153,13 @@ export default function SignUpScreen() {
         {/* Divider */}
         <View style={s.divider}>
           <View style={s.dividerLine} />
-          <Text style={s.dividerText}>or</Text>
+          <Text style={s.dividerText}>{t('auth.or')}</Text>
           <View style={s.dividerLine} />
         </View>
 
         <TextInput
           style={s.input}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor={C.slate500}
           autoCapitalize="none"
           keyboardType="email-address"
@@ -138,27 +167,39 @@ export default function SignUpScreen() {
           onChangeText={setEmail}
           testID="email-input"
         />
+        <PhoneInput
+          value={phone}
+          onChange={setPhone}
+          autoFocus
+          testID="phone-input"
+          editable={!loading}
+        />
         <TextInput
           style={s.input}
-          placeholder="Password"
+          placeholder={t('auth.password')}
           placeholderTextColor={C.slate500}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
           testID="password-input"
         />
-        <TextInput
-          style={s.input}
-          placeholder="Confirm Password"
-          placeholderTextColor={C.slate500}
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          testID="confirm-password-input"
-        />
+        {!simplifiedSignup && (
+          <TextInput
+            style={s.input}
+            placeholder={t('auth.confirmPassword')}
+            placeholderTextColor={C.slate500}
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            testID="confirm-password-input"
+          />
+        )}
 
         <Pressable
-          style={({ pressed }: { pressed: boolean }) => [s.signUpBtn, (loading || pressed) && s.btnPressed]}
+          style={({ pressed }: { pressed: boolean }) => [
+            s.signUpBtn,
+            (loading || pressed) && s.btnPressed,
+          ]}
           onPress={handleSignUp}
           disabled={loading || googleLoading}
           testID="sign-up-button"
@@ -166,13 +207,15 @@ export default function SignUpScreen() {
           {loading ? (
             <ActivityIndicator color={C.bg} />
           ) : (
-            <Text style={s.signUpBtnText}>Create Account</Text>
+            <Text style={s.signUpBtnText}>{t('auth.createAccountBtn')}</Text>
           )}
         </Pressable>
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Already have an account? </Text>
-          <Link href="/auth/sign-in" style={s.link}>Sign In</Link>
+          <Text style={s.footerText}>{t('auth.hasAccount')}</Text>
+          <Link href="/auth/sign-in" style={s.link}>
+            {t('auth.signIn')}
+          </Link>
         </View>
       </View>
     </KeyboardAvoidingView>

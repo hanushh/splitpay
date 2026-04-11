@@ -53,4 +53,4 @@ npm install
   npm run reset-project
   ```
 
-For more details about architecture, conventions, and workflows, see `.cursorrules` and `.agents/workflows/` in the repository.*** End Patch```} ***!
+For more details about architecture, conventions, and workflows, see `.cursorrules` and `.agents/workflows/` in the repository.**_ End Patch```} _**!

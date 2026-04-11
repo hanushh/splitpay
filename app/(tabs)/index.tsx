@@ -1,23 +1,29 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
-import { useCurrency } from '@/context/currency';
+import { formatCentsWithCurrency, useCurrency } from '@/context/currency';
+import OnboardingTooltip from '@/components/ui/OnboardingTooltip';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
+import { type CurrencyBalance, sortBalancesDesc } from '@/lib/balance-utils';
 import { Group, useGroups } from '@/hooks/use-groups';
+import { useArchivedGroups } from '@/hooks/use-archived-groups';
+import { useHomeOnboarding } from '@/hooks/use-home-onboarding';
 
 const C = {
   primary: '#17e86b',
@@ -36,22 +42,33 @@ const C = {
 };
 
 function GroupCard({ group }: { group: Group }) {
-  const { format } = useCurrency();
+  const { t } = useTranslation();
   const amountColor = group.status === 'owes' ? C.orange : C.primary;
   const opacity = group.archived ? 0.7 : 1;
+  const sortedBalances = sortBalancesDesc(group.balances);
+  const primaryBalance = sortedBalances[0];
+  const extraCount = sortedBalances.length - 1;
 
   return (
     <Pressable
-      style={({ pressed }: { pressed: boolean }) => [s.groupCard, { opacity: pressed ? 0.85 : opacity }]}
-      onPress={() => router.push({ pathname: '/group/[id]', params: { id: group.id } })}
+      style={({ pressed }: { pressed: boolean }) => [
+        s.groupCard,
+        { opacity: pressed ? 0.85 : opacity },
+      ]}
+      onPress={() =>
+        router.push({ pathname: '/group/[id]', params: { id: group.id } })
+      }
       testID={`group-card-${group.id}`}
     >
-      <View style={[s.groupIcon, { backgroundColor: group.bg_color }]}>
+      <View style={s.groupIcon}>
         {group.image_url ? (
           <Image source={{ uri: group.image_url }} style={s.groupImage} />
         ) : (
           <MaterialIcons
-            name={(group.icon_name as keyof typeof MaterialIcons.glyphMap) ?? 'group'}
+            name={
+              (group.icon_name as keyof typeof MaterialIcons.glyphMap) ??
+              'group'
+            }
             size={28}
             color={C.primary}
           />
@@ -59,36 +76,66 @@ function GroupCard({ group }: { group: Group }) {
       </View>
 
       <View style={s.groupInfo}>
-        <Text style={s.groupName} numberOfLines={1}>{group.name}</Text>
+        <Text style={s.groupName} numberOfLines={1}>
+          {group.name}
+        </Text>
         <View style={s.groupMeta}>
           {group.members.length > 0 && (
             <View style={s.memberStack}>
-              {group.members.slice(0, 3).map((m, i) => (
-                <Image
-                  key={m.id}
-                  source={{ uri: m.avatar_url! }}
-                  style={[s.memberAvatar, { marginLeft: i === 0 ? 0 : -8 }]}
-                />
-              ))}
+              {group.members.slice(0, 3).map((m, i) => {
+                const initials = (m.display_name ?? '?')[0].toUpperCase();
+                return m.avatar_url ? (
+                  <Image
+                    key={m.id}
+                    source={{ uri: m.avatar_url }}
+                    style={[s.memberAvatar, { marginLeft: i === 0 ? 0 : -8 }]}
+                  />
+                ) : (
+                  <View
+                    key={m.id}
+                    style={[
+                      s.memberAvatar,
+                      s.memberAvatarInitials,
+                      { marginLeft: i === 0 ? 0 : -8 },
+                    ]}
+                  >
+                    <Text style={s.memberAvatarInitialsText}>{initials}</Text>
+                  </View>
+                );
+              })}
             </View>
           )}
           {group.description ? (
-            <Text style={s.groupSubtitle} numberOfLines={1}>{group.description}</Text>
+            <Text style={s.groupSubtitle} numberOfLines={1}>
+              {group.description}
+            </Text>
           ) : null}
         </View>
       </View>
 
       <View style={s.groupAmount}>
         {group.status === 'settled' ? (
-          <Text style={s.settledText}>settled up</Text>
-        ) : (
+          <Text style={s.settledText}>{t('groups.settledUp')}</Text>
+        ) : primaryBalance ? (
           <>
             <Text style={[s.amountLabel, { color: amountColor }]}>
-              {group.status === 'owed' ? 'you are owed' : 'you owe'}
+              {group.status === 'owed'
+                ? t('groups.youAreOwedShort')
+                : t('groups.youOweShort')}
             </Text>
-            <Text style={[s.amountValue, { color: amountColor }]}>{format(group.balance_cents)}</Text>
+            <Text style={[s.amountValue, { color: amountColor }]}>
+              {formatCentsWithCurrency(
+                primaryBalance.balance_cents,
+                primaryBalance.currency_code,
+              )}
+            </Text>
+            {extraCount > 0 && (
+              <Text style={s.andMoreText}>
+                {t('groups.andMore', { count: extraCount })}
+              </Text>
+            )}
           </>
-        )}
+        ) : null}
       </View>
 
       <MaterialIcons name="chevron-right" size={22} color={C.surfaceHL} />
@@ -96,100 +143,231 @@ function GroupCard({ group }: { group: Group }) {
   );
 }
 
-function TotalBalanceDisplay({ cents }: { cents: number }) {
-  const { format } = useCurrency();
-  const isPositive = cents >= 0;
-  const label = cents === 0
-    ? 'You are all settled up'
-    : isPositive
-    ? `You are owed ${format(cents)}`
-    : `You owe ${format(cents)}`;
+function TotalBalanceDisplay({ balances }: { balances: CurrencyBalance[] }) {
+  const { t } = useTranslation();
+  const isSettled = balances.length === 0;
+  const isMulti = balances.length > 1;
+  const hasDebt = balances.some((b) => b.balance_cents < 0);
+  const allOwed = balances.every((b) => b.balance_cents > 0);
+  const allOwes = balances.every((b) => b.balance_cents < 0);
+
+  const summaryLabel = allOwed
+    ? t('groups.youAreOwedMulti')
+    : allOwes
+      ? t('groups.youOweMulti')
+      : t('groups.mixedBalances');
 
   return (
     <View style={s.balanceCard}>
       <View style={s.balanceCardBg}>
         <MaterialIcons name="account-balance-wallet" size={64} color={C.white} />
       </View>
-      <Text style={s.balanceLabel}>Total Balance</Text>
-      <Text style={[s.balanceAmount, !isPositive && { color: C.orange }]}>{label}</Text>
+      <Text style={s.balanceLabel}>{t('groups.totalBalance')}</Text>
+      {isSettled ? (
+        <Text style={s.balanceAmount}>{t('groups.allSettled')}</Text>
+      ) : isMulti ? (
+        <>
+          <Text style={[s.balanceAmount, hasDebt && !allOwes && { color: C.white }, allOwes && { color: C.orange }]}>
+            {summaryLabel}
+          </Text>
+          <View style={s.currencyChips}>
+            {balances.map((b) => (
+              <View
+                key={b.currency_code}
+                style={[s.currencyChip, b.balance_cents < 0 && s.currencyChipDebt]}
+              >
+                <Text style={[s.currencyChipAmount, b.balance_cents < 0 && { color: C.orange }]}>
+                  {formatCentsWithCurrency(Math.abs(b.balance_cents), b.currency_code)}
+                </Text>
+                <Text style={[s.currencyChipCode, b.balance_cents < 0 && { color: C.orange }]}>
+                  {b.currency_code}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <Text style={[s.balanceAmount, hasDebt && { color: C.orange }]}>
+          {balances[0].balance_cents > 0
+            ? t('groups.youAreOwed', {
+                amount: formatCentsWithCurrency(balances[0].balance_cents, balances[0].currency_code),
+              })
+            : t('groups.youOwe', {
+                amount: formatCentsWithCurrency(Math.abs(balances[0].balance_cents), balances[0].currency_code),
+              })}
+        </Text>
+      )}
       <View style={s.balanceTrend}>
         <MaterialIcons
-          name={isPositive ? 'trending-up' : 'trending-down'}
+          name={!hasDebt ? 'trending-up' : 'trending-down'}
           size={14}
-          color={isPositive ? C.primary : C.orange}
+          color={!hasDebt ? C.primary : C.orange}
         />
-        <Text style={[s.balanceTrendText, !isPositive && { color: C.orange }]}>
-          across {cents !== 0 ? 'active' : 'all'} groups
+        <Text style={[s.balanceTrendText, hasDebt && { color: C.orange }]}>
+          {!isSettled ? t('groups.acrossActive') : t('groups.acrossAll')}
         </Text>
       </View>
     </View>
   );
 }
 
+type StatusFilter = 'all' | 'owed' | 'owes' | 'settled';
+
 export default function GroupsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('groups');
-  const { groups, loading, error, refetch, totalBalanceCents } = useGroups();
+  const { groups, loading, error, refetch, totalBalances } = useGroups();
+  const {
+    groups: archivedGroups,
+    loading: archivedLoading,
+    fetch: fetchArchived,
+  } = useArchivedGroups();
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
+  const searchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+
+  const {
+    tooltipProps,
+    balanceCardRef,
+    createGroupBtnRef,
+    fabRef,
+    measureBalanceCard,
+    measureCreateGroupBtn,
+    measureFab,
+  } = useHomeOnboarding(groups.length);
+
+  const statusFilters = useMemo(
+    () => [
+      { key: 'all' as const, label: t('groups.filterAll') },
+      { key: 'owed' as const, label: t('groups.filterOwed') },
+      { key: 'owes' as const, label: t('groups.filterOwe') },
+      { key: 'settled' as const, label: t('groups.filterSettled') },
+    ],
+    [t],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+
+  const visibleGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return groups.filter((g) => {
+      const matchesQuery = q === '' || g.name.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || g.status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [groups, searchQuery, statusFilter]);
+
+  const handleSearchToggle = useCallback(() => {
+    if (showSearch) {
+      setShowSearch(false);
+      setSearchQuery('');
+    } else {
+      setShowSearch(true);
+      setTimeout(
+        () =>
+          (searchInputRef.current as { focus?: () => void } | null)?.focus?.(),
+        50,
+      );
+    }
+  }, [showSearch]);
+
+  const handleArchivedToggle = useCallback(() => {
+    if (!archivedExpanded) {
+      fetchArchived();
+    }
+    setArchivedExpanded((v) => !v);
+  }, [archivedExpanded, fetchArchived]);
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'U';
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]} testID="groups-screen">
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+    <View
+      style={[s.container, { paddingTop: insets.top }]}
+      testID="groups-screen"
+    >
+      <StatusBar style="light" />
 
       {/* Header */}
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <View style={s.headerLeft}>
-            <View style={s.avatar}>
-              <Text style={s.avatarLetter}>{avatarLetter}</Text>
-            </View>
-            <Text style={s.appTitle}>{APP_DISPLAY_NAME}</Text>
-          </View>
-          <View style={s.headerIcons}>
-            <Pressable style={s.iconBtn} hitSlop={8}>
-              <MaterialIcons name="search" size={24} color={C.slate400} />
-            </Pressable>
+        {showSearch ? (
+          <View style={s.searchRow}>
+            <MaterialIcons
+              name="search"
+              size={20}
+              color={C.slate400}
+              style={{ marginLeft: 4 }}
+            />
+            <TextInput
+              ref={searchInputRef}
+              style={s.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t('groups.searchPlaceholder')}
+              placeholderTextColor={C.slate500}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="never"
+            />
             <Pressable
-              style={s.iconBtn}
+              onPress={handleSearchToggle}
               hitSlop={8}
-              onPress={() => router.push('/create-group')}
-              testID="create-group-header-btn"
+              style={s.iconBtn}
             >
-              <MaterialIcons name="group-add" size={24} color={C.primary} />
+              <MaterialIcons name="close" size={22} color={C.slate400} />
             </Pressable>
           </View>
-        </View>
+        ) : (
+          <View style={s.headerTop}>
+            <View style={s.headerLeft}>
+              <View style={s.avatar}>
+                <Text style={s.avatarLetter}>{avatarLetter}</Text>
+              </View>
+              <Text style={s.appTitle}>{APP_DISPLAY_NAME}</Text>
+            </View>
+            <View style={s.headerIcons}>
+              <Pressable
+                style={s.iconBtn}
+                hitSlop={8}
+                onPress={handleSearchToggle}
+              >
+                <MaterialIcons name="search" size={24} color={C.slate400} />
+              </Pressable>
+              <View ref={createGroupBtnRef} onLayout={measureCreateGroupBtn}>
+                <Pressable
+                  style={s.iconBtn}
+                  hitSlop={8}
+                  onPress={() => router.push('/create-group')}
+                  testID="create-group-header-btn"
+                >
+                  <MaterialIcons name="group-add" size={24} color={C.primary} />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
 
-        <TotalBalanceDisplay cents={totalBalanceCents} />
-
-        {/* Header Tabs */}
-        <View style={s.headerTabs}>
-          <Pressable
-            style={[s.headerTab, activeTab === 'friends' && s.headerTabActive]}
-            onPress={() => setActiveTab('friends')}
-          >
-            <Text style={[s.headerTabText, activeTab === 'friends' && s.headerTabTextActive]}>
-              Friends
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[s.headerTab, activeTab === 'groups' && s.headerTabActive]}
-            onPress={() => setActiveTab('groups')}
-            testID="groups-tab"
-          >
-            <Text style={[s.headerTabText, activeTab === 'groups' && s.headerTabTextActive]} testID="groups-tab-label">
-              Groups
-            </Text>
-          </Pressable>
-        </View>
+        {!showSearch && (
+          <View ref={balanceCardRef} onLayout={measureBalanceCard}>
+            <TotalBalanceDisplay balances={totalBalances} />
+          </View>
+        )}
       </View>
 
       {/* Main Content */}
       <ScrollView
         style={s.scrollView}
-        contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+        contentContainerStyle={[
+          s.scrollContent,
+          { paddingBottom: insets.bottom + 80 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -201,11 +379,27 @@ export default function GroupsScreen() {
         }
       >
         <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Your Groups</Text>
-          <Pressable style={s.filterBtn} hitSlop={8}>
-            <MaterialIcons name="filter-list" size={16} color={C.primary} />
-            <Text style={s.filterText}>Filter</Text>
-          </Pressable>
+          <Text style={s.sectionTitle}>{t('groups.title')}</Text>
+        </View>
+
+        {/* Status filter pills */}
+        <View style={s.filterPillRow}>
+          {statusFilters.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              style={[s.filterPill, statusFilter === key && s.filterPillActive]}
+              onPress={() => setStatusFilter(key)}
+            >
+              <Text
+                style={[
+                  s.filterPillText,
+                  statusFilter === key && s.filterPillTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
         {error ? (
@@ -213,7 +407,7 @@ export default function GroupsScreen() {
             <MaterialIcons name="error-outline" size={40} color={C.danger} />
             <Text style={s.errorText}>{error}</Text>
             <Pressable style={s.retryBtn} onPress={refetch}>
-              <Text style={s.retryText}>Retry</Text>
+              <Text style={s.retryText}>{t('common.retry')}</Text>
             </Pressable>
           </View>
         ) : loading && groups.length === 0 ? (
@@ -222,17 +416,63 @@ export default function GroupsScreen() {
           </View>
         ) : (
           <>
-            {groups.map((group) => (
+            {visibleGroups.length === 0 && groups.length > 0 && (
+              <View style={s.centered}>
+                <MaterialIcons
+                  name="search-off"
+                  size={40}
+                  color={C.surfaceHL}
+                />
+                <Text style={s.errorText}>{t('groups.noMatch')}</Text>
+              </View>
+            )}
+            {visibleGroups.map((group) => (
               <GroupCard key={group.id} group={group} />
             ))}
 
+            {/* Archived groups section */}
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [
+                s.archivedHeader,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={handleArchivedToggle}
+            >
+              <View style={s.archivedHeaderLeft}>
+                <MaterialIcons name="archive" size={16} color={C.slate400} />
+                <Text style={s.archivedHeaderText}>{t('groups.archived')}</Text>
+              </View>
+              <MaterialIcons
+                name={archivedExpanded ? 'expand-less' : 'expand-more'}
+                size={20}
+                color={C.slate400}
+              />
+            </Pressable>
+
+            {archivedExpanded &&
+              (archivedLoading ? (
+                <ActivityIndicator
+                  color={C.primary}
+                  style={{ marginVertical: 16 }}
+                />
+              ) : archivedGroups.length === 0 ? (
+                <Text style={s.archivedEmpty}>{t('groups.noArchivedGroups')}</Text>
+              ) : (
+                archivedGroups.map((group) => (
+                  <GroupCard key={group.id} group={group} />
+                ))
+              ))}
+
             <View style={s.newGroupRow}>
               <Pressable
-                style={({ pressed }: { pressed: boolean }) => [s.newGroupBtn, pressed && { opacity: 0.7 }]}
+                style={({ pressed }: { pressed: boolean }) => [
+                  s.newGroupBtn,
+                  pressed && { opacity: 0.7 },
+                ]}
                 onPress={() => router.push('/create-group')}
               >
                 <MaterialIcons name="group-add" size={20} color={C.primary} />
-                <Text style={s.newGroupText}>Start a new group</Text>
+                <Text style={s.newGroupText}>{t('groups.startNew')}</Text>
               </Pressable>
             </View>
           </>
@@ -240,13 +480,29 @@ export default function GroupsScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable
-        style={({ pressed }: { pressed: boolean }) => [s.fab, { bottom: insets.bottom + 72 }, pressed && { opacity: 0.85 }]}
-        onPress={() => router.push('/add-expense')}
-        testID="fab-add-expense"
+      <View
+        ref={fabRef}
+        onLayout={measureFab}
+        style={[s.fabWrapper, { bottom: insets.bottom + 72 }]}
       >
-        <MaterialIcons name="add" size={32} color={C.bg} />
-      </Pressable>
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [
+            s.fab,
+            pressed && { opacity: 0.85 },
+          ]}
+          onPress={() =>
+            groups.length === 0
+              ? router.push('/create-group')
+              : router.push('/add-expense')
+          }
+          testID="fab-add-expense"
+        >
+          <MaterialIcons name="add" size={32} color={C.bg} />
+        </Pressable>
+      </View>
+
+      {/* Onboarding tooltip overlay */}
+      <OnboardingTooltip {...tooltipProps} />
     </View>
   );
 }
@@ -274,89 +530,242 @@ const s = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: C.surfaceHL,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarLetter: { color: C.primary, fontWeight: '700', fontSize: 16 },
   appTitle: { color: C.white, fontSize: 18, fontWeight: '700' },
   headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   balanceCard: {
     backgroundColor: C.surfaceHL,
-    borderRadius: 12, padding: 20,
-    marginBottom: 20, overflow: 'hidden', position: 'relative',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+    position: 'relative',
   },
   balanceCardBg: { position: 'absolute', top: 8, right: 8, opacity: 0.1 },
-  balanceLabel: { color: C.slate300, fontSize: 13, fontWeight: '500', marginBottom: 4 },
-  balanceAmount: { color: C.primary, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  balanceTrend: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 },
-  balanceTrendText: { color: C.primary, fontSize: 13, fontWeight: '500', opacity: 0.8 },
-  headerTabs: { flexDirection: 'row' },
-  headerTab: {
-    flex: 1, paddingBottom: 12,
-    alignItems: 'center',
-    borderBottomWidth: 3, borderBottomColor: 'transparent',
+  balanceLabel: {
+    color: C.slate300,
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 4,
   },
-  headerTabActive: { borderBottomColor: C.primary },
-  headerTabText: { fontSize: 14, fontWeight: '500', color: C.slate400 },
-  headerTabTextActive: { color: C.primary, fontWeight: '700' },
+  balanceAmount: {
+    color: C.primary,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  currencyChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(23, 232, 107, 0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  currencyChipDebt: {
+    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+  },
+  currencyChipAmount: {
+    color: C.primary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  currencyChipCode: {
+    color: C.primary,
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  balanceTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  balanceTrendText: {
+    color: C.primary,
+    fontSize: 13,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
   sectionTitle: {
-    fontSize: 12, fontWeight: '600', color: C.slate400,
-    textTransform: 'uppercase', letterSpacing: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.slate400,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  filterText: { color: C.primary, fontSize: 13, fontWeight: '500' },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 16,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 44,
+  },
+  searchInput: { flex: 1, color: C.white, fontSize: 15 },
+  filterPillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: 'nowrap',
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
+  },
+  filterPillActive: { backgroundColor: C.surfaceHL, borderColor: C.primary },
+  filterPillText: { color: C.slate400, fontSize: 12, fontWeight: '600' },
+  filterPillTextActive: { color: C.white },
   groupCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: C.surface, padding: 16,
-    borderRadius: 12, borderWidth: 1, borderColor: C.surfaceHL,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: C.surface,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.surfaceHL,
   },
   groupIcon: {
-    width: 56, height: 56, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden', flexShrink: 0,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0,
+    backgroundColor: C.surfaceHL,
   },
   groupImage: { width: '100%', height: '100%' },
   groupInfo: { flex: 1, minWidth: 0 },
   groupName: { color: C.white, fontWeight: '700', fontSize: 15 },
-  groupMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
+  groupMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 6,
+  },
   memberStack: { flexDirection: 'row', alignItems: 'center' },
   memberAvatar: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 1.5, borderColor: C.surface,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.surface,
+  },
+  memberAvatarInitials: {
+    backgroundColor: C.surfaceHL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarInitialsText: {
+    color: C.primary,
+    fontSize: 8,
+    fontWeight: '700',
   },
   groupSubtitle: { fontSize: 12, color: C.slate400, flexShrink: 1 },
   groupAmount: { alignItems: 'flex-end', flexShrink: 0 },
   amountLabel: { fontSize: 12, fontWeight: '700' },
   amountValue: { fontSize: 17, fontWeight: '700' },
   settledText: { fontSize: 13, fontWeight: '500', color: C.slate400 },
+  andMoreText: { fontSize: 11, color: C.slate400, fontWeight: '600' },
   centered: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   errorText: { color: C.slate400, fontSize: 14, textAlign: 'center' },
   retryBtn: {
-    paddingVertical: 10, paddingHorizontal: 24,
-    backgroundColor: C.surfaceHL, borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 999,
   },
   retryText: { color: C.primary, fontWeight: '600', fontSize: 14 },
+  archivedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+    borderTopColor: C.surfaceHL,
+    marginTop: 8,
+  },
+  archivedHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  archivedHeaderText: {
+    color: C.slate400,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  archivedEmpty: {
+    color: C.slate500,
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
   newGroupRow: { alignItems: 'center', paddingVertical: 8 },
   newGroupBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 999,
   },
   newGroupText: { color: C.slate400, fontSize: 14, fontWeight: '500' },
+  fabWrapper: {
+    position: 'absolute',
+    right: 16,
+    width: 56,
+    height: 56,
+  },
   fab: {
-    position: 'absolute', right: 16,
-    width: 56, height: 56, borderRadius: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: C.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

@@ -19,6 +19,7 @@ jest.mock('expo-web-browser', () => ({
 jest.mock('expo-linking', () => ({
   addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   getInitialURL: jest.fn().mockResolvedValue(null),
+  createURL: jest.fn().mockReturnValue('paysplit://auth/callback'),
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -57,7 +58,7 @@ describe('Google auth smoke', () => {
       'https://mock-oauth-url.com',
       AUTH_CALLBACK_URL,
     );
-    expect(response.error).toBe('Google sign-in was cancelled or did not complete.');
+    expect(response.error).toBeNull();
     expect(router.replace).not.toHaveBeenCalled();
   });
 
@@ -67,8 +68,18 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}?code=oauth-code-123`,
     });
     (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
-      data: { session: { access_token: 'token' } },
+      data: {
+        session: { access_token: 'token' },
+        user: { id: 'test-user-id' },
+      },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -78,7 +89,9 @@ describe('Google auth smoke', () => {
       response = await result.current.signInWithGoogle();
     });
 
-    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith('oauth-code-123');
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+      'oauth-code-123',
+    );
     expect(response.error).toBeNull();
     expect(router.replace).toHaveBeenCalledWith('/(tabs)');
   });
@@ -126,6 +139,12 @@ describe('Google auth smoke', () => {
       error: { message: 'Invalid code' },
     });
 
+    // Suppress the expected console.error emitted by the auth context on this
+    // error path, and assert it was called with the right arguments.
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
     const { result } = renderHook(() => useAuth(), { wrapper });
     let response: { error: string | null } = { error: null };
 
@@ -135,6 +154,11 @@ describe('Google auth smoke', () => {
 
     expect(response.error).toBe('Invalid code');
     expect(router.replace).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[Auth] exchangeCodeForSession error:',
+      'Invalid code',
+    );
+    errorSpy.mockRestore();
   });
 
   it('handles implicit flow (hash-based tokens) and navigates to tabs', async () => {
@@ -143,8 +167,18 @@ describe('Google auth smoke', () => {
       url: `${AUTH_CALLBACK_URL}#access_token=my-access&refresh_token=my-refresh`,
     });
     (supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
-      data: { session: { access_token: 'my-access' } },
+      data: {
+        session: { access_token: 'my-access' },
+        user: { id: 'test-user-id' },
+      },
       error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValueOnce({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest
+        .fn()
+        .mockResolvedValue({ data: { phone: '+11234567890' }, error: null }),
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -196,6 +230,8 @@ describe('Google auth smoke', () => {
       response = await result.current.signInWithGoogle();
     });
 
-    expect(response.error).toBe('Google sign-in callback did not include auth credentials.');
+    expect(response.error).toBe(
+      'Google sign-in callback did not include auth credentials.',
+    );
   });
 });

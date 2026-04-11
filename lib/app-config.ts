@@ -17,8 +17,56 @@ export const APP_LINK_BASE = `${APP_SCHEME}://`;
 export const AUTH_CALLBACK_PATH = 'auth/callback';
 export const AUTH_CALLBACK_URL = `${APP_LINK_BASE}${AUTH_CALLBACK_PATH}`;
 
+/** OAuth redirect URL for web (PWA). Reads EXPO_PUBLIC_WEB_URL env var; update to your Vercel domain. */
+export const WEB_AUTH_CALLBACK_URL =
+  (process.env.EXPO_PUBLIC_WEB_URL
+    ? `${process.env.EXPO_PUBLIC_WEB_URL}/${AUTH_CALLBACK_PATH}`
+    : null) ?? `https://paysplit.vercel.app/${AUTH_CALLBACK_PATH}`;
+
 /** Auth deep link prefix for handling callback (e.g. paysplit://auth) */
 export const AUTH_LINK_PREFIX = `${APP_LINK_BASE}auth`;
 
 /** Invite deep link prefix (e.g. paysplit://invite) */
 export const INVITE_LINK_PREFIX = `${APP_LINK_BASE}invite`;
+
+/** Invite URL for the web PWA (e.g. https://paysplit-ai.vercel.app/invite). */
+export const WEB_INVITE_URL = process.env.EXPO_PUBLIC_WEB_URL
+  ? `${process.env.EXPO_PUBLIC_WEB_URL}/invite`
+  : 'https://paysplit-ai.vercel.app/invite';
+
+/**
+ * HTTPS base URL used when sharing invite links externally (e.g. via WhatsApp).
+ * Points to the `invite-redirect` Supabase Edge Function which serves a page
+ * that opens the app via paysplit:// deep link, or falls back to the Play Store.
+ */
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+export const INVITE_WEB_LINK_BASE = SUPABASE_URL
+  ? `${SUPABASE_URL}/functions/v1/invite-redirect`
+  : '';
+
+/**
+ * Google Play Store URL for the app. Included in all outbound share/invite
+ * messages so recipients can tap a clickable link to download the app.
+ */
+export const APP_STORE_URL =
+  'https://play.google.com/store/apps/details?id=com.hanushh.paysplit';
+
+/**
+ * Default country code for phone normalization (E.164).
+ * Used by the Friends tab contact matching pipeline.
+ * Change this for non-US deployments.
+ */
+export const DEFAULT_COUNTRY_CODE = '+1';
+
+/**
+ * Maximum number of AI chat prompts a user can send per day.
+ * Resets at midnight local time. Change this to adjust the daily quota.
+ */
+export const AI_DAILY_PROMPT_LIMIT = 50;
+
+/**
+ * Feature flag: enable or disable the AI Assistant tab.
+ * Set to false to completely hide the AI tab from the bottom navigation.
+ * No user-facing setting — change this at the code level to toggle the feature.
+ */
+export const AI_MODE_ENABLED = true;

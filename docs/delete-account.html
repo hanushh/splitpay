@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PaySplit - Delete Account</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #112117;
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        background: #1a3324;
+        border-radius: 16px;
+        padding: 40px 32px;
+        max-width: 480px;
+        width: 100%;
+        text-align: center;
+      }
+      .icon {
+        font-size: 40px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+      p {
+        color: #94a3b8;
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .warning {
+        color: #ff5252;
+        font-size: 13px;
+        margin-bottom: 24px;
+      }
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid #244732;
+        background: #112117;
+        color: #ffffff;
+        font-size: 15px;
+        margin-bottom: 16px;
+        outline: none;
+      }
+      input:focus {
+        border-color: #17e86b;
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        border-radius: 10px;
+        border: none;
+        background: #ff5252;
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .success-icon {
+        color: #17e86b;
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      #message {
+        display: none;
+      }
+      #form-view {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <!-- Form view -->
+      <div id="form-view">
+        <div class="icon">🗑️</div>
+        <h1>Delete Your Account</h1>
+        <p>
+          Enter the email address you use to sign in to PaySplit. We'll send you
+          a confirmation link — your account will only be deleted after you
+          click it.
+        </p>
+        <p class="warning">
+          ⚠️ This is permanent. All your groups, expenses, and balance history
+          will be deleted.
+        </p>
+        <input
+          type="email"
+          id="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+        />
+        <button id="submit-btn" onclick="requestDeletion()">
+          Send Deletion Link
+        </button>
+      </div>
+
+      <!-- Result view -->
+      <div id="message"></div>
+    </div>
+
+    <script>
+      const EDGE_FN =
+        'https://yapfqffhgcncqxovjcsr.supabase.co/functions/v1/account-deletion';
+
+      // On page load: check for ?token= (confirmation flow)
+      window.addEventListener('DOMContentLoaded', () => {
+        const token = new URLSearchParams(window.location.search).get('token');
+        if (token) {
+          confirmDeletion(token);
+        }
+      });
+
+      async function requestDeletion() {
+        const email = document.getElementById('email').value.trim();
+        if (!email) return;
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        try {
+          const res = await fetch(EDGE_FN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json();
+
+          if (data.ok) {
+            showMessage(
+              '✓',
+              'Check Your Email',
+              `If an account with <strong>${escHtml(email)}</strong> exists, you'll receive a confirmation link shortly. It expires in 24 hours.`,
+              false,
+            );
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Send Deletion Link';
+            showError(data.error ?? 'Something went wrong. Please try again.');
+          }
+        } catch {
+          btn.disabled = false;
+          btn.textContent = 'Send Deletion Link';
+          showError('Network error. Please try again.');
+        }
+      }
+
+      async function confirmDeletion(token) {
+        document.getElementById('form-view').style.display = 'none';
+        showMessage('⏳', 'Deleting Account...', 'Please wait.', false);
+
+        try {
+          const res = await fetch(
+            `${EDGE_FN}?token=${encodeURIComponent(token)}`,
+            {
+              method: 'DELETE',
+            },
+          );
+          const data = await res.json();
+
+          if (data.ok) {
+            showMessage(
+              '✓',
+              'Account Deleted',
+              'Your PaySplit account and all associated data have been permanently deleted. You can uninstall the app.',
+              true,
+            );
+          } else {
+            showMessage(
+              '⚠️',
+              'Error',
+              data.error ??
+                'This link may be invalid or expired. Please submit a new request.',
+              false,
+            );
+          }
+        } catch {
+          showMessage(
+            '⚠️',
+            'Error',
+            'Network error. Please try again or contact hanushh@gmail.com.',
+            false,
+          );
+        }
+      }
+
+      function showMessage(icon, title, body, isSuccess) {
+        document.getElementById('form-view').style.display = 'none';
+        const el = document.getElementById('message');
+        el.style.display = 'block';
+        el.innerHTML = `
+        <div class="${isSuccess ? 'success-icon' : 'icon'}">${icon}</div>
+        <h1>${escHtml(title)}</h1>
+        <p>${body}</p>
+      `;
+      }
+
+      function showError(msg) {
+        const existing = document.getElementById('inline-error');
+        if (existing) existing.remove();
+        const el = document.createElement('p');
+        el.id = 'inline-error';
+        el.style.cssText = 'color:#ff5252;font-size:13px;margin-bottom:12px;';
+        el.textContent = msg;
+        document.getElementById('submit-btn').before(el);
+      }
+
+      function escHtml(s) {
+        return s
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+    </script>
+  </body>
+</html>

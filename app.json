@@ -1,51 +1,99 @@
 {
   "expo": {
     "name": "PaySplit",
-    "slug": "paysplit",
+    "slug": "pay-split",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "paysplit",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hanushh.paysplit",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSContactsUsageDescription": "PaySplit reads your contacts to find friends already on the app. Contact names, email addresses, and phone numbers are sent to PaySplit servers for matching. When you invite someone, their name and email are stored on PaySplit servers.",
+        "NSCameraUsageDescription": "Allow PaySplit to use the camera to scan receipts and take profile photos.",
+        "NSPhotoLibraryUsageDescription": "Allow PaySplit to access your photo library for profile photos.",
+        "NSPhotoLibraryAddUsageDescription": "Allow PaySplit to save images to your photo library.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 9999,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#112117",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hanushh.paysplit"
+      "package": "com.hanushh.paysplit",
+      "googleServicesFile": "./google-services.json",
+      "edgeToEdge": true,
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ]
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "PaySplit",
+      "shortName": "PaySplit",
+      "description": "Split bills with friends and groups",
+      "themeColor": "#112117",
+      "backgroundColor": "#112117",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en"
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-system-ui",
+        {
+          "backgroundColor": "#112117"
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#112117",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#112117"
           }
         }
       ],
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow PaySplit to access your photo library for profile photos and receipts.",
+          "cameraPermission": "Allow PaySplit to use the camera to scan receipts and take profile photos."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "PaySplit reads your contacts to find friends already on the app. Contact names, email addresses, and phone numbers are sent to PaySplit servers for matching. When you invite someone, their name and email are stored on PaySplit servers."
+        }
+      ],
       "expo-notifications",
       "@config-plugins/detox"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "64ac8993-bb81-4702-a213-a47bdd987709"
+      }
+    },
+    "owner": "hanushh"
   }
 }
