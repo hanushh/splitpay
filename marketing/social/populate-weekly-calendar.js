@@ -205,7 +205,7 @@ async function getOrInitHeader(config, token) {
 
   const defaultHeader = [
     'week_number', 'week_start', 'scheduled_date', 'day_of_week',
-    'prompt', 'caption', 'hashtags', 'platforms',
+    'hero_text', 'prompt', 'caption', 'hashtags', 'platforms',
     'posted', 'posted_at', 'image_url', 'error', 'news_hook',
   ];
   await sheetsWrite(config, token, `${config.sheetName}!A1`, [defaultHeader]);
@@ -268,27 +268,94 @@ async function existingScheduledDates(config, token) {
   return dates;
 }
 
+async function recentScoredExamples(config, token, limit = 8) {
+  const range = encodeURIComponent(config.sheetName);
+  const url   = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${range}`;
+  let res;
+  try {
+    res = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch {
+    return []; // non-fatal
+  }
+
+  const rawGrid = res.values || [];
+  if (rawGrid.length < 2) return [];
+
+  const header   = rawGrid[0].map((h) => String(h).trim().toLowerCase());
+  const scoreCol = header.indexOf('ai_image_score');
+  const issueCol = header.indexOf('ai_image_issues');
+  const promptCol = header.indexOf('prompt');
+  if (scoreCol === -1 || promptCol === -1) return [];
+
+  const scored = [];
+  for (let i = rawGrid.length - 1; i >= 1 && scored.length < limit; i--) {
+    const row   = rawGrid[i];
+    const score = Number(row[scoreCol]);
+    if (!score) continue;
+    scored.push({
+      score,
+      issues: issueCol !== -1 ? String(row[issueCol] || '') : '',
+      prompt: String(row[promptCol] || ''),
+    });
+  }
+  return scored;
+}
+
 // ─── Gemini content generation ────────────────────────────────────────────────
 
-function buildSystemPrompt() {
-  return `You are a social-media content strategist for PaySplit (also called PaySplit),
+function buildSystemPrompt(recentExamples = []) {
+  const goodExamples = recentExamples.filter((e) => e.score >= 4);
+  const badExamples  = recentExamples.filter((e) => e.score <= 2);
+
+  let examplesBlock = '';
+  if (goodExamples.length > 0 || badExamples.length > 0) {
+    examplesBlock = '\n\nPast image prompt results — learn from these:\n';
+    if (goodExamples.length > 0) {
+      examplesBlock += '\nHigh-quality prompts (score 4–5, use as style reference):\n';
+      goodExamples.forEach((e) => {
+        examplesBlock += `  ✓ [Score ${e.score}] "${e.prompt.slice(0, 120)}"\n`;
+      });
+    }
+    if (badExamples.length > 0) {
+      examplesBlock += '\nPoor prompts (score 1–2, avoid these patterns):\n';
+      badExamples.forEach((e) => {
+        const issues = e.issues ? ` — issues: ${e.issues}` : '';
+        examplesBlock += `  ✗ [Score ${e.score}] "${e.prompt.slice(0, 120)}"${issues}\n`;
+      });
+    }
+  }
+
+  return `You are a social-media content strategist for PaySplit,
 a mobile app that makes splitting bills, group expenses, and shared costs effortless.
 
 Target audience: 18–35-year-olds who travel with friends, share flats, dine out in groups,
 or manage any kind of shared expense.
 
 Brand voice: friendly, witty, modern, empowering — never corporate or stuffy.
-Brand colours: vibrant green (#17e86b) on dark background.
+Brand palette:
+  • Background:  deep dark green  #112117
+  • Primary CTA: bright green     #17e86b
+  • Surface/card: dark green      #1a3324
+  • Accent:       orange          #f97316
+  • Text:         white           #ffffff
 
 Your task is to create a week of Instagram/Facebook marketing posts.
 Each post must:
   • Tie into a real, timely news story or trend you found via search
   • Naturally connect the trend to a pain point PaySplit solves
   • Feel native to Instagram — conversational, relatable, a little playful
-  • Include a vivid image-generation prompt (for Gemini image generation)
-    that produces a bold 1080×1080 poster. Reference the brand colours.
+  • Include a hero_text: a short, punchy headline (max 8 words) that will be
+    printed in large bold white text at the top of the image. Make it impactful
+    and relevant to the post topic.
+  • Include a vivid image-generation prompt (for an AI image model) that produces
+    authentic lifestyle photography — real people, real environments, candid and natural.
+    Do NOT include any text, labels, signs, hex codes, or brand overlays in the scene.
+    If the prompt includes a phone screen or app UI, describe it as: deep dark green
+    background, bright green accent elements, white text — no hex codes.
+    Fill the entire frame; the bottom edge will be covered by a graphic overlay so
+    keep that area free of important subjects. Describe lighting, mood, and composition clearly.
   • Include a caption (max 2 200 chars) with a clear call-to-action
-  • Include 5–10 relevant hashtags`;
+  • Include 5–10 relevant hashtags${examplesBlock}`;
 }
 
 function buildUserPrompt(weekNumber, weekStart, dates, postCount, topics) {
@@ -314,6 +381,7 @@ The JSON must be an array of exactly ${postCount} objects, each with these field
 {
   "day_of_week":     "Monday",
   "scheduled_date":  "YYYY-MM-DD",
+  "hero_text":       "Short punchy headline, max 8 words, printed bold on the image",
   "prompt":          "...",
   "caption":         "...",
   "hashtags":        "#splitbills #...",
@@ -322,11 +390,11 @@ The JSON must be an array of exactly ${postCount} objects, each with these field
 }`;
 }
 
-async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, topics, config) {
+async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, topics, config, recentExamples = []) {
   // Combine system + user instructions into a single prompt for the CLI.
   // The gemini CLI uses Google Search automatically when the prompt requires
   // current information, so no explicit grounding config is needed.
-  const fullPrompt = `${buildSystemPrompt()}\n\n${buildUserPrompt(weekNumber, weekStart, dates, postCount, topics)}`;
+  const fullPrompt = `${buildSystemPrompt(recentExamples)}\n\n${buildUserPrompt(weekNumber, weekStart, dates, postCount, topics)}`;
 
   console.log(`  [gemini] Model : ${config.geminiModel}`);
   console.log('  [gemini] Running via gemini CLI (Google Search grounding built-in)...');
@@ -340,11 +408,18 @@ async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, 
     { attempts: 3, baseDelay: 2000, label: 'Gemini CLI content generation' }
   );
 
-  const cleaned = stdout.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  // Gemini CLI sometimes prepends search/thinking prose before the JSON.
+  // Extract the first JSON array found in the output.
+  const arrayMatch = stdout.match(/\[[\s\S]*\]/);
+  if (!arrayMatch) {
+    throw new Error(
+      `Gemini returned no JSON array. Raw output:\n${stdout.slice(0, 500)}`
+    );
+  }
 
   let posts;
   try {
-    posts = JSON.parse(cleaned);
+    posts = JSON.parse(arrayMatch[0]);
   } catch (e) {
     throw new Error(
       `Gemini returned non-JSON. Raw output:\n${stdout.slice(0, 500)}\n\nParse error: ${e.message}`
@@ -355,7 +430,7 @@ async function generatePostsWithGemini(weekNumber, weekStart, dates, postCount, 
     throw new Error(`Expected a JSON array from Gemini, got: ${typeof posts}`);
   }
 
-  const REQUIRED = ['day_of_week', 'scheduled_date', 'prompt', 'caption', 'hashtags', 'platforms'];
+  const REQUIRED = ['day_of_week', 'scheduled_date', 'hero_text', 'prompt', 'caption', 'hashtags', 'platforms'];
   posts.forEach((p, i) => {
     for (const field of REQUIRED) {
       if (!p[field]) throw new Error(`Post [${i}] (${p.day_of_week || '?'}) is missing field: "${field}"`);
@@ -376,6 +451,7 @@ function printGeneratedPosts(posts, weekNumber, weekStart) {
     const promptPreview = p.prompt.slice(0, 90) + (p.prompt.length > 90 ? '…' : '');
     console.log(`  [${i + 1}] ${p.day_of_week}  ${p.scheduled_date}`);
     console.log(`      News hook : ${p.news_hook || '—'}`);
+    console.log(`      Hero text : ${p.hero_text || '—'}`);
     console.log(`      Prompt    : ${promptPreview}`);
     console.log(`      Caption   : ${captionPreview}`);
     console.log(`      Hashtags  : ${p.hashtags}`);
@@ -454,8 +530,14 @@ async function run() {
 
     // ── Generate content with Gemini ────────────────────────────────────────
     console.log('\n[3/4] Calling Gemini with Google Search grounding...');
+    const examples = await recentScoredExamples(config, token);
+    if (examples.length > 0) {
+      const good = examples.filter((e) => e.score >= 4).length;
+      const bad  = examples.filter((e) => e.score <= 2).length;
+      console.log(`      Injecting ${examples.length} past example(s) into prompt (${good} good, ${bad} poor).`);
+    }
     const rawPosts = await generatePostsWithGemini(
-      targetWeek, weekStartIso, dates, args.posts, topics, config
+      targetWeek, weekStartIso, dates, args.posts, topics, config, examples
     );
     console.log(`      Generated ${rawPosts.length} post(s). Validating...`);
 
@@ -498,6 +580,7 @@ async function run() {
             week_start: weekStartIso,
             scheduled_date: p.scheduled_date,
             day_of_week: p.day_of_week,
+            hero_text: p.hero_text || '',
             prompt: p.prompt,
             caption: p.caption,
             hashtags: p.hashtags,

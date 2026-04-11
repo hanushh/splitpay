@@ -14,8 +14,8 @@
  *   GOOGLE_SHEET_NAME            Sheet tab name (default: Sheet1)
  *   GOOGLE_SERVICE_ACCOUNT_JSON  Path to service-account JSON for write-back
  *
- *   GEMINI_IMAGE_MODEL           Image generation model (default: gemini-2.0-flash-exp-image-generation)
- *                                Authentication is handled by the gemini CLI (no API key needed)
+ *   GEMINI_API_KEY               Gemini API key for image generation (get free at aistudio.google.com)
+ *   GEMINI_IMAGE_MODEL           Imagen model ID (default: imagen-4.0-generate-001)
  *
  *   SUPABASE_URL                 Supabase project URL (for image hosting)
  *   SUPABASE_SERVICE_ROLE_KEY    Supabase service-role key (for storage uploads)
@@ -59,13 +59,6 @@
 
 'use strict';
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execFile } = require('child_process');
-const { promisify } = require('util');
-
-const execFileAsync = promisify(execFile);
 const {
   withRetry,
   utcIso,
@@ -75,7 +68,18 @@ const {
   acquireLock,
   releaseLock,
   getServiceAccountToken,
+  evaluateGeneratedImage,
 } = require('./lib/utils');
+
+const {
+  IMAGEN_BASE,
+  BRAND_PROMPT_PREFIX,
+  MIN_PUBLISH_SCORE,
+  MAX_IMAGE_ATTEMPTS,
+  overlayLogo,
+  rewritePrompt,
+  fetchSheetConfig,
+} = require('./lib/image-pipeline');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -165,7 +169,8 @@ function loadConfig() {
     sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1',
     serviceAccountJson: assertEnv('GOOGLE_SERVICE_ACCOUNT_JSON'),
 
-    geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation',
+    geminiApiKey: assertEnv('GEMINI_API_KEY'),
+    geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'imagen-4.0-generate-001',
 
     supabaseUrl: assertEnv('SUPABASE_URL'),
     supabaseServiceRoleKey: assertEnv('SUPABASE_SERVICE_ROLE_KEY'),
@@ -226,6 +231,7 @@ function formatDisplayDate(isoDate) {
 
 // ─── Google Sheets ────────────────────────────────────────────────────────────
 
+
 async function fetchSpreadsheetRows(config, token) {
   const range = encodeURIComponent(config.sheetName);
   const endpoint = `${SHEETS_BASE}/${config.spreadsheetId}/values/${range}`;
@@ -256,7 +262,7 @@ async function updateSpreadsheetRow(rowIndex, updates, header, config, token) {
   }
 
   const sheetRow = rowIndex + 2;
-  const AUTO_COLS = ['posted', 'posted_at', 'image_url', 'error'];
+  const AUTO_COLS = ['posted', 'posted_at', 'image_url', 'error', 'ai_image_score', 'ai_image_issues'];
   const fullHeader = [...header];
   for (const col of AUTO_COLS) {
     if (!fullHeader.includes(col)) fullHeader.push(col);
@@ -278,41 +284,81 @@ async function updateSpreadsheetRow(rowIndex, updates, header, config, token) {
   );
 }
 
-// ─── Gemini image generation (via gemini CLI) ─────────────────────────────────
 
-async function generatePoster(prompt, config) {
-  console.log(`  │  [gemini] Generating image: "${prompt.slice(0, 72)}${prompt.length > 72 ? '…' : ''}"`);
-  console.log(`  │  [gemini] Model: ${config.geminiImageModel}`);
+// ─── Imagen image generation (predict REST API) ───────────────────────────────
 
-  const tmpPath = path.join(os.tmpdir(), `paysplit-poster-${Date.now()}.png`);
+async function generatePoster(prompt, heroText, config, { scoreEnabled = true, maxAttempts = MAX_IMAGE_ATTEMPTS, minScore = MIN_PUBLISH_SCORE } = {}) {
+  let currentPrompt = prompt;
+  let best = { rawBuffer: null, aiScore: 0, aiIssues: '' };
 
-  const cliPrompt = [
-    `Generate a 1080×1080 Instagram marketing poster image based on the prompt below.`,
-    `Save the generated image as a PNG to this exact path: ${tmpPath}`,
-    ``,
-    `Image prompt: ${prompt}`,
-  ].join('\n');
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    console.log(`  │  [imagen] Attempt ${attempt}/${maxAttempts}: "${currentPrompt.slice(0, 72)}${currentPrompt.length > 72 ? '…' : ''}"`);
+    console.log(`  │  [imagen] Model: ${config.geminiImageModel}`);
 
-  await withRetry(
-    async () => {
-      await execFileAsync(
-        'gemini',
-        ['-p', cliPrompt, '-m', config.geminiImageModel, '-y'],
-        { timeout: 120000, maxBuffer: 10 * 1024 * 1024 }
-      );
-      if (!fs.existsSync(tmpPath)) {
-        throw new Error(`gemini CLI did not produce an image at ${tmpPath}`);
+    const brandedPrompt = BRAND_PROMPT_PREFIX + currentPrompt;
+    const endpoint = `${IMAGEN_BASE}/${config.geminiImageModel}:predict?key=${config.geminiApiKey}`;
+
+    const raw = await withRetry(
+      () => apiFetch(endpoint, {
+        method: 'POST',
+        body: {
+          instances: [{ prompt: brandedPrompt }],
+          parameters: { sampleCount: 1, aspectRatio: '3:4' },
+        },
+      }),
+      { attempts: 3, baseDelay: 2000, label: `Imagen API (attempt ${attempt})` }
+    );
+
+    const b64 = raw?.predictions?.[0]?.bytesBase64Encoded;
+    if (!b64) {
+      throw new Error(`Imagen returned no image bytes. Response: ${JSON.stringify(raw).slice(0, 300)}`);
+    }
+
+    const rawBuffer = Buffer.from(b64, 'base64');
+
+    // Evaluate the raw image
+    let aiScore = 0;
+    let aiIssues = '';
+    if (scoreEnabled) {
+      try {
+        ({ score: aiScore, issues: aiIssues } = await evaluateGeneratedImage(rawBuffer));
+        console.log(`  │  [eval] Score: ${aiScore}/5${aiIssues ? `  —  ${aiIssues}` : '  (no issues)'}`);
+      } catch (err) {
+        console.log(`  │  [eval] Skipped (${err.message})`);
       }
-    },
-    { attempts: 3, baseDelay: 2000, label: 'Gemini CLI image generation' }
-  );
+    } else {
+      console.log('  │  [eval] Skipped (score_enabled=false)');
+    }
 
-  const imageBuffer = fs.readFileSync(tmpPath);
-  try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
+    // Keep track of the best result across attempts
+    if (aiScore > best.aiScore || best.rawBuffer === null) {
+      best = { rawBuffer, aiScore, aiIssues };
+    }
 
+    // If scoring disabled or good enough — stop
+    if (!scoreEnabled || aiScore >= minScore) {
+      if (scoreEnabled) console.log(`  │  [eval] Score meets threshold (≥${minScore}) — proceeding.`);
+      break;
+    }
+
+    // Low score — rewrite prompt unless this was the last attempt
+    if (attempt < maxAttempts) {
+      console.log(`  │  [eval] Score below threshold (<${minScore}) — rewriting prompt...`);
+      try {
+        currentPrompt = await rewritePrompt(currentPrompt, aiScore, aiIssues);
+        console.log(`  │  [rewrite] New prompt: "${currentPrompt.slice(0, 72)}${currentPrompt.length > 72 ? '…' : ''}"`);
+      } catch (err) {
+        console.log(`  │  [rewrite] Skipped (${err.message}) — retrying with original prompt.`);
+      }
+    } else {
+      console.log(`  │  [eval] Max attempts reached — publishing best result (score: ${best.aiScore}/5).`);
+    }
+  }
+
+  const imageBuffer = await overlayLogo(best.rawBuffer, heroText);
   const imageUrl = await uploadImageToSupabase(imageBuffer, config);
-  console.log(`  │  [gemini] Image ready: ${imageUrl}`);
-  return imageUrl;
+  console.log(`  │  [imagen] Image ready: ${imageUrl}`);
+  return { imageUrl, aiScore: best.aiScore, aiIssues: best.aiIssues };
 }
 
 async function uploadImageToSupabase(imageBuffer, config) {
@@ -539,9 +585,17 @@ async function run() {
       { attempts: 3, label: 'service-account token exchange' }
     );
 
-    // ── 1. Fetch spreadsheet ────────────────────────────────────────────
+    // ── 1. Fetch spreadsheet + config ──────────────────────────────────
     console.log(`\n[1/3] Fetching spreadsheet ${config.spreadsheetId} (${config.sheetName})...`);
-    const { header, rows } = await fetchSpreadsheetRows(config, sheetToken);
+    const [{ header, rows }, sheetConfig] = await Promise.all([
+      fetchSpreadsheetRows(config, sheetToken),
+      fetchSheetConfig(config.spreadsheetId, sheetToken),
+    ]);
+
+    const scoreEnabled = (sheetConfig.score_enabled ?? 'true').toLowerCase() !== 'false';
+    const maxAttempts  = Math.max(1, Number(sheetConfig.max_image_attempts) || MAX_IMAGE_ATTEMPTS);
+    const minScore     = Number(sheetConfig.min_publish_score) || MIN_PUBLISH_SCORE;
+    console.log(`      Score check : ${scoreEnabled ? `enabled (threshold ≥${minScore}, max ${maxAttempts} attempts)` : 'disabled'}`);
 
     if (rows.length === 0) {
       console.log('      No rows found. Nothing to do.');
@@ -620,12 +674,15 @@ async function run() {
       console.log(`  │  Platforms : ${platforms.join(', ')}`);
 
       try {
-        let imageUrl;
+        let imageUrl, aiScore, aiIssues;
         if (args.dryRun) {
           imageUrl = 'https://placehold.co/1080x1080.png?text=dry+run';
-          console.log('  │  [nano-banana] DRY RUN — skipped.');
+          console.log('  │  [gemini] DRY RUN — skipped.');
         } else {
-          imageUrl = await generatePoster(row.prompt, config);
+          const result = await generatePoster(row.prompt, row.hero_text || '', config, { scoreEnabled, maxAttempts, minScore });
+          imageUrl = result.imageUrl;
+          aiScore  = result.aiScore;
+          aiIssues = result.aiIssues;
         }
 
         if (!args.dryRun) {
@@ -638,7 +695,12 @@ async function run() {
 
           await updateSpreadsheetRow(
             idx,
-            { ...row, posted: 'yes', posted_at: new Date().toISOString(), image_url: imageUrl, error: '' },
+            {
+              ...row,
+              posted: 'yes', posted_at: new Date().toISOString(),
+              image_url: imageUrl, error: '',
+              ai_image_score: aiScore || '', ai_image_issues: aiIssues || '',
+            },
             header,
             config,
             sheetToken

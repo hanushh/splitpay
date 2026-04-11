@@ -7,11 +7,10 @@
  * No external dependencies — built-in Node.js modules only.
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
-const crypto = require('crypto');
+const fs       = require('fs');
+const os       = require('os');
+const path     = require('path');
+const crypto   = require('crypto');
 
 // ─── Retry ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +217,75 @@ async function getServiceAccountToken(jsonPath) {
   throw new Error(`Token exchange failed: ${parsed.error_description || JSON.stringify(parsed)}`);
 }
 
+// ─── Gemini Vision image evaluator (REST API) ────────────────────────────────
+
+const GEMINI_VISION_MODEL = 'gemini-2.5-flash';
+const GEMINI_VISION_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+const EVAL_PROMPT = `You are evaluating a generated social media image for PaySplit, a bill-splitting app.
+
+Check for these issues:
+- Phone/device outline framing the ENTIRE image (the whole scene is inside a phone shape) — major flaw
+- Hex colour codes, labels, placeholder text, or brand overlays baked into the scene — major flaw
+- Blank or unnatural areas (solid colour bands, empty zones)
+- Poor composition or unengaging scene
+
+Return ONLY valid JSON, no markdown:
+{
+  "score": <integer 1-5>,
+  "issues": "<comma-separated list of problems, or empty string if none>"
+}
+
+Scoring:
+5 = Excellent lifestyle photo, fills the frame, no artifacts
+4 = Good, minor imperfections
+3 = Acceptable but noticeable problems
+2 = Significant flaw (e.g. phone frame around entire image, text artefacts)
+1 = Unusable`;
+
+/**
+ * Evaluates a raw Imagen-generated image buffer using the Gemini Vision REST API.
+ * Sends the image as base64 inline_data. Reads GEMINI_API_KEY from process.env.
+ *
+ * @param {Buffer} imageBuffer  Raw PNG/JPEG buffer from Imagen
+ * @returns {Promise<{ score: number, issues: string }>}
+ */
+async function evaluateGeneratedImage(imageBuffer) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set — cannot evaluate image');
+
+  const url = `${GEMINI_VISION_BASE}/${GEMINI_VISION_MODEL}:generateContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: 'image/png', data: imageBuffer.toString('base64') } },
+          { text: EVAL_PROMPT },
+        ],
+      }],
+      generationConfig: { temperature: 0 },
+    }),
+  });
+
+  const parsed = await res.json();
+  if (!res.ok) {
+    throw new Error(`Gemini Vision API ${res.status}: ${JSON.stringify(parsed).slice(0, 200)}`);
+  }
+
+  const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return { score: 0, issues: 'no JSON in eval output' };
+
+  const result = JSON.parse(match[0]);
+  return {
+    score:  Number(result.score)  || 0,
+    issues: String(result.issues || ''),
+  };
+}
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 function sleep(ms) {
@@ -236,4 +304,5 @@ module.exports = {
   acquireLock,
   releaseLock,
   getServiceAccountToken,
+  evaluateGeneratedImage,
 };

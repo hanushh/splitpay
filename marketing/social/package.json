@@ -11,7 +11,10 @@
     "populate": "node --env-file .env.local populate-weekly-calendar.js",
     "populate:dry-run": "node --env-file .env.local populate-weekly-calendar.js --dry-run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "sharp": "^0.33.0"
+  },
   "engines": {
     "node": ">=20"
   }
