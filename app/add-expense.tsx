@@ -99,13 +99,14 @@ export default function AddExpenseScreen() {
   const [paidBy, setPaidBy] = useState<string>('');
   const [paidByPickerOpen, setPaidByPickerOpen] = useState(false);
   const [splitMethod, setSplitMethod] = useState<
-    'equally' | 'exact' | 'percent'
+    'equally' | 'exact' | 'percent' | 'shares'
   >('equally');
   const [splitCustomized, setSplitCustomized] = useState(false);
   const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
   const [percentAmounts, setPercentAmounts] = useState<Record<string, string>>(
     {},
   );
+  const [shareAmounts, setShareAmounts] = useState<Record<string, string>>({});
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
     new Set(),
   );
@@ -378,6 +379,10 @@ export default function AddExpenseScreen() {
         init[id] = pct.toString();
       });
       setPercentAmounts(init);
+    } else if (splitMethod === 'shares') {
+      const init: Record<string, string> = {};
+      ids.forEach((id) => { init[id] = '1'; });
+      setShareAmounts(init);
     }
     // equally: no per-member inputs, nothing to init
   }, [splitMethod]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -393,6 +398,11 @@ export default function AddExpenseScreen() {
           return n;
         });
         setPercentAmounts((a) => {
+          const n = { ...a };
+          delete n[id];
+          return n;
+        });
+        setShareAmounts((a) => {
           const n = { ...a };
           delete n[id];
           return n;
@@ -420,6 +430,14 @@ export default function AddExpenseScreen() {
       init[id] = (cents / 100).toFixed(decimals);
     });
     setExactAmounts(init);
+  };
+
+  /** Reset share counts to 1 for all currently selected members. */
+  const redistributeShares = () => {
+    const ids = [...selectedMembers];
+    const init: Record<string, string> = {};
+    ids.forEach((id) => { init[id] = '1'; });
+    setShareAmounts(init);
   };
 
   /** Redistribute percent amounts equally across currently selected members. */
@@ -516,6 +534,19 @@ export default function AddExpenseScreen() {
       );
       return { memberIds: ids, amountsCents: cents };
     }
+    if (splitMethod === 'shares') {
+      const totalShares = ids.reduce(
+        (s, id) => s + (parseFloat(shareAmounts[id] ?? '1') || 1),
+        0,
+      );
+      const raw = ids.map((id) => {
+        const shares = parseFloat(shareAmounts[id] ?? '1') || 1;
+        return Math.floor((shares / totalShares) * amtCentsForValidation);
+      });
+      const remainder = amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+      if (raw.length > 0) raw[raw.length - 1] += remainder;
+      return { memberIds: ids, amountsCents: raw };
+    }
     // percent: floor each share, give rounding remainder to last member
     const percents = ids.map((id) => parseFloat(percentAmounts[id] ?? '0') || 0);
     const raw = percents.map((p) =>
@@ -546,6 +577,12 @@ export default function AddExpenseScreen() {
         return t('expense.splitAmountMismatch', {
           expected: (amtCentsForValidation / 100).toFixed(2),
         });
+    } else if (splitMethod === 'shares') {
+      const hasInvalid = ids.some((id) => {
+        const v = parseFloat(shareAmounts[id] ?? '');
+        return !shareAmounts[id]?.trim() || isNaN(v) || v <= 0;
+      });
+      if (hasInvalid) return t('expense.splitEnterShares');
     } else {
       const hasBlank = ids.some((id) => !percentAmounts[id]?.trim());
       if (hasBlank) return t('expense.splitEnterPercent');
@@ -899,7 +936,9 @@ export default function AddExpenseScreen() {
                       ? t('expense.equalSplitSummary', { count: selectedMembers.size, plural: selectedMembers.size !== 1 ? 's' : '' })
                       : splitMethod === 'exact'
                         ? t('expense.exactAmounts')
-                        : t('expense.byPercent')}
+                        : splitMethod === 'shares'
+                          ? t('expense.byShares')
+                          : t('expense.byPercent')}
                   </Text>
                   <Text style={s.compactChange}>
                     {splitCustomized ? t('expense.done') : t('expense.customize')}
@@ -914,7 +953,7 @@ export default function AddExpenseScreen() {
                 {splitCustomized && (
                   <>
                     <View style={[s.splitRow, { marginTop: 12 }]}>
-                      {(['equally', 'exact', 'percent'] as const).map((m) => (
+                      {(['equally', 'exact', 'percent', 'shares'] as const).map((m) => (
                         <Pressable
                           key={m}
                           style={[
@@ -934,7 +973,9 @@ export default function AddExpenseScreen() {
                               ? t('expense.equally')
                               : m === 'exact'
                                 ? t('expense.exact')
-                                : t('expense.percent')}
+                                : m === 'shares'
+                                  ? t('expense.shares')
+                                  : t('expense.percent')}
                           </Text>
                         </Pressable>
                       ))}
@@ -989,10 +1030,11 @@ export default function AddExpenseScreen() {
                       })}
                     </View>
 
-                    {/* Per-member amount inputs for Exact and Percent modes */}
+                    {/* Per-member amount inputs for Exact, Percent, and Shares modes */}
                     {splitMethod !== 'equally' &&
                       selectedMembers.size > 0 && (() => {
                         const isExact = splitMethod === 'exact';
+                        const isShares = splitMethod === 'shares';
                         const selectedList = members.filter((m) =>
                           selectedMembers.has(m.id),
                         );
@@ -1014,9 +1056,19 @@ export default function AddExpenseScreen() {
                             s + (parseFloat(percentAmounts[m.id] ?? '0') || 0),
                           0,
                         );
+                        const totalSharesCount = selectedList.reduce(
+                          (s, m) => s + (parseFloat(shareAmounts[m.id] ?? '0') || 0),
+                          0,
+                        );
+                        const allSharesValid = selectedList.every((m) => {
+                          const v = parseFloat(shareAmounts[m.id] ?? '');
+                          return shareAmounts[m.id]?.trim() && !isNaN(v) && v > 0;
+                        });
                         const isBalanced = isExact
                           ? allocatedCents === amtCentsLive
-                          : Math.abs(totalPct - 100) <= 0.01;
+                          : isShares
+                            ? allSharesValid
+                            : Math.abs(totalPct - 100) <= 0.01;
 
                         const noDecimals = expenseCurrency.noDecimals ?? false;
                         const fmtCents = (c: number) =>
@@ -1024,18 +1076,22 @@ export default function AddExpenseScreen() {
 
                         return (
                           <View style={s.splitInputSection}>
-                            {/* Header row with "split equally" quick-fill */}
+                            {/* Header row with quick-fill button */}
                             <View style={s.splitInputHeader}>
                               <Text style={s.splitInputHeaderLabel}>
                                 {isExact
                                   ? t('expense.amountPerPerson')
-                                  : t('expense.percentPerPerson')}
+                                  : isShares
+                                    ? t('expense.sharesPerPerson')
+                                    : t('expense.percentPerPerson')}
                               </Text>
                               <Pressable
                                 onPress={
                                   isExact
                                     ? redistributeExact
-                                    : redistributePercent
+                                    : isShares
+                                      ? redistributeShares
+                                      : redistributePercent
                                 }
                                 style={({ pressed }: { pressed: boolean }) => [
                                   s.splitEqualBtn,
@@ -1057,26 +1113,36 @@ export default function AddExpenseScreen() {
                             {selectedList.map((m) => {
                               const val = isExact
                                 ? (exactAmounts[m.id] ?? '')
-                                : (percentAmounts[m.id] ?? '');
+                                : isShares
+                                  ? (shareAmounts[m.id] ?? '')
+                                  : (percentAmounts[m.id] ?? '');
                               const setVal = isExact
                                 ? (v: string) =>
                                     setExactAmounts((prev) => ({
                                       ...prev,
                                       [m.id]: v,
                                     }))
-                                : (v: string) =>
-                                    setPercentAmounts((prev) => ({
-                                      ...prev,
-                                      [m.id]: v,
-                                    }));
+                                : isShares
+                                  ? (v: string) =>
+                                      setShareAmounts((prev) => ({
+                                        ...prev,
+                                        [m.id]: v,
+                                      }))
+                                  : (v: string) =>
+                                      setPercentAmounts((prev) => ({
+                                        ...prev,
+                                        [m.id]: v,
+                                      }));
 
                               // Per-row state: valid if non-empty and parseable
                               const parsed = parseFloat(val);
-                              const fieldOk = val.trim() !== '' && !isNaN(parsed) && parsed >= 0;
+                              const minVal = isShares ? 0 : 0; // shares must be > 0, checked at row level
+                              const fieldOk = val.trim() !== '' && !isNaN(parsed) && parsed > minVal;
 
-                              // Helper: cents derived from this member's percent
-                              const helperCents =
-                                !isExact && fieldOk
+                              // Helper: cents derived from this member's share or percent
+                              const helperCents = isShares && fieldOk && totalSharesCount > 0
+                                ? Math.floor((parsed / totalSharesCount) * amtCentsLive)
+                                : !isExact && !isShares && fieldOk
                                   ? Math.floor((parsed / 100) * amtCentsLive)
                                   : null;
 
@@ -1114,7 +1180,7 @@ export default function AddExpenseScreen() {
                                     testID={`split-input-${m.id}`}
                                   />
                                   <Text style={s.splitInputSuffix}>
-                                    {isExact ? expenseCurrency.symbol : '%'}
+                                    {isExact ? expenseCurrency.symbol : isShares ? 'x' : '%'}
                                   </Text>
                                   {helperCents !== null && (
                                     <Text style={s.splitHelperText}>
@@ -1154,6 +1220,24 @@ export default function AddExpenseScreen() {
                                         : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - amtCentsLive)}`}
                                     </Text>
                                   )}
+                                </>
+                              ) : isShares ? (
+                                <>
+                                  <Text style={s.splitTotalLabel}>
+                                    {t('expense.sharesTotal')}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      s.splitTotalValue,
+                                      isBalanced
+                                        ? s.splitTotalOk
+                                        : s.splitTotalBad,
+                                    ]}
+                                  >
+                                    {totalSharesCount % 1 === 0
+                                      ? totalSharesCount.toFixed(0)
+                                      : totalSharesCount.toFixed(2)}
+                                  </Text>
                                 </>
                               ) : (
                                 <>

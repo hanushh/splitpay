@@ -1,0 +1,21 @@
+{
+  "name": "paysplit-social-poster",
+  "version": "1.0.0",
+  "description": "Weekly content calendar population and social media poster for PaySplit",
+  "private": true,
+  "scripts": {
+    "calendar": "node --env-file .env.local social-poster-script.js --calendar",
+    "today": "node --env-file .env.local social-poster-script.js --today",
+    "this-week": "node --env-file .env.local social-poster-script.js --this-week",
+    "dry-run": "node --env-file .env.local social-poster-script.js --dry-run",
+    "populate": "node --env-file .env.local populate-weekly-calendar.js",
+    "populate:dry-run": "node --env-file .env.local populate-weekly-calendar.js --dry-run"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "sharp": "^0.33.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
