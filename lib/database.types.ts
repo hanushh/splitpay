@@ -38,6 +38,69 @@ export type Database = {
         };
         Relationships: [];
       };
+      recurring_expenses: {
+        Row: {
+          id: string;
+          group_id: string;
+          description: string;
+          amount_cents: number;
+          currency_code: string;
+          category: string;
+          paid_by_member_id: string | null;
+          frequency: 'weekly' | 'monthly' | 'yearly';
+          next_occurrence_date: string;
+          active: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          description: string;
+          amount_cents: number;
+          currency_code?: string;
+          category?: string;
+          paid_by_member_id?: string | null;
+          frequency: 'weekly' | 'monthly' | 'yearly';
+          next_occurrence_date: string;
+          active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          description?: string;
+          amount_cents?: number;
+          currency_code?: string;
+          category?: string;
+          paid_by_member_id?: string | null;
+          frequency?: 'weekly' | 'monthly' | 'yearly';
+          next_occurrence_date?: string;
+          active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recurring_expenses_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'groups';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'recurring_expenses_paid_by_member_id_fkey';
+            columns: ['paid_by_member_id'];
+            isOneToOne: false;
+            referencedRelation: 'group_members';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       expense_splits: {
         Row: {
           amount_cents: number;
