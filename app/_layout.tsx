@@ -106,6 +106,7 @@ function RootNavigator() {
           name="settle-up"
           options={{ headerShown: false, presentation: 'modal' }}
         />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ headerShown: false }} />
         <Stack.Screen
           name="modal"
