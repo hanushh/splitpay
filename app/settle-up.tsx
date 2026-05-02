@@ -45,6 +45,8 @@ export default function SettleUpScreen() {
     amountCents,
     friendMemberId,
     payerMemberId,
+    payerName,
+    isThirdParty,
     currencyCode,
   } = useLocalSearchParams<{
     groupId?: string;
@@ -53,6 +55,8 @@ export default function SettleUpScreen() {
     amountCents?: string;
     friendMemberId?: string;
     payerMemberId?: string;
+    payerName?: string;
+    isThirdParty?: string;
     currencyCode?: string;
   }>();
 
@@ -74,8 +78,10 @@ export default function SettleUpScreen() {
   const isOverpayment = !!amountCents && parsedCents > Number(amountCents);
   const canSave = isValidAmount && !!friendMemberId && !!groupId && !saving;
 
-  const iThemPay = !!payerMemberId; // they are paying me
+  const iThirdParty = isThirdParty === 'true';
+  const iThemPay = !!payerMemberId && !iThirdParty; // they are paying me (not a third-party recording)
   const payeeName = friendName ?? groupName ?? 'your group';
+  const thirdPartyPayerName = payerName ?? 'Someone';
   const today = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -146,7 +152,11 @@ export default function SettleUpScreen() {
             <MaterialIcons name="check-circle" size={52} color={C.primary} />
           </View>
           <Text style={s.amountLabel}>
-            {iThemPay ? t('settle.theyPaid', { name: payeeName }) : t('settle.youPaid', { name: payeeName })}
+            {iThirdParty
+              ? t('settle.thirdPartyPaid', { payer: thirdPartyPayerName, payee: payeeName })
+              : iThemPay
+                ? t('settle.theyPaid', { name: payeeName })
+                : t('settle.youPaid', { name: payeeName })}
           </Text>
           <View style={s.amountRow}>
             <Text style={s.currencySymbol}>{selectedCurrency.symbol}</Text>

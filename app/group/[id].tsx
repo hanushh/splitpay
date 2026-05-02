@@ -497,6 +497,31 @@ export default function GroupDetailScreen() {
           <View key={month}>
             <Text style={s.monthLabel}>{month.toUpperCase()}</Text>
             {items.map((expense) => {
+              const isSettlement = expense.category === 'settlement';
+              if (isSettlement) {
+                const payerLabel = expense.paid_by_is_user ? t('expense.you') : expense.paid_by_name;
+                const payeeLabel = expense.payee_name ?? '';
+                return (
+                  <View key={expense.expense_id} style={s.expenseCard}>
+                    <View style={[s.expenseIcon, { backgroundColor: 'rgba(23,232,107,0.15)' }]}>
+                      <MaterialIcons name="payments" size={22} color={C.primary} />
+                    </View>
+                    <View style={s.expenseInfo}>
+                      <Text style={s.expenseName} numberOfLines={1}>
+                        {t('group.settlementLine', { payer: payerLabel, payee: payeeLabel })}
+                      </Text>
+                      <Text style={s.expensePaid}>
+                        {formatCentsWithCurrency(expense.total_amount_cents, expense.currency_code)}
+                      </Text>
+                    </View>
+                    <View style={s.expenseRight}>
+                      <Text style={[s.expenseLabel, { color: C.primary }]}>
+                        {t('activity.settled')}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
               const cat = CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.receipt;
               const youPositive = expense.paid_by_is_user;
               const youCents = expense.paid_by_is_user
