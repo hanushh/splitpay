@@ -127,11 +127,8 @@ export function useAiChat() {
 
         case 'view_balances':
           router.push({
-            pathname: '/group/balances',
-            params: {
-              groupId: String(args.groupId ?? ''),
-              groupName: String(args.groupName ?? ''),
-            },
+            pathname: '/group/[id]',
+            params: { id: String(args.groupId ?? '') },
           });
           break;
 
