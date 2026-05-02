@@ -258,7 +258,11 @@ export function MemberSearchPicker({
   const searching = searchLoading && q.length >= 2;
   const hasSelection =
     selectedAppUsers.length > 0 || selectedContacts.length > 0;
-  const showResults = q.length > 0;
+  // Show app users immediately; contacts only appear once the user starts typing
+  const showAppUsers = !loading && filteredAppUsers.length > 0;
+  const showContacts = !loading && q.length > 0 && filteredContacts.length > 0;
+  const showNoMatches =
+    !loading && q.length > 0 && filteredAppUsers.length === 0 && filteredContacts.length === 0;
 
   return (
     <View style={s.container}>
@@ -324,9 +328,9 @@ export function MemberSearchPicker({
       )}
 
       {/* Results */}
-      {!loading && showResults && (
+      {(showAppUsers || showContacts || showNoMatches) && (
         <View style={s.results}>
-          {filteredAppUsers.length > 0 && (
+          {showAppUsers && (
             <>
               <Text style={s.sectionLabel}>{t('memberPicker.onApp')}</Text>
               {filteredAppUsers.map((u) => (
@@ -348,12 +352,12 @@ export function MemberSearchPicker({
             </>
           )}
 
-          {filteredContacts.length > 0 && (
+          {showContacts && (
             <>
               <Text
                 style={[
                   s.sectionLabel,
-                  filteredAppUsers.length > 0 && s.sectionLabelSpaced,
+                  showAppUsers && s.sectionLabelSpaced,
                 ]}
               >
                 {t('memberPicker.inviteSection')}
@@ -379,13 +383,11 @@ export function MemberSearchPicker({
             </>
           )}
 
-          {q.length > 0 &&
-            filteredAppUsers.length === 0 &&
-            filteredContacts.length === 0 && (
-              <Text style={s.hint}>
-                {t('memberPicker.noMatches', { query: debouncedQuery })}
-              </Text>
-            )}
+          {showNoMatches && (
+            <Text style={s.hint}>
+              {t('memberPicker.noMatches', { query: debouncedQuery })}
+            </Text>
+          )}
         </View>
       )}
     </View>
