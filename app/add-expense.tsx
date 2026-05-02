@@ -119,6 +119,8 @@ export default function AddExpenseScreen() {
   const [receiptUploading, setReceiptUploading] = useState(false);
   const editPaidByRef = useRef<string | null>(null);
   const preserveCategoryRef = useRef(false);
+  // Prevents the split-method-change effect from overwriting amounts loaded from DB
+  const skipSplitInitRef = useRef(false);
   // Sync ref so the detectedCategory effect can read the current customCategory
   // without adding it to the dependency array (avoids circular state updates).
   const customCategoryRef = useRef(customCategory);
@@ -262,7 +264,7 @@ export default function AddExpenseScreen() {
           .single(),
         supabase
           .from('expense_splits')
-          .select('member_id')
+          .select('member_id, amount_cents')
           .eq('expense_id', expenseId),
       ]);
 
@@ -283,11 +285,27 @@ export default function AddExpenseScreen() {
       setDescription(expenseRow.description);
       setAmount((expenseRow.amount_cents / 100).toFixed(2));
       setReceiptUri(expenseRow.receipt_url ?? null);
-      setSelectedMembers(
-        new Set(
-          (splitRows ?? []).map((r: { member_id: string }) => r.member_id),
-        ),
-      );
+
+      const splits = (splitRows ?? []) as { member_id: string; amount_cents: number }[];
+      setSelectedMembers(new Set(splits.map((r) => r.member_id)));
+
+      // Restore split method: if amounts differ by more than 1 cent it's a
+      // custom (non-equal) split — restore as exact so the user sees real values.
+      if (splits.length > 1) {
+        const amounts = splits.map((r) => r.amount_cents);
+        const isCustom = Math.max(...amounts) - Math.min(...amounts) > 1;
+        if (isCustom) {
+          const savedCurrencyForSplit = CURRENCIES.find((c) => c.code === expenseRow.currency_code);
+          const noDecimals = savedCurrencyForSplit?.noDecimals ?? false;
+          const exactMap: Record<string, string> = {};
+          splits.forEach((r) => {
+            exactMap[r.member_id] = (r.amount_cents / 100).toFixed(noDecimals ? 0 : 2);
+          });
+          skipSplitInitRef.current = true;
+          setSplitMethod('exact');
+          setExactAmounts(exactMap);
+        }
+      }
 
       // Category: known keys stay as-is; unknown keys go to 'other' + customCategory
       const knownCategories = [
@@ -350,6 +368,10 @@ export default function AddExpenseScreen() {
   // When split method changes, auto-populate starting values so the user has
   // a sensible baseline to edit rather than blank fields.
   useEffect(() => {
+    if (skipSplitInitRef.current) {
+      skipSplitInitRef.current = false;
+      return;
+    }
     setError(null);
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
