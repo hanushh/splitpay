@@ -80,11 +80,8 @@ export default function AiTab() {
           break;
         case 'view_balances':
           router.push({
-            pathname: '/group/balances',
-            params: {
-              groupId: String(actionParams.groupId ?? ''),
-              groupName: String(actionParams.groupName ?? ''),
-            },
+            pathname: '/group/[id]',
+            params: { id: String(actionParams.groupId ?? '') },
           });
           break;
         case 'view_spending':

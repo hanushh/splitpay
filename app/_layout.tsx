@@ -88,7 +88,6 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="group/balances" options={{ headerShown: false }} />
         <Stack.Screen name="group/spending" options={{ headerShown: false }} />
         <Stack.Screen
           name="add-expense"

@@ -213,6 +213,44 @@ export default function GroupDetailScreen() {
     return error;
   }, [group, user]);
 
+  const handleSettleUpPress = useCallback(async () => {
+    if (!id || !user || !group) return;
+    const { data } = await supabase.rpc('get_group_member_balances', {
+      p_group_id: id,
+      p_user_id: user.id,
+    });
+    type Row = {
+      member_id: string;
+      display_name: string | null;
+      currency_code: string;
+      balance_cents: number;
+    };
+    const rows = ((data as Row[]) ?? []).filter((r) => Number(r.balance_cents) !== 0);
+    if (rows.length === 0) {
+      showToast('info', t('balances.allSettled'));
+      return;
+    }
+    // Find my member id (used as friend when they pay me)
+    const myMember = members.find((m) => m.user_id === user.id);
+    // Pick the row with the largest absolute balance (most relevant settlement)
+    const top = rows.reduce((best, r) =>
+      Math.abs(Number(r.balance_cents)) > Math.abs(Number(best.balance_cents)) ? r : best,
+    );
+    const theyOweMe = Number(top.balance_cents) > 0;
+    router.push({
+      pathname: '/settle-up',
+      params: {
+        groupId: id,
+        groupName: group.name,
+        friendName: top.display_name ?? '',
+        friendMemberId: theyOweMe ? (myMember?.id ?? '') : top.member_id,
+        amountCents: String(Math.abs(Number(top.balance_cents))),
+        currencyCode: top.currency_code,
+        ...(theyOweMe ? { payerMemberId: top.member_id } : {}),
+      },
+    });
+  }, [id, user, group, members, showToast, t]);
+
   const handleRemind = useCallback(async (member: GroupMember) => {
     if (!id || !user || !group) return;
     setRemindingId(member.id);
@@ -437,24 +475,15 @@ export default function GroupDetailScreen() {
           </View>
         </View>
 
-        {/* Action buttons */}
+        {/* Action buttons row */}
         <View style={s.actions}>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
+            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, { flex: 1 }, pressed && { opacity: 0.85 }]}
+            onPress={handleSettleUpPress}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>{t('group.settleUp')}</Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
-          >
-            <MaterialIcons name="analytics" size={20} color={C.primary} />
-            <Text style={s.actionSecondaryText}>{t('group.balances')}</Text>
-          </Pressable>
-        </View>
-        <View style={s.actionsBottom}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionSecondary, { flex: 1 }, pressed && { opacity: 0.85 }]}
             onPress={() => router.push({ pathname: '/invite-friend', params: { groupId: id, groupName: group.name } })}
@@ -497,6 +526,31 @@ export default function GroupDetailScreen() {
           <View key={month}>
             <Text style={s.monthLabel}>{month.toUpperCase()}</Text>
             {items.map((expense) => {
+              const isSettlement = expense.category === 'settlement';
+              if (isSettlement) {
+                const payerLabel = expense.paid_by_is_user ? t('expense.you') : expense.paid_by_name;
+                const payeeLabel = expense.payee_name ?? '';
+                return (
+                  <View key={expense.expense_id} style={s.expenseCard}>
+                    <View style={[s.expenseIcon, { backgroundColor: 'rgba(23,232,107,0.15)' }]}>
+                      <MaterialIcons name="payments" size={22} color={C.primary} />
+                    </View>
+                    <View style={s.expenseInfo}>
+                      <Text style={s.expenseName} numberOfLines={1}>
+                        {t('group.settlementLine', { payer: payerLabel, payee: payeeLabel })}
+                      </Text>
+                      <Text style={s.expensePaid}>
+                        {formatCentsWithCurrency(expense.total_amount_cents, expense.currency_code)}
+                      </Text>
+                    </View>
+                    <View style={s.expenseRight}>
+                      <Text style={[s.expenseLabel, { color: C.primary }]}>
+                        {t('activity.settled')}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
               const cat = CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.receipt;
               const youPositive = expense.paid_by_is_user;
               const youCents = expense.paid_by_is_user
@@ -657,7 +711,6 @@ const s = StyleSheet.create({
   },
   coverBalance: { fontSize: 28, fontWeight: '700', color: C.white },
   actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
-  actionsBottom: { paddingHorizontal: 16, marginBottom: 24 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14 },
   actionPrimary: { backgroundColor: C.primary },
   actionPrimaryText: { color: C.bg, fontWeight: '700', fontSize: 15 },

@@ -172,8 +172,8 @@ export default function FriendsScreen() {
       const result = await findTopSharedGroup(user.id, friend.userId);
       if (!result) return;
       router.push({
-        pathname: '/group/balances',
-        params: { groupId: result.groupId, groupName: result.groupName },
+        pathname: '/group/[id]',
+        params: { id: result.groupId },
       });
     },
     [user],
