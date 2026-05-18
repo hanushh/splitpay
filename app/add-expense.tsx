@@ -94,6 +94,8 @@ export default function AddExpenseScreen() {
   // ── Form state ────────────────────────────────────────────
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [extraExpanded, setExtraExpanded] = useState(false);
+  const [extraPercent, setExtraPercent] = useState('');
   const [expenseCurrency, setExpenseCurrency] = useState<Currency>(appCurrency);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [paidBy, setPaidBy] = useState<string>('');
@@ -375,7 +377,13 @@ export default function AddExpenseScreen() {
     setError(null);
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
-    const amtCents = Math.round(parseFloat(amount) * 100) || 0;
+    const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
+    const pct = parseFloat(extraPercent);
+    const extraAmt =
+      extraExpanded && !Number.isNaN(pct) && pct > 0
+        ? Math.round((baseAmt * pct) / 100)
+        : 0;
+    const amtCents = baseAmt + extraAmt;
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     if (splitMethod === 'exact') {
       const perPerson = Math.round(amtCents / ids.length);
@@ -440,7 +448,13 @@ export default function AddExpenseScreen() {
   const redistributeExact = () => {
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
-    const amtCents = Math.round(parseFloat(amount) * 100) || 0;
+    const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
+    const pct = parseFloat(extraPercent);
+    const extraAmt =
+      extraExpanded && !Number.isNaN(pct) && pct > 0
+        ? Math.round((baseAmt * pct) / 100)
+        : 0;
+    const amtCents = baseAmt + extraAmt;
     const perPerson = Math.round(amtCents / ids.length);
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     const init: Record<string, string> = {};
@@ -539,7 +553,17 @@ export default function AddExpenseScreen() {
     }
   };
 
-  const amtCentsForValidation = Math.round(parseFloat(amount) * 100) || 0;
+  const baseCentsLive = Math.round(parseFloat(amount) * 100) || 0;
+  const extraPctNum = parseFloat(extraPercent);
+  const extraCentsLive =
+    extraExpanded && !Number.isNaN(extraPctNum) && extraPctNum > 0
+      ? Math.round((baseCentsLive * extraPctNum) / 100)
+      : 0;
+  const amtCentsForValidation = baseCentsLive + extraCentsLive;
+  const extraChargeValid =
+    !extraExpanded ||
+    extraPercent.trim() === '' ||
+    (!Number.isNaN(extraPctNum) && extraPctNum >= 0);
 
   /**
    * Returns per-member split data for non-equal modes, or null for equally.
@@ -628,17 +652,22 @@ export default function AddExpenseScreen() {
     !!groupId &&
     selectedMembers.size > 0 &&
     !!paidBy &&
-    splitValid;
+    splitValid &&
+    extraChargeValid;
 
   const handleSave = async () => {
     if (!user) return;
     setError(null);
 
-    const amtCents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(amtCents) || amtCents <= 0) {
+    if (baseCentsLive <= 0) {
       setError(t('expense.validAmount'));
       return;
     }
+    if (!extraChargeValid) {
+      setError(t('expense.invalidExtraCharge'));
+      return;
+    }
+    const amtCents = amtCentsForValidation;
     if (!groupId) {
       setError(t('expense.selectGroupError'));
       return;
@@ -878,6 +907,68 @@ export default function AddExpenseScreen() {
           />
         </View>
 
+        {/* Optional extra charge (%) — purely client-side, applied to amount before save */}
+        {!extraExpanded ? (
+          <Pressable
+            onPress={() => setExtraExpanded(true)}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.addExtraLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            testID="add-extra-charge-button"
+          >
+            <MaterialIcons name="add" size={16} color={C.primary} />
+            <Text style={s.addExtraLinkText}>{t('expense.addExtraCharge')}</Text>
+          </Pressable>
+        ) : (
+          <View style={s.extraSection}>
+            <View style={s.extraRow}>
+              <View style={s.inputIcon}>
+                <MaterialIcons name="percent" size={20} color={C.slate400} />
+              </View>
+              <TextInput
+                style={[s.input, s.extraInput]}
+                placeholder={t('expense.extraChargePlaceholder')}
+                placeholderTextColor={C.slate400}
+                value={extraPercent}
+                onChangeText={setExtraPercent}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                testID="extra-charge-input"
+              />
+              <Text style={s.extraPercentSign}>%</Text>
+              <Pressable
+                onPress={() => {
+                  setExtraExpanded(false);
+                  setExtraPercent('');
+                }}
+                style={({ pressed }: { pressed: boolean }) => [
+                  s.extraRemove,
+                  pressed && { opacity: 0.6 },
+                ]}
+                testID="remove-extra-charge-button"
+              >
+                <MaterialIcons name="close" size={18} color={C.slate400} />
+              </Pressable>
+            </View>
+            {baseCentsLive > 0 && extraCentsLive > 0 && (
+              <View style={s.extraPreview}>
+                <Text style={s.extraPreviewLine}>
+                  {t('expense.extraChargeLine', {
+                    pct: extraPercent,
+                    amount: `${expenseCurrency.symbol}${(extraCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
+                  })}
+                </Text>
+                <Text style={s.extraPreviewTotal}>
+                  {t('expense.totalWithExtra', {
+                    amount: `${expenseCurrency.symbol}${(amtCentsForValidation / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
+                  })}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Error */}
         {editLoading && (
           <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
@@ -1060,8 +1151,7 @@ export default function AddExpenseScreen() {
                         const selectedList = members.filter((m) =>
                           selectedMembers.has(m.id),
                         );
-                        const amtCentsLive =
-                          Math.round(parseFloat(amount) * 100) || 0;
+                        const amtCentsLive = amtCentsForValidation;
 
                         // Running totals
                         const allocatedCents = selectedList.reduce(
@@ -1649,6 +1739,46 @@ const s = StyleSheet.create({
   },
   currencyBadgeFlag: { fontSize: 16 },
   currencyBadgeCode: { color: C.primary, fontWeight: '700', fontSize: 13 },
+  // Optional extra charge (tax / tip / service / convenience fee)
+  addExtraLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  addExtraLinkText: { color: C.primary, fontSize: 13, fontWeight: '600' },
+  extraSection: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceHL,
+  },
+  extraRow: { flexDirection: 'row', alignItems: 'center' },
+  extraInput: { fontSize: 17, fontWeight: '600' },
+  extraPercentSign: {
+    color: C.slate400,
+    fontSize: 17,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  extraRemove: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.surfaceHL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  extraPreview: { paddingLeft: 36, paddingTop: 4, paddingBottom: 4 },
+  extraPreviewLine: { color: C.slate400, fontSize: 13 },
+  extraPreviewTotal: {
+    color: C.white,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
