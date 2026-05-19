@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
+import { useAdminCheck } from '@/hooks/use-admin';
 import { CURRENCIES, Currency, useCurrency } from '@/context/currency';
 import { useToast } from '@/context/toast';
 import { SUPPORTED_LANGUAGES, setLanguage, type LanguageCode } from '@/lib/i18n';
@@ -91,6 +93,7 @@ export default function AccountScreen() {
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdminCheck();
   const { currency, setCurrency } = useCurrency();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [langPickerVisible, setLangPickerVisible] = useState(false);
@@ -215,6 +218,20 @@ export default function AccountScreen() {
             onPress={() => setLangPickerVisible(true)}
           />
         </View>
+
+        {/* Admin */}
+        {isAdmin && (
+          <>
+            <SectionHeader title={t('account.adminSection')} />
+            <View style={s.section}>
+              <SettingRow
+                icon="admin-panel-settings"
+                label={t('account.adminPanel')}
+                onPress={() => router.push('/admin')}
+              />
+            </View>
+          </>
+        )}
 
         {/* Account */}
         <SectionHeader title={t('account.accountSection')} />
