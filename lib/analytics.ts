@@ -5,32 +5,30 @@
  *   import { analytics } from '@/lib/analytics';
  *   analytics.track('event_name', { prop: value });
  *
- * All tracking is silently no-op when EXPO_PUBLIC_POSTHOG_API_KEY is not set
- * (local dev without a PostHog project).
+ * All tracking is silently no-op until setAnalyticsClient() is called by
+ * PostHogBridge (in app/_layout.tsx), which runs once the provider mounts.
+ * When EXPO_PUBLIC_POSTHOG_API_KEY is not set the provider is disabled and
+ * setAnalyticsClient is never called, so all helpers remain no-ops.
  */
 import PostHog from 'posthog-react-native';
 
 export { PostHog };
-export { PostHogProvider, useFeatureFlag } from 'posthog-react-native';
+export { PostHogProvider, useFeatureFlag, usePostHog } from 'posthog-react-native';
 
 // Mirror of EventProperties from @posthog/core (JSON-serialisable values).
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 type EventProperties = { [key: string]: JsonValue };
 
-const API_KEY = process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '';
-const HOST =
+export const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '';
+export const POSTHOG_HOST =
   process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 
 let _client: PostHog | null = null;
 
-/** Returns (and lazily initialises) the shared PostHog client. */
-export function getPostHogClient(): PostHog | null {
-  if (!API_KEY) return null;
-  if (!_client) {
-    _client = new PostHog(API_KEY, { host: HOST });
-  }
-  return _client;
+/** Called once by PostHogBridge after the provider mounts. */
+export function setAnalyticsClient(client: PostHog): void {
+  _client = client;
 }
 
 // ── Event name constants ──────────────────────────────────────────────────────
@@ -59,21 +57,18 @@ export const AnalyticsEvents = {
 type EventName = (typeof AnalyticsEvents)[keyof typeof AnalyticsEvents];
 
 function track(event: EventName, properties?: EventProperties) {
-  const client = getPostHogClient();
-  if (!client) return;
-  client.capture(event, properties);
+  if (!_client) return;
+  _client.capture(event, properties);
 }
 
 function identify(userId: string, traits?: EventProperties) {
-  const client = getPostHogClient();
-  if (!client) return;
-  client.identify(userId, traits);
+  if (!_client) return;
+  _client.identify(userId, traits);
 }
 
 function reset() {
-  const client = getPostHogClient();
-  if (!client) return;
-  client.reset();
+  if (!_client) return;
+  _client.reset();
 }
 
 export const analytics = { track, identify, reset };

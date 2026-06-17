@@ -18,12 +18,28 @@ import SplashScreen from '@/components/SplashScreen';
 import MobileInstallPrompt from '@/components/MobileInstallPrompt';
 import { supabase } from '@/lib/supabase';
 import { initI18n } from '@/lib/i18n';
-import { PostHogProvider, getPostHogClient, analytics, AnalyticsEvents } from '@/lib/analytics';
+import {
+  PostHogProvider,
+  usePostHog,
+  setAnalyticsClient,
+  analytics,
+  AnalyticsEvents,
+  POSTHOG_API_KEY,
+  POSTHOG_HOST,
+} from '@/lib/analytics';
 import { ensurePushNotificationHandler, dispatchPendingPushNotifications } from '@/lib/push-notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+function PostHogBridge() {
+  const posthog = usePostHog();
+  useEffect(() => {
+    if (posthog) setAnalyticsClient(posthog);
+  }, [posthog]);
+  return null;
+}
 
 function InviteRedeemRedirect() {
   const { session, pendingInviteToken, clearPendingInviteToken } = useAuth();
@@ -133,13 +149,15 @@ export default function RootLayout() {
     return <SplashScreen />;
   }
 
-  const posthogClient = getPostHogClient();
-
   return (
     <PostHogProvider
-      client={posthogClient ?? undefined}
-      {...(!posthogClient && { apiKey: 'disabled', options: { disabled: true } })}
+      apiKey={POSTHOG_API_KEY || 'disabled'}
+      options={{
+        disabled: !POSTHOG_API_KEY,
+        host: POSTHOG_HOST,
+      }}
     >
+      <PostHogBridge />
       <CurrencyProvider>
         <AuthProvider>
           <OnboardingProvider>
