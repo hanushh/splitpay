@@ -543,19 +543,25 @@ export default function AddExpenseScreen() {
     }
   };
 
-  // The Amount field holds the pre-tax subtotal (the bill). The optional tax %
-  // is added on top of each individual's (pre-tax) share, so the tax is a plain
-  // percentage of the entered amount (e.g. 5% of 500 = 25).
-  const subtotalCentsLive = Math.round(parseFloat(amount) * 100) || 0;
+  // The Amount field holds the FINAL, tax-inclusive total. The tax % only
+  // applies to Exact splits — it is the portion of that total that is tax, so we
+  // derive the pre-tax subtotal (total / (1 + rate)) and add the tax back on top
+  // of each individual's pre-tax share. Other split modes ignore the tax and
+  // just split the entered amount.
+  const totalCentsLive = Math.round(parseFloat(amount) * 100) || 0;
   const taxPctNum = parseFloat(extraPercent);
   const taxRate =
-    extraExpanded && !Number.isNaN(taxPctNum) && taxPctNum > 0
+    splitMethod === 'exact' &&
+    extraExpanded &&
+    !Number.isNaN(taxPctNum) &&
+    taxPctNum > 0
       ? taxPctNum / 100
       : 0;
-  const taxCentsLive =
-    taxRate > 0 ? Math.round(subtotalCentsLive * taxRate) : 0;
-  const totalCentsLive = subtotalCentsLive + taxCentsLive;
+  const subtotalCentsLive =
+    taxRate > 0 ? Math.round(totalCentsLive / (1 + taxRate)) : totalCentsLive;
+  const taxCentsLive = totalCentsLive - subtotalCentsLive;
   const extraChargeValid =
+    splitMethod !== 'exact' ||
     !extraExpanded ||
     extraPercent.trim() === '' ||
     (!Number.isNaN(taxPctNum) && taxPctNum >= 0);
@@ -1137,7 +1143,9 @@ export default function AddExpenseScreen() {
                             <View style={s.splitInputHeader}>
                               <Text style={s.splitInputHeaderLabel}>
                                 {isExact
-                                  ? t('expense.amountPerPerson')
+                                  ? taxCentsLive > 0
+                                    ? t('expense.preTaxAmountPerPerson')
+                                    : t('expense.amountPerPerson')
                                   : isShares
                                     ? t('expense.sharesPerPerson')
                                     : t('expense.percentPerPerson')}
@@ -1266,7 +1274,9 @@ export default function AddExpenseScreen() {
                               {isExact ? (
                                 <>
                                   <Text style={s.splitTotalLabel}>
-                                    {t('expense.splitAllocated')}
+                                    {taxCentsLive > 0
+                                      ? t('expense.preTaxAllocated')
+                                      : t('expense.splitAllocated')}
                                   </Text>
                                   <Text
                                     style={[
@@ -1333,76 +1343,113 @@ export default function AddExpenseScreen() {
                                 />
                               )}
                             </View>
+
+                            {/* Optional tax (%) — Exact mode only. Added on top
+                                of each person's pre-tax share; the live
+                                breakdown shows the effect. */}
+                            {isExact &&
+                              (!extraExpanded ? (
+                                <Pressable
+                                  onPress={() => setExtraExpanded(true)}
+                                  style={({
+                                    pressed,
+                                  }: {
+                                    pressed: boolean;
+                                  }) => [s.addExtraLink, pressed && { opacity: 0.7 }]}
+                                  testID="add-extra-charge-button"
+                                >
+                                  <MaterialIcons
+                                    name="add"
+                                    size={16}
+                                    color={C.primary}
+                                  />
+                                  <Text style={s.addExtraLinkText}>
+                                    {t('expense.addExtraCharge')}
+                                  </Text>
+                                </Pressable>
+                              ) : (
+                                <View style={s.extraSection}>
+                                  <View style={s.extraRow}>
+                                    <View style={s.inputIcon}>
+                                      <MaterialIcons
+                                        name="percent"
+                                        size={20}
+                                        color={C.slate400}
+                                      />
+                                    </View>
+                                    <TextInput
+                                      style={[s.input, s.extraInput]}
+                                      placeholder={t(
+                                        'expense.extraChargePlaceholder',
+                                      )}
+                                      placeholderTextColor={C.slate400}
+                                      value={extraPercent}
+                                      onChangeText={setExtraPercent}
+                                      keyboardType="decimal-pad"
+                                      returnKeyType="done"
+                                      testID="extra-charge-input"
+                                    />
+                                    <Text style={s.extraPercentSign}>%</Text>
+                                    <Pressable
+                                      onPress={() => {
+                                        setExtraExpanded(false);
+                                        setExtraPercent('');
+                                      }}
+                                      style={({
+                                        pressed,
+                                      }: {
+                                        pressed: boolean;
+                                      }) => [
+                                        s.extraRemove,
+                                        pressed && { opacity: 0.6 },
+                                      ]}
+                                      testID="remove-extra-charge-button"
+                                    >
+                                      <MaterialIcons
+                                        name="close"
+                                        size={18}
+                                        color={C.slate400}
+                                      />
+                                    </Pressable>
+                                  </View>
+                                  {/* Live breakdown so the impact of the % is obvious. */}
+                                  {subtotalCentsLive > 0 && taxCentsLive > 0 && (
+                                    <View style={s.extraPreview}>
+                                      <View style={s.extraPreviewRow}>
+                                        <Text style={s.extraPreviewLabel}>
+                                          {t('expense.subtotalLabel')}
+                                        </Text>
+                                        <Text style={s.extraPreviewValue}>
+                                          {expenseCurrency.symbol}{(subtotalCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}
+                                        </Text>
+                                      </View>
+                                      <View style={s.extraPreviewRow}>
+                                        <Text style={s.extraPreviewLabel}>
+                                          {t('expense.taxLabel', { pct: extraPercent })}
+                                        </Text>
+                                        <Text style={s.extraPreviewValue}>
+                                          {expenseCurrency.symbol}{(taxCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}
+                                        </Text>
+                                      </View>
+                                      <View style={s.extraPreviewDivider} />
+                                      <View style={s.extraPreviewRow}>
+                                        <Text style={s.extraPreviewTotalLabel}>
+                                          {t('expense.totalLabel')}
+                                        </Text>
+                                        <Text style={s.extraPreviewTotal}>
+                                          {expenseCurrency.symbol}{(totalCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  )}
+                                </View>
+                              ))}
                           </View>
                         );
                       })()}
                   </>
                 )}
               </View>
-
-              {/* Optional tax (%) — the entered amount is inclusive of this tax;
-                  it is added on top of each person's pre-tax share when splitting. */}
-              {!extraExpanded ? (
-                <Pressable
-                  onPress={() => setExtraExpanded(true)}
-                  style={({ pressed }: { pressed: boolean }) => [
-                    s.addExtraLink,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  testID="add-extra-charge-button"
-                >
-                  <MaterialIcons name="add" size={16} color={C.primary} />
-                  <Text style={s.addExtraLinkText}>
-                    {t('expense.addExtraCharge')}
-                  </Text>
-                </Pressable>
-              ) : (
-                <View style={s.extraSection}>
-                  <View style={s.extraRow}>
-                    <View style={s.inputIcon}>
-                      <MaterialIcons
-                        name="percent"
-                        size={20}
-                        color={C.slate400}
-                      />
-                    </View>
-                    <TextInput
-                      style={[s.input, s.extraInput]}
-                      placeholder={t('expense.extraChargePlaceholder')}
-                      placeholderTextColor={C.slate400}
-                      value={extraPercent}
-                      onChangeText={setExtraPercent}
-                      keyboardType="decimal-pad"
-                      returnKeyType="done"
-                      testID="extra-charge-input"
-                    />
-                    <Text style={s.extraPercentSign}>%</Text>
-                    <Pressable
-                      onPress={() => {
-                        setExtraExpanded(false);
-                        setExtraPercent('');
-                      }}
-                      style={({ pressed }: { pressed: boolean }) => [
-                        s.extraRemove,
-                        pressed && { opacity: 0.6 },
-                      ]}
-                      testID="remove-extra-charge-button"
-                    >
-                      <MaterialIcons name="close" size={18} color={C.slate400} />
-                    </Pressable>
-                  </View>
-                  {totalCentsLive > 0 && taxCentsLive > 0 && (
-                    <View style={s.extraPreview}>
-                      <Text style={s.extraPreviewLine}>
-                        {t('expense.extraChargeLine', {
-                          pct: extraPercent,
-                          amount: `${expenseCurrency.symbol}${(taxCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
-                        })}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
             </>
           ))}
 
@@ -1792,14 +1839,29 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  extraPreview: { paddingLeft: 36, paddingTop: 4, paddingBottom: 4 },
-  extraPreviewLine: { color: C.slate400, fontSize: 13 },
-  extraPreviewTotal: {
-    color: C.white,
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 2,
+  extraPreview: {
+    marginTop: 10,
+    backgroundColor: C.surfaceHL,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 2,
   },
+  extraPreviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  extraPreviewLabel: { color: C.slate400, fontSize: 13 },
+  extraPreviewValue: { color: C.slate400, fontSize: 13 },
+  extraPreviewDivider: {
+    height: 1,
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+    marginVertical: 4,
+  },
+  extraPreviewTotalLabel: { color: C.white, fontSize: 14, fontWeight: '600' },
+  extraPreviewTotal: { color: C.white, fontSize: 14, fontWeight: '700' },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -92,14 +92,15 @@ async function fillExactExpense(
   fireEvent.changeText(getByTestId('description-input'), 'Group dinner');
   fireEvent.changeText(getByTestId('amount-input'), opts.amount);
 
+  // Expand the split section, then switch to Exact amounts.
+  fireEvent.press(getByTestId('split-summary-row'));
+  fireEvent.press(getByTestId('split-method-exact'));
+
+  // The tax % field is only available in Exact mode.
   if (opts.extraPercent) {
     fireEvent.press(getByTestId('add-extra-charge-button'));
     fireEvent.changeText(getByTestId('extra-charge-input'), opts.extraPercent);
   }
-
-  // Expand the split section, then switch to Exact amounts.
-  fireEvent.press(getByTestId('split-summary-row'));
-  fireEvent.press(getByTestId('split-method-exact'));
 
   // Override the auto-seeded per-person base amounts.
   for (const [memberId, value] of Object.entries(opts.amounts)) {
@@ -107,14 +108,15 @@ async function fillExactExpense(
   }
 }
 
-test('exact split + tax: tax added on top of each pre-tax share', async () => {
+test('exact split + tax: final-inclusive total split by pre-tax shares', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
 
-  // $100 pre-tax bill, 10% tax on top. Pre-tax shares entered as 40 / 60; the
-  // tax is added on top of each → 44 / 66, for a $110 total.
+  // $105 final total (includes 5% tax). Pre-tax subtotal is $100, entered as
+  // 40 / 60 per person. Tax is added back on top of each → 42 / 63, summing to
+  // the $105 the user entered.
   await fillExactExpense(getByTestId, {
-    amount: '100',
-    extraPercent: '10',
+    amount: '105',
+    extraPercent: '5',
     amounts: { 'member-1': '40', 'member-2': '60' },
   });
 
@@ -126,11 +128,11 @@ test('exact split + tax: tax added on top of each pre-tax share', async () => {
     expect(rpcMock).toHaveBeenCalledWith(
       'create_expense_with_splits',
       expect.objectContaining({
-        // Saved total = pre-tax bill + 10% tax.
-        p_amount_cents: 11000,
+        // Saved total = the final tax-inclusive amount the user entered.
+        p_amount_cents: 10500,
         p_split_member_ids: ['member-1', 'member-2'],
-        // Each pre-tax share + its proportional tax, summing to 11000.
-        p_split_amounts_cents: [4400, 6600],
+        // Each pre-tax share scaled up to its share of the $105 total.
+        p_split_amounts_cents: [4200, 6300],
       }),
     );
   });
