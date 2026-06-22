@@ -1,0 +1,230 @@
+---
+globs: **/*.java
+alwaysApply: false
+---
+# Secure Java Development
+
+These rules apply to all Java code in the repository (including Spring, Jakarta EE, and standalone apps) and aim to prevent common security risks through disciplined use of input validation, safe APIs, and secure coding patterns.
+
+All violations must include a clear explanation of which rule was triggered and why, to help developers understand and fix the issue effectively.  
+Generated code must not violate these rules. If a rule is violated, a comment must be added explaining the issue and suggesting a correction.
+
+## 1. Avoid Insecure Deserialization
+- **Rule:** Never deserialize untrusted data using `ObjectInputStream`, `readObject()`, or similar APIs. Use safe serialization formats (e.g., JSON, protobuf) and validate all input before deserialization.
+- **Unsafe:**
+  ```java
+  ObjectInputStream ois = new ObjectInputStream(inputStream);
+  Object obj = ois.readObject(); // Untrusted input ➜ RCE risk
+  ```
+- **Safe:**
+  ```java
+  // Use a safe format and strict schema validation
+  MyObject obj = objectMapper.readValue(jsonInput, MyObject.class);
+  ```
+
+## 2. Use Parameterized Queries for Database Access
+- **Rule:** Never build SQL queries by concatenating user input. Use `PreparedStatement` or ORM parameterization.
+
+## 3. Always Use Prepared Statements for SQL
+- **Rule:** Always use `PreparedStatement` for SQL queries, never concatenate or interpolate user input into SQL strings. Prepared statements ensure user input is treated as data, not code, and are the most effective way to prevent SQL injection.
+- **Unsafe:**
+  ```java
+  String query = "SELECT * FROM users WHERE username = '" + userInput + "'";
+  Statement stmt = conn.createStatement();
+  ResultSet rs = stmt.executeQuery(query);
+  ```
+- **Safe:**
+  ```java
+  String query = "SELECT * FROM users WHERE username = ?";
+  PreparedStatement pstmt = conn.prepareStatement(query);
+  pstmt.setString(1, userInput);
+  ResultSet rs = pstmt.executeQuery();
+  ```
+
+## 4. Prevent Command Injection
+- **Rule:** Never pass user input directly to `Runtime.exec()`, `ProcessBuilder`, or similar APIs. Use allow-lists, parameterization, and safe wrappers. Avoid shell invocation unless absolutely necessary.
+- **Unsafe:**
+  ```java
+  Runtime.getRuntime().exec("ls " + userInput); // Command injection risk
+  ```
+- **Safe:**
+  ```java
+  // Use ProcessBuilder with static arguments or validated input
+  ProcessBuilder pb = new ProcessBuilder("ls", validatedArg);
+  pb.start();
+  ```
+
+## 5. Validate and Sanitize All Input
+- **Rule:** Validate type, length, and format of all external input. Use allow-lists and built-in validation frameworks (e.g., Bean Validation, Hibernate Validator).
+
+## 6. Avoid Insecure JNDI and LDAP Lookups
+- **Rule:** Never perform JNDI, LDAP, or RMI lookups with untrusted input. Do not pass user-controlled data to lookup names or URLs.
+- **Unsafe:**
+  ```java
+  ctx.lookup(userInput); // User input in JNDI ➜ RCE risk
+  ```
+- **Safe:**
+  ```java
+  // Only use allow-listed, static names for lookups
+  ctx.lookup("java:comp/env/jdbc/MyDataSource");
+  ```
+
+## 7. Disable Dangerous Features in XML Parsers
+- **Rule:** Disable DTDs, external entities, and XInclude in all XML parsers. Use `FEATURE_SECURE_PROCESSING` and block XXE.
+
+## 8. Avoid Logging Sensitive Data
+- **Rule:** Do not log credentials, tokens, or personal data. Mask or redact sensitive fields in logs.
+
+## 9. Use Strong Cryptography
+- **Rule:** Use strong, up-to-date cryptographic algorithms and libraries. Never use hardcoded keys or outdated algorithms (e.g., MD5, SHA-1, DES).
+
+## 10. Limit Use of Reflection and Dynamic Code Execution
+- **Rule:** Avoid reflection, dynamic class loading, or `Method.invoke()` with untrusted input. Never use `ScriptEngine` or similar APIs on user data.
+
+## 11. Keep Dependencies Patched and Audited
+- **Rule:** Regularly update all dependencies. Use tools like OWASP Dependency-Check to audit for known vulnerabilities.
+
+## 12. Enforce Least Privilege
+
+- **Rule:** Run Java processes with the minimum OS and JVM permissions required. Limit file, network, and system access.
+
+## 13. Secure File I/O
+
+### 13.1 Resolve to Canonical Path
+- **Rule:** Use `File.getCanonicalPath()` before any path-based access check. Canonical paths resolve symlinks, `..`, and `.` segments, preventing path traversal bypasses (CWE-22).
+- **Unsafe:**
+  ```java
+  File f = new File(baseDir, userInput);
+  f.delete(); // userInput = "../../etc/passwd" ➜ traversal
+  ```
+- **Safe:**
+  ```java
+  File f = new File(baseDir, userInput).getCanonicalFile();
+  if (!f.toPath().startsWith(baseDir.toPath())) {
+      throw new SecurityException("Path traversal detected");
+  }
+  ```
+
+### 13.2 Restrict Access to a Designated Folder
+- **Rule:** Feature-related files must be confined to a specific directory. Validate that the canonical path starts with the allowed directory prefix before any read or write.
+
+### 13.3 Enforce Max File Size
+- **Rule:** Reject payloads that exceed expected size. Check size **before** fully reading the stream — count bytes during read or validate `Content-Length` up front. This prevents resource-exhaustion DoS.
+
+### 13.4 Use a Standard Naming Scheme
+- **Rule:** Apply a predictable naming convention for feature artifacts (e.g., `<feature>_<identifier>_<timestamp>.xml`). Sanitize any user-influenced portion — strip path separators and special characters.
+
+### 13.5 Reject UNC / Shared-Network File Paths
+- **Rule:** Do not accept UNC paths (`\\<server>\share\...`). On Windows, resolving a UNC path can leak NTLM hashes and enable relay attacks. Validate that paths do not start with `\\` or `//` before any I/O.
+
+## 14. Parser Depth and Size Limits
+- **Rule:** In addition to disabling external entities (§7), configure parser limits to defend against billion-laughs (CWE-776) and deeply nested payload DoS:
+  - **Max nesting depth** — prevents recursive expansion
+  - **Max string length** — prevents memory exhaustion from oversized values
+  - **Max entity expansion count** — caps the total number of entity expansions
+
+## 15. Password Hashing Best Practices
+- **Rule:** In addition to using strong algorithms (§9), follow these specifics:
+  - Hash with bcrypt, PBKDF2, or Argon2 — never MD5 or SHA-1 for passwords.
+  - Use a **randomly generated** salt of 32–64 bits.
+  - Store passwords in `char[]` instead of `String`. Clear the `char[]` immediately after processing.
+- **Unsafe:**
+  ```java
+  String hash = MessageDigest.getInstance("MD5").digest(password.getBytes());
+  ```
+- **Safe:**
+  ```java
+  char[] pwd = request.getPassword();
+  try {
+      String hash = BCrypt.hashpw(new String(pwd), BCrypt.gensalt(12));
+  } finally {
+      Arrays.fill(pwd, '\0');
+  }
+  ```
+
+## 16. Validate Input Length Before Regex (ReDoS Prevention)
+- **Rule:** Always restrict the length of input **before** passing it to a regex pattern. Unbounded input can trigger catastrophic backtracking, leading to ReDoS (CWE-1333).
+- **Unsafe:**
+  ```java
+  if (userInput.matches("^(a+)+$")) { ... } // ReDoS on long input
+  ```
+- **Safe:**
+  ```java
+  if (userInput.length() > MAX_LENGTH) {
+      throw new IllegalArgumentException("Input too long");
+  }
+  if (userInput.matches("^(a+)+$")) { ... }
+  ```
+
+## 17. Context-Specific Injection Prevention
+- **Rule:** Validate and encode input based on the context where it will be consumed. SQL injection is covered by §2/§3; the following contexts also require protection:
+  - **JSON context**: escape or reject unescaped `"`, `\`, and control characters.
+  - **HTML context**: encode `<`, `>`, `&`, `"`, `'`.
+  - **Shell context**: never interpolate into command strings (see §4).
+
+## 18. Prefer Allowlists Over Denylists
+- **Rule:** When deciding between allowing and disallowing features, inputs, or access, always choose the allowlist approach. Allowlists create a secure-by-default environment — unknown entries are rejected. Denylists require continuous updates as new attack vectors are discovered.
+
+## 19. Comprehensive Logging
+
+### 19.1 Log Generously at Debug Level
+- **Rule:** Add debug logs at key decision points, method entry/exit for complex flows, and state transitions. Critical situations that must always be logged: system errors, validation failures, user identification events, event timestamps, communication events, and results from error conditions.
+
+### 19.2 Log All Exceptions with Stack Traces
+- **Rule:** Every `catch` block must log the exception. Include the stack trace for internal errors. For user-facing errors, log the detail server-side but return only a generic message to the client.
+
+## 20. Exception Handling Discipline
+
+### 20.1 Separate User-Facing and Internal Exceptions
+- **Rule:** Define a common base exception class for user-propagated errors so they follow a consistent formatting and handling flow. Internal / infrastructure exceptions can extend `RuntimeException`.
+
+### 20.2 Use Specific, Multiple Catch Blocks
+- **Rule:** Catch the most specific exception types individually rather than a single generic `catch (Exception e)`.
+- **Unsafe:**
+  ```java
+  try { ... }
+  catch (Exception e) { log.error(e); } // swallows everything the same way
+  ```
+- **Safe:**
+  ```java
+  try {
+      // operation
+  } catch (IOException ex) {
+      throw ex;
+  } catch (TimeoutException ex) {
+      processTimeout(response);
+  } catch (RuntimeException ex) {
+      throw ex;
+  } catch (Throwable ex) {
+      throw new ServletException(ex);
+  } finally {
+      // cleanup
+  }
+  ```
+
+### 20.3 Place Exception Handlers Close to the Source
+- **Rule:** Handle exceptions near where they occur. Do not let exceptions propagate through many layers only to be caught at the outermost boundary.
+
+### 20.4 Do Not Return After Catching
+- **Rule:** Avoid `return` statements inside `catch` blocks. If an exception occurs, the flow should break (re-throw or escalate), not silently continue with a default or null return value.
+
+### 20.5 Never Catch NullPointerException
+- **Rule:** `NullPointerException` indicates a logic bug. Add explicit null checks instead: every method that accepts an object should validate for null, and every method that returns an object should document its nullability.
+
+## 21. Resource Management
+- **Rule:** Return all resources once used:
+  - Delete temporary files immediately after use.
+  - I/O buffers and streams must have timeouts and be closed in a `finally` block or via `try-with-resources`.
+  - Close all system resources: filesystem objects, sockets, database connections, and process handles.
+
+## 22. IPC: Minimize Calls and Validate Arguments
+- **Rule:** In addition to preventing command injection (§4):
+  - Limit `Runtime.exec()` and `ProcessBuilder` usage to cases where no pure-Java alternative exists.
+  - Always pass arguments as `String[]`, never a single `String` (which invokes the OS shell).
+  - As defense-in-depth, validate that individual arguments do not contain shell metacharacters (``; | & $ ` ``).
+
+## 23. Setter Functions Must Be Side-Effect Free
+- **Rule:** Setter methods should only assign a value to a field — no side effects, no business logic, no I/O. This prevents unintended actions during deserialization, where setters may be invoked automatically by the framework.
+
+## 24. Token and Secret Expiry
+- **Rule:** Any token, secret key, or unique ID used for trust creation between servers or between client and server must have an automatic (and optionally manual) expiry mechanism. Tokens without expiry are a persistent compromise vector.

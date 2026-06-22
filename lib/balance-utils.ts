@@ -18,7 +18,7 @@ export interface MemberBalance {
 }
 
 /**
- * A single suggested payment in a simplified settlement plan: the debtor
+ * A single suggested payment in a minimized settlement plan: the debtor
  * (`from_*`) pays the creditor (`to_*`) `amount_cents` (always positive) in
  * `currency_code`.
  */
@@ -68,10 +68,10 @@ export function simplifyDebts(balances: MemberBalance[]): SettlementTransaction[
 
   // Deterministic order: alphabetical by currency code.
   for (const currency_code of [...byCurrency.keys()].sort()) {
-    const rows = byCurrency.get(currency_code)!;
+    const currencyRows = byCurrency.get(currency_code)!;
     const creditors: DebtNode[] = [];
     const debtors: DebtNode[] = [];
-    for (const r of rows) {
+    for (const r of currencyRows) {
       const node: DebtNode = {
         member_id: r.member_id,
         user_id: r.user_id,

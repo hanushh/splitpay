@@ -377,17 +377,16 @@ export default function AddExpenseScreen() {
     setError(null);
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
-    // Exact inputs represent each person's base amount (the extra charge is
-    // applied proportionally at save time), so seed from the base amount only.
-    const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     if (splitMethod === 'exact') {
-      const perPerson = Math.round(baseAmt / ids.length);
+      // Exact inputs are each person's PRE-TAX share, so seed them to sum to the
+      // pre-tax subtotal (the tax is added on top per person at save time).
+      const perPerson = Math.round(subtotalCentsLive / ids.length);
       const init: Record<string, string> = {};
       ids.forEach((id, i) => {
         const cents =
           i === ids.length - 1
-            ? baseAmt - perPerson * (ids.length - 1)
+            ? subtotalCentsLive - perPerson * (ids.length - 1)
             : perPerson;
         init[id] = (cents / 100).toFixed(decimals);
       });
@@ -444,16 +443,15 @@ export default function AddExpenseScreen() {
   const redistributeExact = () => {
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
-    // Distribute the base amount equally; the extra charge is added
-    // proportionally at save time.
-    const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
-    const perPerson = Math.round(baseAmt / ids.length);
+    // Distribute the pre-tax subtotal equally; the tax is added on top per
+    // person at save time.
+    const perPerson = Math.round(subtotalCentsLive / ids.length);
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     const init: Record<string, string> = {};
     ids.forEach((id, i) => {
       const cents =
         i === ids.length - 1
-          ? baseAmt - perPerson * (ids.length - 1)
+          ? subtotalCentsLive - perPerson * (ids.length - 1)
           : perPerson;
       init[id] = (cents / 100).toFixed(decimals);
     });
@@ -545,17 +543,22 @@ export default function AddExpenseScreen() {
     }
   };
 
-  const baseCentsLive = Math.round(parseFloat(amount) * 100) || 0;
-  const extraPctNum = parseFloat(extraPercent);
-  const extraCentsLive =
-    extraExpanded && !Number.isNaN(extraPctNum) && extraPctNum > 0
-      ? Math.round((baseCentsLive * extraPctNum) / 100)
+  // The Amount field holds the pre-tax subtotal (the bill). The optional tax %
+  // is added on top of each individual's (pre-tax) share, so the tax is a plain
+  // percentage of the entered amount (e.g. 5% of 500 = 25).
+  const subtotalCentsLive = Math.round(parseFloat(amount) * 100) || 0;
+  const taxPctNum = parseFloat(extraPercent);
+  const taxRate =
+    extraExpanded && !Number.isNaN(taxPctNum) && taxPctNum > 0
+      ? taxPctNum / 100
       : 0;
-  const amtCentsForValidation = baseCentsLive + extraCentsLive;
+  const taxCentsLive =
+    taxRate > 0 ? Math.round(subtotalCentsLive * taxRate) : 0;
+  const totalCentsLive = subtotalCentsLive + taxCentsLive;
   const extraChargeValid =
     !extraExpanded ||
     extraPercent.trim() === '' ||
-    (!Number.isNaN(extraPctNum) && extraPctNum >= 0);
+    (!Number.isNaN(taxPctNum) && taxPctNum >= 0);
 
   /**
    * Returns per-member split data for non-equal modes, or null for equally.
@@ -567,19 +570,19 @@ export default function AddExpenseScreen() {
     if (splitMethod === 'equally') return null;
     const ids = [...selectedMembers];
     if (splitMethod === 'exact') {
-      const baseCentsArr = ids.map((id) =>
+      // Exact inputs are each person's PRE-TAX share. When a tax is present, add
+      // it on top in proportion to each amount so the final shares sum to the
+      // tax-inclusive total (rounding remainder to the last member).
+      const preTaxCents = ids.map((id) =>
         Math.round((parseFloat(exactAmounts[id] ?? '0') || 0) * 100),
       );
-      // No extra (or no base) → use entered amounts directly.
-      if (extraCentsLive <= 0 || baseCentsLive <= 0) {
-        return { memberIds: ids, amountsCents: baseCentsArr };
+      if (taxCentsLive <= 0 || subtotalCentsLive <= 0) {
+        return { memberIds: ids, amountsCents: preTaxCents };
       }
-      // Distribute the total (base + extra) in proportion to each base amount,
-      // giving the rounding remainder to the last member.
-      const raw = baseCentsArr.map((c) =>
-        Math.floor((c / baseCentsLive) * amtCentsForValidation),
+      const raw = preTaxCents.map((c) =>
+        Math.floor((c / subtotalCentsLive) * totalCentsLive),
       );
-      const remainder = amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+      const remainder = totalCentsLive - raw.reduce((a, b) => a + b, 0);
       if (raw.length > 0) raw[raw.length - 1] += remainder;
       return { memberIds: ids, amountsCents: raw };
     }
@@ -590,19 +593,19 @@ export default function AddExpenseScreen() {
       );
       const raw = ids.map((id) => {
         const shares = parseFloat(shareAmounts[id] ?? '1') || 1;
-        return Math.floor((shares / totalShares) * amtCentsForValidation);
+        return Math.floor((shares / totalShares) * totalCentsLive);
       });
-      const remainder = amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+      const remainder = totalCentsLive - raw.reduce((a, b) => a + b, 0);
       if (raw.length > 0) raw[raw.length - 1] += remainder;
       return { memberIds: ids, amountsCents: raw };
     }
     // percent: floor each share, give rounding remainder to last member
     const percents = ids.map((id) => parseFloat(percentAmounts[id] ?? '0') || 0);
     const raw = percents.map((p) =>
-      Math.floor((p / 100) * amtCentsForValidation),
+      Math.floor((p / 100) * totalCentsLive),
     );
     const remainder =
-      amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+      totalCentsLive - raw.reduce((a, b) => a + b, 0);
     if (raw.length > 0) raw[raw.length - 1] += remainder;
     return { memberIds: ids, amountsCents: raw };
   };
@@ -622,9 +625,9 @@ export default function AddExpenseScreen() {
           s + Math.round((parseFloat(exactAmounts[id]) || 0) * 100),
         0,
       );
-      if (total !== baseCentsLive)
+      if (total !== subtotalCentsLive)
         return t('expense.splitAmountMismatch', {
-          expected: (baseCentsLive / 100).toFixed(2),
+          expected: (subtotalCentsLive / 100).toFixed(2),
         });
     } else if (splitMethod === 'shares') {
       const hasInvalid = ids.some((id) => {
@@ -662,7 +665,7 @@ export default function AddExpenseScreen() {
     if (!user) return;
     setError(null);
 
-    if (baseCentsLive <= 0) {
+    if (totalCentsLive <= 0) {
       setError(t('expense.validAmount'));
       return;
     }
@@ -670,7 +673,7 @@ export default function AddExpenseScreen() {
       setError(t('expense.invalidExtraCharge'));
       return;
     }
-    const amtCents = amtCentsForValidation;
+    const amtCents = totalCentsLive;
     if (!groupId) {
       setError(t('expense.selectGroupError'));
       return;
@@ -910,68 +913,6 @@ export default function AddExpenseScreen() {
           />
         </View>
 
-        {/* Optional extra charge (%) — purely client-side, applied to amount before save */}
-        {!extraExpanded ? (
-          <Pressable
-            onPress={() => setExtraExpanded(true)}
-            style={({ pressed }: { pressed: boolean }) => [
-              s.addExtraLink,
-              pressed && { opacity: 0.7 },
-            ]}
-            testID="add-extra-charge-button"
-          >
-            <MaterialIcons name="add" size={16} color={C.primary} />
-            <Text style={s.addExtraLinkText}>{t('expense.addExtraCharge')}</Text>
-          </Pressable>
-        ) : (
-          <View style={s.extraSection}>
-            <View style={s.extraRow}>
-              <View style={s.inputIcon}>
-                <MaterialIcons name="percent" size={20} color={C.slate400} />
-              </View>
-              <TextInput
-                style={[s.input, s.extraInput]}
-                placeholder={t('expense.extraChargePlaceholder')}
-                placeholderTextColor={C.slate400}
-                value={extraPercent}
-                onChangeText={setExtraPercent}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                testID="extra-charge-input"
-              />
-              <Text style={s.extraPercentSign}>%</Text>
-              <Pressable
-                onPress={() => {
-                  setExtraExpanded(false);
-                  setExtraPercent('');
-                }}
-                style={({ pressed }: { pressed: boolean }) => [
-                  s.extraRemove,
-                  pressed && { opacity: 0.6 },
-                ]}
-                testID="remove-extra-charge-button"
-              >
-                <MaterialIcons name="close" size={18} color={C.slate400} />
-              </Pressable>
-            </View>
-            {baseCentsLive > 0 && extraCentsLive > 0 && (
-              <View style={s.extraPreview}>
-                <Text style={s.extraPreviewLine}>
-                  {t('expense.extraChargeLine', {
-                    pct: extraPercent,
-                    amount: `${expenseCurrency.symbol}${(extraCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
-                  })}
-                </Text>
-                <Text style={s.extraPreviewTotal}>
-                  {t('expense.totalWithExtra', {
-                    amount: `${expenseCurrency.symbol}${(amtCentsForValidation / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
-                  })}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Error */}
         {editLoading && (
           <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
@@ -1154,7 +1095,8 @@ export default function AddExpenseScreen() {
                         const selectedList = members.filter((m) =>
                           selectedMembers.has(m.id),
                         );
-                        const amtCentsLive = amtCentsForValidation;
+                        // Percent / shares split the tax-inclusive total directly.
+                        const amtCentsLive = totalCentsLive;
 
                         // Running totals
                         const allocatedCents = selectedList.reduce(
@@ -1180,7 +1122,7 @@ export default function AddExpenseScreen() {
                           return shareAmounts[m.id]?.trim() && !isNaN(v) && v > 0;
                         });
                         const isBalanced = isExact
-                          ? allocatedCents === baseCentsLive
+                          ? allocatedCents === subtotalCentsLive
                           : isShares
                             ? allSharesValid
                             : Math.abs(totalPct - 100) <= 0.01;
@@ -1261,14 +1203,14 @@ export default function AddExpenseScreen() {
                                   ? Math.floor((parsed / 100) * amtCentsLive)
                                   : isExact &&
                                       fieldOk &&
-                                      extraCentsLive > 0 &&
-                                      baseCentsLive > 0
-                                    ? // Exact + extra: show the final amount incl.
-                                      // this member's proportional share of the extra.
+                                      taxCentsLive > 0 &&
+                                      subtotalCentsLive > 0
+                                    ? // Exact + tax: show the final amount incl.
+                                      // this member's proportional share of the tax.
                                       Math.round(
                                         parsed *
                                           100 *
-                                          (amtCentsForValidation / baseCentsLive),
+                                          (totalCentsLive / subtotalCentsLive),
                                       )
                                     : null;
 
@@ -1301,6 +1243,7 @@ export default function AddExpenseScreen() {
                                     value={val}
                                     onChangeText={setVal}
                                     keyboardType="decimal-pad"
+                                    selectTextOnFocus
                                     placeholder={isExact ? (noDecimals ? '0' : '0.00') : '0'}
                                     placeholderTextColor={C.slate500}
                                     testID={`split-input-${m.id}`}
@@ -1337,13 +1280,13 @@ export default function AddExpenseScreen() {
                                     {fmtCents(allocatedCents)}
                                     {' / '}
                                     {expenseCurrency.symbol}
-                                    {fmtCents(baseCentsLive)}
+                                    {fmtCents(subtotalCentsLive)}
                                   </Text>
                                   {!isBalanced && (
                                     <Text style={s.splitTotalHint}>
-                                      {allocatedCents < baseCentsLive
-                                        ? `−${expenseCurrency.symbol}${fmtCents(baseCentsLive - allocatedCents)}`
-                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - baseCentsLive)}`}
+                                      {allocatedCents < subtotalCentsLive
+                                        ? `−${expenseCurrency.symbol}${fmtCents(subtotalCentsLive - allocatedCents)}`
+                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - subtotalCentsLive)}`}
                                     </Text>
                                   )}
                                 </>
@@ -1396,6 +1339,70 @@ export default function AddExpenseScreen() {
                   </>
                 )}
               </View>
+
+              {/* Optional tax (%) — the entered amount is inclusive of this tax;
+                  it is added on top of each person's pre-tax share when splitting. */}
+              {!extraExpanded ? (
+                <Pressable
+                  onPress={() => setExtraExpanded(true)}
+                  style={({ pressed }: { pressed: boolean }) => [
+                    s.addExtraLink,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  testID="add-extra-charge-button"
+                >
+                  <MaterialIcons name="add" size={16} color={C.primary} />
+                  <Text style={s.addExtraLinkText}>
+                    {t('expense.addExtraCharge')}
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={s.extraSection}>
+                  <View style={s.extraRow}>
+                    <View style={s.inputIcon}>
+                      <MaterialIcons
+                        name="percent"
+                        size={20}
+                        color={C.slate400}
+                      />
+                    </View>
+                    <TextInput
+                      style={[s.input, s.extraInput]}
+                      placeholder={t('expense.extraChargePlaceholder')}
+                      placeholderTextColor={C.slate400}
+                      value={extraPercent}
+                      onChangeText={setExtraPercent}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      testID="extra-charge-input"
+                    />
+                    <Text style={s.extraPercentSign}>%</Text>
+                    <Pressable
+                      onPress={() => {
+                        setExtraExpanded(false);
+                        setExtraPercent('');
+                      }}
+                      style={({ pressed }: { pressed: boolean }) => [
+                        s.extraRemove,
+                        pressed && { opacity: 0.6 },
+                      ]}
+                      testID="remove-extra-charge-button"
+                    >
+                      <MaterialIcons name="close" size={18} color={C.slate400} />
+                    </Pressable>
+                  </View>
+                  {totalCentsLive > 0 && taxCentsLive > 0 && (
+                    <View style={s.extraPreview}>
+                      <Text style={s.extraPreviewLine}>
+                        {t('expense.extraChargeLine', {
+                          pct: extraPercent,
+                          amount: `${expenseCurrency.symbol}${(taxCentsLive / 100).toFixed(expenseCurrency.noDecimals ? 0 : 2)}`,
+                        })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </>
           ))}
 

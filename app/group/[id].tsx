@@ -47,6 +47,7 @@ interface GroupDetail {
   balances: CurrencyBalance[];
   created_by: string | null;
   archived: boolean;
+  simplify_debts: boolean;
 }
 
 const CATEGORY_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
@@ -122,7 +123,7 @@ export default function GroupDetailScreen() {
     ] = await Promise.all([
       supabase
         .from('groups')
-        .select('id, name, description, image_url, created_by, archived')
+        .select('id, name, description, image_url, created_by, archived, simplify_debts')
         .eq('id', id)
         .single(),
       supabase
@@ -149,7 +150,7 @@ export default function GroupDetailScreen() {
         .map((b) => ({ currency_code: b.currency_code, balance_cents: Number(b.balance_cents) })),
     );
 
-    setGroup({ ...data, balances, archived: data.archived ?? false });
+    setGroup({ ...data, balances, archived: data.archived ?? false, simplify_debts: data.simplify_debts ?? true });
 
     const seen = new Set<string>();
     setExpenses(
@@ -301,6 +302,21 @@ export default function GroupDetailScreen() {
     }
   }, [group, expenses]);
 
+  const handleToggleSimplifyDebts = useCallback(async (value: boolean) => {
+    if (!group) return;
+    // Optimistic update so the switch responds immediately.
+    setGroup((g) => (g ? { ...g, simplify_debts: value } : g));
+    const { error } = await supabase
+      .from('groups')
+      .update({ simplify_debts: value })
+      .eq('id', group.id);
+    if (error) {
+      // Revert on failure.
+      setGroup((g) => (g ? { ...g, simplify_debts: !value } : g));
+      showToast('error', error.message);
+    }
+  }, [group, showToast]);
+
   const handleRename = useCallback(async () => {
     if (!group || !renameInput.trim()) return;
     setRenameLoading(true);
@@ -441,7 +457,7 @@ export default function GroupDetailScreen() {
         <View style={s.actions}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, { flex: 1 }, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
+            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name, simplify: (group.simplify_debts ?? true) ? '1' : '0' } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>{t('group.settleUp')}</Text>
@@ -608,6 +624,8 @@ export default function GroupDetailScreen() {
         actionLoading={actionLoading}
         actionError={actionError}
         exporting={exporting}
+        simplifyDebts={group.simplify_debts ?? true}
+        onToggleSimplifyDebts={handleToggleSimplifyDebts}
         onClose={() => { setShowSettings(false); setActionError(null); }}
         onArchive={handleArchive}
         onUnarchive={handleUnarchive}

@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 const C = {
@@ -8,6 +8,7 @@ const C = {
   orange: '#f97316',
   surface: '#1a3324',
   surfaceHL: '#244732',
+  slate400: '#94a3b8',
   white: '#ffffff',
 };
 
@@ -19,6 +20,8 @@ interface Props {
   actionLoading: boolean;
   actionError: string | null;
   exporting: boolean;
+  simplifyDebts: boolean;
+  onToggleSimplifyDebts: (value: boolean) => void;
   onClose: () => void;
   onArchive: () => void;
   onUnarchive: () => void;
@@ -36,6 +39,8 @@ export default function GroupSettingsSheet({
   actionLoading,
   actionError,
   exporting,
+  simplifyDebts,
+  onToggleSimplifyDebts,
   onClose,
   onArchive,
   onUnarchive,
@@ -66,6 +71,24 @@ export default function GroupSettingsSheet({
 
           {isCreator ? (
             <>
+              <View style={s.row}>
+                <View style={[s.iconWrap, { backgroundColor: 'rgba(23,232,107,0.12)' }]}>
+                  <MaterialIcons name="call-split" size={20} color={C.primary} />
+                </View>
+                <View style={s.toggleTextWrap}>
+                  <Text style={s.rowText}>{t('group.minimizeSettings')}</Text>
+                  <Text style={s.toggleDesc}>{t('group.minimizeSettingsDesc')}</Text>
+                </View>
+                <Switch
+                  testID="simplify-debts-switch"
+                  value={simplifyDebts}
+                  onValueChange={onToggleSimplifyDebts}
+                  disabled={actionLoading}
+                  trackColor={{ false: C.surfaceHL, true: C.primary }}
+                  thumbColor={C.white}
+                />
+              </View>
+
               {isArchived ? (
                 <Pressable
                   style={({ pressed }: { pressed: boolean }) => [s.row, pressed && { opacity: 0.7 }]}
@@ -182,4 +205,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   rowText: { color: C.white, fontWeight: '600', fontSize: 15 },
+  toggleTextWrap: { flex: 1 },
+  toggleDesc: { color: C.slate400, fontSize: 12, marginTop: 2 },
 });

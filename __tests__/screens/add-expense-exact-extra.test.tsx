@@ -107,10 +107,11 @@ async function fillExactExpense(
   }
 }
 
-test('exact split + extra charge: extra distributed proportionally to base amounts', async () => {
+test('exact split + tax: tax added on top of each pre-tax share', async () => {
   const { getByTestId } = render(<AddExpenseScreen />);
 
-  // $100 base, 10% extra, split 40 / 60 by base amount.
+  // $100 pre-tax bill, 10% tax on top. Pre-tax shares entered as 40 / 60; the
+  // tax is added on top of each → 44 / 66, for a $110 total.
   await fillExactExpense(getByTestId, {
     amount: '100',
     extraPercent: '10',
@@ -125,10 +126,10 @@ test('exact split + extra charge: extra distributed proportionally to base amoun
     expect(rpcMock).toHaveBeenCalledWith(
       'create_expense_with_splits',
       expect.objectContaining({
-        // Total billed = base + 10% extra.
+        // Saved total = pre-tax bill + 10% tax.
         p_amount_cents: 11000,
         p_split_member_ids: ['member-1', 'member-2'],
-        // 40% / 60% of the 11000 total, summing exactly to 11000.
+        // Each pre-tax share + its proportional tax, summing to 11000.
         p_split_amounts_cents: [4400, 6600],
       }),
     );
