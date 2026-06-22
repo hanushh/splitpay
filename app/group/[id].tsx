@@ -213,44 +213,6 @@ export default function GroupDetailScreen() {
     return error;
   }, [group, user]);
 
-  const handleSettleUpPress = useCallback(async () => {
-    if (!id || !user || !group) return;
-    const { data } = await supabase.rpc('get_group_member_balances', {
-      p_group_id: id,
-      p_user_id: user.id,
-    });
-    type Row = {
-      member_id: string;
-      display_name: string | null;
-      currency_code: string;
-      balance_cents: number;
-    };
-    const rows = ((data as Row[]) ?? []).filter((r) => Number(r.balance_cents) !== 0);
-    if (rows.length === 0) {
-      showToast('info', t('balances.allSettled'));
-      return;
-    }
-    // Find my member id (used as friend when they pay me)
-    const myMember = members.find((m) => m.user_id === user.id);
-    // Pick the row with the largest absolute balance (most relevant settlement)
-    const top = rows.reduce((best, r) =>
-      Math.abs(Number(r.balance_cents)) > Math.abs(Number(best.balance_cents)) ? r : best,
-    );
-    const theyOweMe = Number(top.balance_cents) > 0;
-    router.push({
-      pathname: '/settle-up',
-      params: {
-        groupId: id,
-        groupName: group.name,
-        friendName: top.display_name ?? '',
-        friendMemberId: theyOweMe ? (myMember?.id ?? '') : top.member_id,
-        amountCents: String(Math.abs(Number(top.balance_cents))),
-        currencyCode: top.currency_code,
-        ...(theyOweMe ? { payerMemberId: top.member_id } : {}),
-      },
-    });
-  }, [id, user, group, members, showToast, t]);
-
   const handleRemind = useCallback(async (member: GroupMember) => {
     if (!id || !user || !group) return;
     setRemindingId(member.id);
@@ -479,7 +441,7 @@ export default function GroupDetailScreen() {
         <View style={s.actions}>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [s.actionBtn, s.actionPrimary, { flex: 1 }, pressed && { opacity: 0.85 }]}
-            onPress={handleSettleUpPress}
+            onPress={() => router.push({ pathname: '/group/balances', params: { groupId: id, groupName: group.name } })}
           >
             <MaterialIcons name="payments" size={20} color={C.bg} />
             <Text style={s.actionPrimaryText}>{t('group.settleUp')}</Text>

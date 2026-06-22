@@ -377,21 +377,17 @@ export default function AddExpenseScreen() {
     setError(null);
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
+    // Exact inputs represent each person's base amount (the extra charge is
+    // applied proportionally at save time), so seed from the base amount only.
     const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
-    const pct = parseFloat(extraPercent);
-    const extraAmt =
-      extraExpanded && !Number.isNaN(pct) && pct > 0
-        ? Math.round((baseAmt * pct) / 100)
-        : 0;
-    const amtCents = baseAmt + extraAmt;
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     if (splitMethod === 'exact') {
-      const perPerson = Math.round(amtCents / ids.length);
+      const perPerson = Math.round(baseAmt / ids.length);
       const init: Record<string, string> = {};
       ids.forEach((id, i) => {
         const cents =
           i === ids.length - 1
-            ? amtCents - perPerson * (ids.length - 1)
+            ? baseAmt - perPerson * (ids.length - 1)
             : perPerson;
         init[id] = (cents / 100).toFixed(decimals);
       });
@@ -448,20 +444,16 @@ export default function AddExpenseScreen() {
   const redistributeExact = () => {
     const ids = [...selectedMembers];
     if (ids.length === 0) return;
+    // Distribute the base amount equally; the extra charge is added
+    // proportionally at save time.
     const baseAmt = Math.round(parseFloat(amount) * 100) || 0;
-    const pct = parseFloat(extraPercent);
-    const extraAmt =
-      extraExpanded && !Number.isNaN(pct) && pct > 0
-        ? Math.round((baseAmt * pct) / 100)
-        : 0;
-    const amtCents = baseAmt + extraAmt;
-    const perPerson = Math.round(amtCents / ids.length);
+    const perPerson = Math.round(baseAmt / ids.length);
     const decimals = expenseCurrency.noDecimals ? 0 : 2;
     const init: Record<string, string> = {};
     ids.forEach((id, i) => {
       const cents =
         i === ids.length - 1
-          ? amtCents - perPerson * (ids.length - 1)
+          ? baseAmt - perPerson * (ids.length - 1)
           : perPerson;
       init[id] = (cents / 100).toFixed(decimals);
     });
@@ -575,10 +567,21 @@ export default function AddExpenseScreen() {
     if (splitMethod === 'equally') return null;
     const ids = [...selectedMembers];
     if (splitMethod === 'exact') {
-      const cents = ids.map((id) =>
+      const baseCentsArr = ids.map((id) =>
         Math.round((parseFloat(exactAmounts[id] ?? '0') || 0) * 100),
       );
-      return { memberIds: ids, amountsCents: cents };
+      // No extra (or no base) → use entered amounts directly.
+      if (extraCentsLive <= 0 || baseCentsLive <= 0) {
+        return { memberIds: ids, amountsCents: baseCentsArr };
+      }
+      // Distribute the total (base + extra) in proportion to each base amount,
+      // giving the rounding remainder to the last member.
+      const raw = baseCentsArr.map((c) =>
+        Math.floor((c / baseCentsLive) * amtCentsForValidation),
+      );
+      const remainder = amtCentsForValidation - raw.reduce((a, b) => a + b, 0);
+      if (raw.length > 0) raw[raw.length - 1] += remainder;
+      return { memberIds: ids, amountsCents: raw };
     }
     if (splitMethod === 'shares') {
       const totalShares = ids.reduce(
@@ -619,9 +622,9 @@ export default function AddExpenseScreen() {
           s + Math.round((parseFloat(exactAmounts[id]) || 0) * 100),
         0,
       );
-      if (total !== amtCentsForValidation)
+      if (total !== baseCentsLive)
         return t('expense.splitAmountMismatch', {
-          expected: (amtCentsForValidation / 100).toFixed(2),
+          expected: (baseCentsLive / 100).toFixed(2),
         });
     } else if (splitMethod === 'shares') {
       const hasInvalid = ids.some((id) => {
@@ -1177,7 +1180,7 @@ export default function AddExpenseScreen() {
                           return shareAmounts[m.id]?.trim() && !isNaN(v) && v > 0;
                         });
                         const isBalanced = isExact
-                          ? allocatedCents === amtCentsLive
+                          ? allocatedCents === baseCentsLive
                           : isShares
                             ? allSharesValid
                             : Math.abs(totalPct - 100) <= 0.01;
@@ -1256,7 +1259,18 @@ export default function AddExpenseScreen() {
                                 ? Math.floor((parsed / totalSharesCount) * amtCentsLive)
                                 : !isExact && !isShares && fieldOk
                                   ? Math.floor((parsed / 100) * amtCentsLive)
-                                  : null;
+                                  : isExact &&
+                                      fieldOk &&
+                                      extraCentsLive > 0 &&
+                                      baseCentsLive > 0
+                                    ? // Exact + extra: show the final amount incl.
+                                      // this member's proportional share of the extra.
+                                      Math.round(
+                                        parsed *
+                                          100 *
+                                          (amtCentsForValidation / baseCentsLive),
+                                      )
+                                    : null;
 
                               return (
                                 <View
@@ -1323,13 +1337,13 @@ export default function AddExpenseScreen() {
                                     {fmtCents(allocatedCents)}
                                     {' / '}
                                     {expenseCurrency.symbol}
-                                    {fmtCents(amtCentsLive)}
+                                    {fmtCents(baseCentsLive)}
                                   </Text>
                                   {!isBalanced && (
                                     <Text style={s.splitTotalHint}>
-                                      {allocatedCents < amtCentsLive
-                                        ? `−${expenseCurrency.symbol}${fmtCents(amtCentsLive - allocatedCents)}`
-                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - amtCentsLive)}`}
+                                      {allocatedCents < baseCentsLive
+                                        ? `−${expenseCurrency.symbol}${fmtCents(baseCentsLive - allocatedCents)}`
+                                        : `+${expenseCurrency.symbol}${fmtCents(allocatedCents - baseCentsLive)}`}
                                     </Text>
                                   )}
                                 </>
