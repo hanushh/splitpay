@@ -258,7 +258,6 @@
   "group.youLent": "вы одолжили",
   "group.youOwe": "Вы должны {{amount}}",
   "group.youOweShort": "вы должны",
-  "group.viewBalances": "Кто кому должен",
   "groups.acrossActive": "в активных группах",
   "groups.acrossAll": "во всех группах",
   "groups.allSettled": "Все расчёты завершены",

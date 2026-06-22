@@ -258,7 +258,6 @@
   "group.youLent": "du hast geliehen",
   "group.youOwe": "Du schuldest {{amount}}",
   "group.youOweShort": "du schuldest",
-  "group.viewBalances": "Wer schuldet wem",
   "groups.acrossActive": "in aktiven Gruppen",
   "groups.acrossAll": "in allen Gruppen",
   "groups.allSettled": "Alles ist ausgeglichen",
