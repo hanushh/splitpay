@@ -48,7 +48,7 @@ select cron.unschedule(jobid)
 
 select cron.schedule(
   'auto-archive-settled-groups',
-  '0 2 * * *',
+  '0 2 1 1 *',
   $$
     UPDATE public.groups
     SET archived = true
