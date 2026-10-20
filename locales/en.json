@@ -75,6 +75,7 @@
   "auth.passwordMismatch": "Passwords do not match.",
   "auth.passwordTooShort": "Password must be at least 6 characters.",
   "auth.phone": "Phone number (e.g. +1 555 000 1234)",
+  "auth.phoneOptionalHint": "Optional — helps friends find you on PaySplit",
   "auth.signIn": "Sign In",
   "auth.signingIn": "Signing you in…",
   "auth.signInTo": "Sign in to {{appName}}",

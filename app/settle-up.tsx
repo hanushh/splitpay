@@ -2,9 +2,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as StoreReview from 'expo-store-review';
 import { settlementEvents } from '@/lib/settlement-events';
 import { useSettlement } from '@/hooks/use-settlement';
 import { dispatchPendingPushNotifications } from '@/lib/push-notifications';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 import { CURRENCIES, type Currency, useCurrency } from '@/context/currency';
 import { useToast } from '@/context/toast';
 import {
@@ -102,9 +104,25 @@ export default function SettleUpScreen() {
     });
     setSaving(false);
     if (ok) {
+      // Track settlement completion — critical retention signal
+      analytics.track(AnalyticsEvents.SETTLEMENT_CREATED, {
+        group_id: groupId ?? null,
+        amount_cents: parsedCents,
+        currency_code: selectedCurrency.code,
+        payment_method: paymentMethod,
+        is_third_party: iThirdParty,
+      });
+
       settlementEvents.emit();
       dispatchPendingPushNotifications();
       showToast('success', t('toast.settlementRecorded'));
+
+      // Request a review after a successful settlement — the highest-satisfaction moment.
+      // expo-store-review is rate-limited by the OS; this is safe to call freely.
+      StoreReview.isAvailableAsync().then((available) => {
+        if (available) StoreReview.requestReview();
+      });
+
       router.back();
     }
   };

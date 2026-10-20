@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth';
 import { APP_DISPLAY_NAME } from '@/lib/app-config';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   bg: '#112117',
@@ -48,7 +49,11 @@ export default function SignInScreen() {
     setLoading(true);
     const { error } = await signIn(emailOrPhone, password);
     setLoading(false);
-    if (error) setError(error);
+    if (error) {
+      setError(error);
+    } else {
+      analytics.track(AnalyticsEvents.SIGN_IN, { method: 'email' });
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -56,7 +61,11 @@ export default function SignInScreen() {
     setGoogleLoading(true);
     const { error } = await signInWithGoogle();
     setGoogleLoading(false);
-    if (error) setError(error);
+    if (error) {
+      setError(error);
+    } else {
+      analytics.track(AnalyticsEvents.SIGN_IN, { method: 'google' });
+    }
   };
 
   return (

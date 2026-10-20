@@ -18,6 +18,7 @@ import { APP_DISPLAY_NAME } from '@/lib/app-config';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { normalizePhone } from '@/lib/phone';
 import { useFeatureFlag } from '@/lib/analytics';
+import { analytics, AnalyticsEvents } from '@/lib/analytics';
 
 const C = {
   bg: '#112117',
@@ -46,12 +47,13 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     const requireConfirm = !simplifiedSignup;
-    if (!email || !phone || !password || (requireConfirm && !confirmPassword)) {
+    if (!email || !password || (requireConfirm && !confirmPassword)) {
       setError(t('auth.fillAllFields'));
       return;
     }
-    const normalizedPhone = normalizePhone(phone.trim());
-    if (!normalizedPhone) {
+    // Phone is optional — normalise only if provided
+    const normalizedPhone = phone.trim() ? normalizePhone(phone.trim()) : null;
+    if (phone.trim() && !normalizedPhone) {
       setError(t('auth.invalidPhone'));
       return;
     }
@@ -65,11 +67,15 @@ export default function SignUpScreen() {
     }
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password, normalizedPhone);
+    const { error } = await signUp(email, password, normalizedPhone ?? '');
     setLoading(false);
     if (error) {
       setError(error);
     } else {
+      analytics.track(AnalyticsEvents.SIGN_UP, {
+        method: 'email',
+        phone_provided: !!normalizedPhone,
+      });
       setSuccess(true);
     }
   };
@@ -79,7 +85,11 @@ export default function SignUpScreen() {
     setGoogleLoading(true);
     const { error } = await signInWithGoogle();
     setGoogleLoading(false);
-    if (error) setError(error);
+    if (error) {
+      setError(error);
+    } else {
+      analytics.track(AnalyticsEvents.SIGN_UP, { method: 'google', phone_provided: false });
+    }
   };
 
   if (success) {
@@ -174,6 +184,7 @@ export default function SignUpScreen() {
           testID="phone-input"
           editable={!loading}
         />
+        <Text style={s.fieldHint}>{t('auth.phoneOptionalHint')}</Text>
         <TextInput
           style={s.input}
           placeholder={t('auth.password')}
@@ -336,5 +347,12 @@ const s = StyleSheet.create({
     color: C.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  fieldHint: {
+    color: C.slate500,
+    fontSize: 12,
+    marginTop: -10,
+    marginBottom: 14,
+    paddingHorizontal: 4,
   },
 });
